@@ -1,5 +1,5 @@
 // --- Configuration ---
-export const API_BASE_URL = 'http://localhost:5000/api';
+export const API_BASE_URL = 'https://cse299-1.onrender.com/api';
 export const RESUME_VERSION = '1.0';
 
 // --- Initial Data Structures ---
