@@ -1,9 +1,11 @@
 import React from 'react';
-import { ChevronRight, Loader2, Zap, LogIn, UserPlus, Home, Send, FileText, Upload, Plus, X, Download, User } from 'lucide-react';
+// ADDED Layout to the import list
+import { ChevronRight, Loader2, Zap, LogIn, UserPlus, Home, Send, FileText, Upload, Plus, X, Download, User, Layout } from 'lucide-react';
 import { useAuth, useRouter } from "../Context/context";
 
 // --- Icons Map---
-export const Icons = { ChevronRight, Loader2, Zap, LogIn, UserPlus, Home, Send, FileText, Upload, Plus, X, Download, User };
+// ADDED Layout to the exported Icons object
+export const Icons = { ChevronRight, Loader2, Zap, LogIn, UserPlus, Home, Send, FileText, Upload, Plus, X, Download, User, Layout };
 
 // --- Basic UI Primitives ---
 

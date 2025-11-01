@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, useRouter } from "../../Context/context";
 import { Input, Button, Card, Icons } from "../random";
-import ResumePreview from "../ResumePreview/ResumePreview";
+// UPDATED: Use ResumeDesigns wrapper and import available options
+import ResumeDesigns,  {designOptions } from "../ResumePreview/ResumeDesigns";
 import ChatModal from "../AiChat/AiChat";
 import { initialResumeState, API_BASE_URL } from "../../Config/constraints";
 
@@ -59,7 +60,7 @@ const DynamicListEditor = ({ title, sectionName, items, onAdd, onUpdate, onDelet
                                 <Input label="Degree / Field of Study" name="degree" value={item.degree} onChange={(e) => onUpdate(item.id, 'degree', e.target.value)} />
                                 <div className="grid grid-cols-2 gap-4">
                                     <Input label="Start Year" name="startYear" value={item.startYear} onChange={(e) => onUpdate(item.id, 'startYear', e.target.value)} />
-                                    <Input label="End Year" name="endYear" value={item.endYear} onChange={(e) => onUpdate(item.id, 'endYear', e.target.value)} />
+                                    <Input label="End Year" name="endYear" value={item.endDate} onChange={(e) => onUpdate(item.id, 'endYear', e.target.value)} />
                                 </div>
                             </>
                         )}
@@ -80,6 +81,8 @@ const ResumeBuilder = () => {
     const [chatOpen, setChatOpen] = useState(false);
     const [uploadLoading, setUploadLoading] = useState(false);
     const [uploadError, setUploadError] = useState(null);
+    // NEW: State to track the selected resume design
+    const [selectedDesign, setSelectedDesign] = useState('Classic'); 
 
     // Redirect unauthenticated users
     useEffect(() => {
@@ -132,11 +135,11 @@ const ResumeBuilder = () => {
             if (data.success && data.refinedText) {
                 handleListUpdate('experience', itemId, 'description', data.refinedText);
             } else {
-                alert(`Refinement failed: ${data.error || 'Unknown error.'}`);
+                // IMPORTANT: Replaced alert() with a console error or custom modal if available
+                console.error(`Refinement failed: ${data.error || 'Unknown error.'}`);
             }
         } catch (error) {
-            alert('Network error during refinement.');
-            console.error('Refinement error:', error);
+            console.error('Network error during refinement:', error);
         } finally {
             setRefiningId(null);
         }
@@ -187,7 +190,8 @@ const ResumeBuilder = () => {
                 };
 
                 setResume(mappedData);
-                alert('Resume successfully parsed and form is filled!');
+                // IMPORTANT: Replaced alert() with a console log/temporary message
+                console.log('Resume successfully parsed and form is filled!');
             } else {
                 setUploadError(`Parsing failed: ${data.error || 'Could not extract valid data. Try a simpler file format.'}`);
             }
@@ -243,6 +247,27 @@ const ResumeBuilder = () => {
                                 />
                             </div>
                             {uploadError && <p className="text-red-500 text-sm mt-2">{uploadError}</p>}
+                        </Card>
+                        
+                        {/* NEW: Design Selector */}
+                        <Card className="mb-6">
+                            <h2 className="text-2xl font-bold flex items-center mb-4 text-gray-900 dark:text-white border-b pb-2 border-gray-100 dark:border-gray-700"><Icons.Layout className="w-6 h-6 mr-3 text-indigo-600 dark:text-indigo-400" /> Choose Design</h2>
+                            <label htmlFor="design-selector" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Select Template:
+                            </label>
+                            {/* We use a native select here for simplicity */}
+                            <select
+                                id="design-selector"
+                                value={selectedDesign}
+                                onChange={(e) => setSelectedDesign(e.target.value)}
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            >
+                                {designOptions.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </Card>
 
 
@@ -303,7 +328,7 @@ const ResumeBuilder = () => {
 
                     {/* Right Side: Live Preview (Sticky/Fixed) */}
                     <div className="lg:w-1/2 lg:sticky lg:top-4 lg:h-screen lg:overflow-y-auto print:static print:h-auto">
-                        <ResumePreview data={resume} />
+                        <ResumeDesigns data={resume} selectedDesign={selectedDesign} />
                         
                         {/* Download Button */}
                         <div className="mt-8 mb-20 print:hidden">

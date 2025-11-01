@@ -1,5 +1,5 @@
+// client/src/Components/ResumePreview/ClassicDesign.jsx (New File)
 import React from 'react';
-import { RESUME_VERSION } from "../../Config/constraints";
 
 // --- Resume Sub-Components & Helpers ---
 
@@ -39,9 +39,9 @@ const EducationPreview = ({ item }) => (
     </div>
 );
 
-const ResumePreview = ({ data }) => {
+const ClassicDesign = ({ data }) => {
     return (
-        <div id="resume-document" className="p-8 bg-white dark:bg-gray-800 shadow-xl min-h-[11in] w-full max-w-[8.5in] mx-auto print:shadow-none print:p-0 print:m-0 transition-shadow duration-300 hover:shadow-2xl">
+        <> {/* Use a Fragment here */}
             {/* Header / Personal Info */}
             <header className="text-center pb-3 border-b-2 border-indigo-600 dark:border-indigo-400 mb-4">
                 <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-1">{data.personal.name || 'Your Name'}</h1>
@@ -85,11 +85,8 @@ const ResumePreview = ({ data }) => {
                     <p className="text-sm text-gray-700 dark:text-gray-300">{data.skills}</p>
                 </section>
             )}
-            <footer className="mt-8 text-xs text-gray-400 dark:text-gray-600 text-center border-t pt-2 print:hidden">
-                Version {RESUME_VERSION} - Powered by Gemini AI
-            </footer>
-        </div>
+        </>
     );
 };
 
-export default ResumePreview;
+export default ClassicDesign;
