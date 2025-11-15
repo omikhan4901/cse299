@@ -1,8 +1,29 @@
 import React from 'react';
-import { Input, Button, Card, Icons } from "../random";
+import { 
+    Collapse, 
+    Form, 
+    Input, 
+    Button, 
+    Row, 
+    Col, 
+    Space, 
+    Tooltip,
+    Typography,
+    Popconfirm
+} from 'antd';
+import { 
+    PlusOutlined, 
+    DeleteOutlined, 
+    ThunderboltOutlined 
+} from '@ant-design/icons';
 
-// This component is now extracted from MainBuilder.jsx
-// It receives all its logic as props, making it a "dumb" component.
+const { Panel } = Collapse;
+const { Text, Title } = Typography;
+
+/**
+ * An intuitive, Collapse-based list editor for Experience and Education.
+ * Each item in the list is its own form, providing instant updates.
+ */
 const DynamicListEditor = ({ 
     title, 
     sectionName, 
@@ -14,85 +35,172 @@ const DynamicListEditor = ({
     refiningId 
 }) => {
     
-    // A helper to determine which fields to show based on section
+    // We need a form instance *for each panel*
+    const [formInstances] = Form.useForm();
+    
+    // Renders the correct form fields *inside* the collapse panel
     const renderFields = (item) => {
+        
+        // This handler is called on *every key press* in this item's form
+        const handleFormChange = (changedValues) => {
+            const fieldName = Object.keys(changedValues)[0];
+            const value = changedValues[fieldName];
+            onUpdate(sectionName, item.id, fieldName, value);
+        };
+
         if (sectionName === 'experience') {
             return (
-                <>
-                    <Input label="Title" name="title" value={item.title} onChange={(e) => onUpdate(sectionName, item.id, 'title', e.target.value)} />
-                    <Input label="Company" name="company" value={item.company} onChange={(e) => onUpdate(sectionName, item.id, 'company', e.target.value)} />
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Start Date (YYYY-MM)" name="startDate" value={item.startDate} onChange={(e) => onUpdate(sectionName, item.id, 'startDate', e.target.value)} />
-                        <Input label="End Date (YYYY-MM/Present)" name="endDate" value={item.endDate} onChange={(e) => onUpdate(sectionName, item.id, 'endDate', e.target.value)} />
-                    </div>
-                    <Input 
-                        type="textarea" 
-                        label="Description (Bullet Points)" 
-                        name="description" 
-                        value={item.description} 
-                        onChange={(e) => onUpdate(sectionName, item.id, 'description', e.target.value)} 
-                    />
-                </>
+                <Form 
+                    layout="vertical" 
+                    onValuesChange={handleFormChange}
+                    initialValues={item}
+                    // Stop the event from bubbling up and closing the panel
+                    onClick={(e) => e.stopPropagation()} 
+                >
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item label="Title" name="title">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="Company" name="company">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item label="Start Date (YYYY-MM)" name="startDate">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="End Date (YYYY-MM/Present)" name="endDate">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Form.Item label="Description (Bullet Points)" name="description">
+                        <Input.TextArea rows={5} />
+                    </Form.Item>
+                </Form>
             );
         }
         
         if (sectionName === 'education') {
             return (
-                <>
-                    <Input label="Institution" name="institution" value={item.institution} onChange={(e) => onUpdate(sectionName, item.id, 'institution', e.target.value)} />
-                    <Input label="Degree / Field of Study" name="degree" value={item.degree} onChange={(e) => onUpdate(sectionName, item.id, 'degree', e.target.value)} />
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input label="Start Year" name="startYear" value={item.startYear} onChange={(e) => onUpdate(sectionName, item.id, 'startYear', e.target.value)} />
-                        <Input label="End Year" name="endYear" value={item.endYear} onChange={(e) => onUpdate(sectionName, item.id, 'endYear', e.target.value)} />
-                    </div>
-                </>
+                <Form 
+                    layout="vertical" 
+                    onValuesChange={handleFormChange}
+                    initialValues={item}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item label="Institution" name="institution">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="Degree / Field of Study" name="degree">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item label="Start Year" name="startYear">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="End Year" name="endYear">
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </Form>
             );
         }
         return null;
     };
 
-    return (
-        // Note: We removed the outer <Card> shell so it can be used for other sections
-        <div className="w-full">
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex justify-between items-center">
-                {title}
-                <Button variant="secondary" onClick={onAdd} className="ml-4">
-                    <Icons.Plus className="w-4 h-4 mr-2" /> Add Entry
-                </Button>
-            </h3>
-            <div className="space-y-4">
-                {items.map((item) => (
-                    <div key={item.id} className="p-4 border border-indigo-200 dark:border-indigo-700 rounded-lg bg-indigo-50 dark:bg-gray-700 shadow-sm relative">
-                        {/* Action Buttons */}
-                        <div className="absolute top-2 right-2 flex space-x-2">
-                            {/* Only show AI refine button for experience */}
-                            {onRefine && (
-                                <Button
-                                    variant="ai"
-                                    onClick={() => onRefine(item.id, item.description)}
-                                    loading={refiningId === item.id}
-                                    disabled={refiningId && refiningId !== item.id}
-                                    className="p-1 h-8 w-8 text-xs"
-                                >
-                                    <Icons.Zap className="w-4 h-4" />
-                                </Button>
-                            )}
-                            <Button
-                                variant="danger"
-                                onClick={() => onDelete(item.id)}
-                                className="p-1 h-8 w-8 text-xs"
-                                disabled={refiningId}
-                            >
-                                <Icons.X className="w-4 h-4" />
-                            </Button>
-                        </div>
+    // Creates the header for each panel (e.g., "Lead Engineer at Google")
+    const getPanelHeader = (item) => {
+        if (sectionName === 'experience') {
+            return item.title || "New Experience Entry";
+        }
+        if (sectionName === 'education') {
+            return item.degree || "New Education Entry";
+        }
+        return "New Entry";
+    };
 
-                        {/* Render the correct form fields */}
+    // Creates the action buttons (Delete, AI Refine) for each panel
+    const getPanelExtra = (item) => (
+        <Space onClick={(e) => e.stopPropagation()}>
+            {onRefine && (
+                <Tooltip title="Refine with AI">
+                    <Button
+                        type="text"
+                        shape="circle"
+                        icon={<ThunderboltOutlined />}
+                        loading={refiningId === item.id}
+                        disabled={refiningId && refiningId !== item.id}
+                        onClick={() => onRefine(item.id, item.description)}
+                    />
+                </Tooltip>
+            )}
+            <Popconfirm
+                title="Delete this entry?"
+                onConfirm={() => onDelete(sectionName, item.id)} // Pass sectionName
+                okText="Delete"
+                cancelText="Cancel"
+            >
+                <Tooltip title="Delete">
+                    <Button
+                        type="text"
+                        danger
+                        shape="circle"
+                        icon={<DeleteOutlined />}
+                        disabled={refiningId}
+                    />
+                </Tooltip>
+            </Popconfirm>
+        </Space>
+    );
+
+    return (
+        <Space direction="vertical" style={{ width: '100%' }}>
+            <Title level={4}>{title}</Title>
+            <Text type="secondary" style={{ marginBottom: 16 }}>
+                Click an item to edit, or add a new one.
+            </Text>
+            <Collapse 
+                ghost
+                accordion
+                style={{ width: '100%' }}
+            >
+                {items.map(item => (
+                    <Panel
+                        header={getPanelHeader(item)}
+                        key={item.id}
+                        extra={getPanelExtra(item)}
+                    >
                         {renderFields(item)}
-                    </div>
+                    </Panel>
                 ))}
-            </div>
-        </div>
+            </Collapse>
+            <Button
+                type="dashed"
+                onClick={() => onAdd(sectionName)} // Pass sectionName
+                icon={<PlusOutlined />}
+                style={{ width: '100%', marginTop: 16 }}
+            >
+                Add {sectionName === 'experience' ? 'Experience' : 'Education'}
+            </Button>
+        </Space>
     );
 };
 

@@ -1,14 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from "../../Context/context";
-import { Input, Button, Card, Icons } from "../random";
+import { useAuth } from "../../Context/context-definitions";
+import { Modal, Input, Button, Space, Spin, Typography } from 'antd';
+import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { API_BASE_URL } from "../../Config/constraints";
 
-const ChatModal = ({ resumeText, onSave, onClose }) => {
+const { Paragraph } = Typography;
+
+const ChatModal = ({ resumeText, onSave, onClose, open }) => {
     const { token } = useAuth();
-    const [conversation, setConversation] = useState([{ role: 'assistant', content: "Hello! I am your AI Resume Assistant. Tell me what you want to improve about your current summary, or ask me to write a new one!" }]);
+    const [conversation, setConversation] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const chatRef = useRef(null);
+
+    // Reset conversation when modal opens
+    useEffect(() => {
+        if (open) {
+            setConversation([{ 
+                role: 'assistant', 
+                content: "Hello! I'm your AI assistant. Your current summary is loaded. How can I help you improve it?" 
+            }]);
+            setInput('');
+        }
+    }, [open]);
 
     const handleSend = async () => {
         if (!input.trim() || loading || !token) return;
@@ -18,9 +32,8 @@ const ChatModal = ({ resumeText, onSave, onClose }) => {
         setInput('');
         setLoading(true);
 
-        // We sliceto remove the initial assistant greeting from the history sent to the server
         const payload = {
-            conversation: [...conversation.slice(1), newUserMessage],
+            conversation: [...conversation, newUserMessage], 
             resumeText: resumeText,
         };
 
@@ -35,72 +48,125 @@ const ChatModal = ({ resumeText, onSave, onClose }) => {
             if (data.success && data.response) {
                 const aiResponse = data.response;
                 setConversation(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-
-                // Simple check: if the response looks like text with punctuation, offer to save it
-                const parts = aiResponse.split('\n\n');
-                if (parts.length > 1 || parts[0].includes('.') || parts[0].includes(' ')) { 
-                    if (window.confirm("AI has suggested new content. Would you like to use the first paragraph to replace your current summary?")) {
-                        onSave(parts[0].trim());
-                    }
-                }
             } else {
-                setConversation(prev => [...prev, { role: 'assistant', content: `[ERROR] ${data.error || 'Failed to get AI response.'}` }]);
+                throw new Error(data.error || 'Failed to get AI response.');
             }
         } catch (error) {
             console.error('Chat API error:', error);
-            setConversation(prev => [...prev, { role: 'assistant', content: '[ERROR] Network error during AI processing.' }]);
+            setConversation(prev => [...prev, { role: 'assistant', content: `[ERROR] ${error.message}` }]);
         } finally {
             setLoading(false);
         }
     };
 
+    // Auto-scroll chat
     useEffect(() => {
         if (chatRef.current) {
             chatRef.current.scrollTop = chatRef.current.scrollHeight;
         }
     }, [conversation]);
 
+    const handleSaveSuggestion = (text) => {
+        const match = text.match(/([A-Z][\s\S]*)/);
+        const suggestion = match ? match[1].trim() : text.trim();
+        
+        Modal.confirm({
+            title: 'Save AI Suggestion?',
+            content: (
+                <Paragraph ellipsis={{ rows: 5, expandable: true }}>
+                    {suggestion}
+                </Paragraph>
+            ),
+            okText: "Save to Summary",
+            onOk: () => onSave(suggestion),
+        });
+    };
+
     return (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-70 z-[100] flex items-center justify-center p-4 print:hidden">
-            <Card className="w-full max-w-2xl h-[90vh] flex flex-col dark:bg-gray-700">
-                <h2 className="text-2xl font-bold mb-4 text-indigo-700 dark:text-indigo-400 border-b pb-2 flex justify-between items-center">
-                    AI Conversational Editor (Summary Focus)
-                    <Button onClick={onClose} variant="danger" className="ml-4 h-8 w-8 p-0">X</Button>
-                </h2>
-
-                <div ref={chatRef} className="flex-grow overflow-y-auto p-4 space-y-4 border rounded-lg bg-gray-50 dark:bg-gray-800 mb-4">
-                    {conversation.map((msg, index) => (
-                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`p-3 rounded-xl max-w-[80%] shadow-md ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white'}`}>
+        <Modal
+            title="AI Conversational Editor (Summary)"
+            open={open}
+            onCancel={onClose}
+            width={700}
+            footer={null} 
+        >
+            <div 
+                ref={chatRef} 
+                style={{ 
+                    height: '50vh', 
+                    overflowY: 'auto', 
+                    padding: '16px', 
+                    background: '#f5f5f5',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                }}
+            >
+                {conversation.map((msg, index) => (
+                    <div 
+                        key={index} 
+                        style={{ 
+                            display: 'flex', 
+                            justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                            marginBottom: '12px'
+                        }}
+                    >
+                        <div 
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '12px',
+                                maxWidth: '80%',
+                                background: msg.role === 'user' ? '#007B7B' : '#fff',
+                                color: msg.role === 'user' ? '#fff' : '#333',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                            }}
+                        >
+                            <pre style={{ 
+                                whiteSpace: 'pre-wrap', 
+                                wordWrap: 'break-word', 
+                                margin: 0, 
+                                fontFamily: 'inherit' 
+                            }}>
                                 {msg.content}
-                            </div>
+                            </pre>
+                            {index > 0 && msg.role === 'assistant' && !msg.content.startsWith('[ERROR]') && (
+                                <Button 
+                                    type="link" 
+                                    size="small"
+                                    style={{ display: 'block', padding: '4px 0 0 0', color: msg.role === 'user' ? '#e6f7ff' : '#004d4d' }}
+                                    onClick={() => handleSaveSuggestion(msg.content)}
+                                >
+                                    Use this suggestion
+                                </Button>
+                            )}
                         </div>
-                    ))}
-                    {loading && (
-                        <div className="flex justify-start">
-                            <div className="bg-gray-200 dark:bg-gray-600 text-gray-600 p-3 rounded-xl max-w-[80%] flex items-center">
-                                <Icons.Zap className="w-4 h-4 mr-2 animate-spin text-yellow-500" />
-                                AI is thinking...
-                            </div>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                ))}
+                {loading && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', paddingLeft: '12px' }}>
+                        <Spin indicator={<ThunderboltOutlined spin />} style={{ marginRight: 12, color: '#007B7B' }} />
+                        AI is thinking...
+                    </div>
+                )}
+            </div>
 
-                <div className="flex">
-                    <Input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder="e.g., Make it focused on data science."
-                        className="flex-grow mb-0"
-                    />
-                    <Button onClick={handleSend} disabled={loading} className="ml-2 px-6">
-                        <Icons.Send className="w-5 h-5" />
-                    </Button>
-                </div>
-            </Card>
-        </div>
+            <Space.Compact style={{ width: '100%' }}>
+                <Input
+                    size="large"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="e.g., Make my summary more focused on data science."
+                    disabled={loading}
+                />
+                <Button 
+                    type="primary" 
+                    icon={<SendOutlined />} 
+                    size="large"
+                    onClick={handleSend} 
+                    loading={loading}
+                />
+            </Space.Compact>
+        </Modal>
     );
 };
 

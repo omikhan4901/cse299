@@ -1,10 +1,22 @@
 import React from 'react';
+import { Button, Typography, Space, Divider, Tag, Descriptions } from 'antd';
+import { 
+    EditOutlined, 
+    MailOutlined, 
+    PhoneOutlined, 
+    LinkedinOutlined, 
+    HomeOutlined 
+} from '@ant-design/icons';
 
-// --- Reusing Dark Mode Sub-Components from ClassicDark (since styles match) ---
+const { Title, Text, Paragraph, Link } = Typography;
+
+// --- Sub-Components (Polished) ---
+
 const BulletPoints = ({ text }) => {
     if (!text) return null;
     return (
-        <ul className="list-disc list-inside space-y-1 mt-1 text-gray-300 ml-5 text-sm">
+        // FIX: Brighter bullet points
+        <ul className="list-disc list-inside space-y-1 mt-1 text-gray-200 ml-5 text-sm">
             {text.split('\n').map((line, index) => (
                 line.trim() && <li key={index}>{line.trim()}</li>
             ))}
@@ -12,18 +24,23 @@ const BulletPoints = ({ text }) => {
     );
 };
 
-// Component for a section title in the main column (adapted for dark mode)
 const MainSectionTitle = ({ title }) => (
-    <h2 className="text-lg font-bold uppercase tracking-wider text-white border-b-2 border-indigo-400 pb-1 mb-3">
+    // FIX: Use accent color for section titles
+    <Title level={4} className="text-indigo-400 border-b-2 border-indigo-600 pb-1 mb-4 uppercase tracking-wider">
         {title}
-    </h2>
+    </Title>
 );
 
 const ModernDarkExperiencePreview = ({ item }) => (
     <div className="mb-5">
         <div className="flex justify-between items-start">
-            <h4 className="text-md font-bold text-indigo-400">{item.title || 'Job Title'} @ {item.company || 'Company Name'}</h4>
-            <span className="text-xs text-gray-500 flex-shrink-0 ml-4 italic">{item.startDate} - {item.endDate}</span>
+            <Title level={5} className="text-indigo-400 mb-0">
+                {item.title || 'Job Title'} @ {item.company || 'Company Name'}
+            </Title>
+            {/* FIX: Brighter date text */}
+            <Text className="text-gray-400 flex-shrink-0 ml-4 italic">
+                {item.startDate} - {item.endDate}
+            </Text>
         </div>
         <BulletPoints text={item.description} />
     </div>
@@ -32,72 +49,132 @@ const ModernDarkExperiencePreview = ({ item }) => (
 const ModernDarkEducationPreview = ({ item }) => (
     <div className="mb-5">
         <div className="flex justify-between items-start">
-            <h4 className="text-md font-bold text-white">{item.degree || 'Degree'}</h4>
-            <span className="text-xs text-gray-500 flex-shrink-0 ml-4 italic">{item.startYear} - {item.endYear}</span>
+            <Title level={5} className="text-white mb-0">
+                {item.degree || 'Degree'}
+            </Title>
+            {/* FIX: Brighter date text */}
+            <Text className="text-gray-400 flex-shrink-0 ml-4 italic">
+                {item.startYear} - {item.endYear}
+            </Text>
         </div>
-        <p className="text-sm italic text-gray-400">{item.institution || 'Institution Name'}</p>
+        <Text italic className="text-sm text-gray-400">
+            {item.institution || 'Institution Name'}
+        </Text>
     </div>
 );
 
+// --- Main Template ---
 
-const ModernDarkDesign = ({ data }) => {
+const ModernDarkDesign = ({ data, onEditSection }) => {
+    
+    const EditButton = ({ section }) => (
+        <Button
+            type="primary"
+            shape="circle"
+            icon={<EditOutlined />}
+            onClick={() => onEditSection(section)}
+            className="print:hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            style={{ zIndex: 10 }}
+        />
+    );
+
+    const contactItems = [
+        { key: '1', label: <MailOutlined />, children: data.personal.email },
+        { key: '2', label: <PhoneOutlined />, children: data.personal.phone },
+        { key: '3', label: <HomeOutlined />, children: data.personal.city },
+        { key: '4', label: <LinkedinOutlined />, children: <Link href={`https://${data.personal.linkedin}`} target="_blank" className="text-indigo-400">{data.personal.linkedin}</Link> },
+    ];
+
     return (
         <div className="grid grid-cols-4 gap-6 min-h-[10in]">
             {/* Left Column (1/4 width) - Contact & Skills */}
             <div className="col-span-1 bg-gray-800 p-4 pt-6 border-r border-indigo-600">
                 
-                {/* Personal Info Title */}
-                <header className="mb-6">
-                    <h1 className="text-2xl font-extrabold text-white mb-1">{data.personal.name || 'Your Name'}</h1>
-                    <p className="text-sm font-medium text-indigo-400">{data.personal.title || 'Professional Title'}</p>
-                </header>
+                <div className="relative"> 
+                    <EditButton section="personal" /> 
+                    <header className="mb-6">
+                        <Title level={2} className="text-white mb-1">
+                            {data.personal.name || 'Your Name'}
+                        </Title>
+                        <Title level={5} className="text-indigo-400 font-medium mt-0">
+                            {data.personal.title || 'Professional Title'}
+                        </Title>
+                    </header>
+                </div>
 
-                {/* Contact Info */}
+                <Divider className="my-4 bg-gray-700" />
+
                 <section className="mb-6">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-indigo-400 border-b border-indigo-600 pb-1 mb-2">Contact</h3>
-                    <div className="text-xs space-y-1 text-gray-300">
-                        <p><strong>Email:</strong> {data.personal.email}</p>
-                        <p><strong>Phone:</strong> {data.personal.phone}</p>
-                        <p><strong>Location:</strong> {data.personal.city}</p>
-                        <p><strong>LinkedIn:</strong> <a href={`https://${data.personal.linkedin}`} target="_blank" className="text-indigo-400 break-words">{data.personal.linkedin}</a></p>
-                    </div>
+                    <Title level={5} className="text-indigo-400 uppercase tracking-wider mb-3">Contact</Title>
+                    {/* FIX: Brighter description text */}
+                    <Descriptions column={1} size="small" layout="horizontal" className="text-xs text-gray-100">
+                        {contactItems.map(item => (
+                            <Descriptions.Item key={item.key} labelStyle={{ padding: 0, color: '#9ca3af' }} contentStyle={{ padding: 0, fontSize: '12px', color: '#e5e7eb' }} label={item.label}>
+                                {item.children}
+                            </Descriptions.Item>
+                        ))}
+                    </Descriptions>
                 </section>
 
-                {/* Skills */}
-                {data.skills && (
+                <div className="relative"> 
+                    <EditButton section="skills" /> 
                     <section className="mb-6">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-indigo-400 border-b border-indigo-600 pb-1 mb-2">Skills</h3>
-                        <p className="text-xs text-gray-300 whitespace-pre-wrap">{data.skills.split(',').map(s => s.trim()).join(' • ')}</p>
+                        <Title level={5} className="text-indigo-400 uppercase tracking-wider mb-3">Skills</Title>
+                        {(data.skills && data.skills.trim()) ? (
+                            <Space size={[4, 8]} wrap>
+                                {/* FIX: Use "indigo" tags for theme consistency */}
+                                {data.skills.split(',').map(skill => (
+                                    <Tag key={skill.trim()} color="indigo">{skill.trim()}</Tag>
+                                ))}
+                            </Space>
+                        ) : (
+                            <Text type="secondary" italic>Add skills...</Text>
+                        )}
                     </section>
-                )}
+                </div>
             </div>
 
             {/* Right Column (3/4 width) - Content */}
             <div className="col-span-3 p-4 pt-6">
                 
-                {/* Summary */}
-                {data.summary && (
+                <div className="relative"> 
+                    <EditButton section="summary" /> 
                     <section className="mb-6">
                         <MainSectionTitle title="Summary" />
-                        <p className="text-sm text-gray-300">{data.summary}</p>
+                        {data.summary ? (
+                            // FIX: Brighter body text
+                            <Paragraph className="text-sm text-gray-100">{data.summary}</Paragraph>
+                        ) : (
+                            <Text type="secondary" italic>Click the edit icon to add a summary.</Text>
+                        )}
                     </section>
-                )}
+                </div>
 
-                {/* Experience */}
-                {data.experience.length > 0 && (
+                <div className="relative"> 
+                    <EditButton section="experience" /> 
                     <section className="mb-6">
                         <MainSectionTitle title="Experience" />
-                        {data.experience.map(item => <ModernDarkExperiencePreview key={item.id} item={item} />)}
+                        {(data.experience && data.experience.length > 0) ? (
+                            data.experience.map(item => <ModernDarkExperiencePreview key={item.id} item={item} />)
+                        ) : (
+                            // FIX: Brighter placeholder
+                            <Text className="text-gray-500" italic>Click the edit icon to add experience.</Text>
+                        )}
                     </section>
-                )}
+                </div>
 
-                {/* Education */}
-                {data.education.length > 0 && (
+                <div className="relative"> 
+                    <EditButton section="education" /> 
                     <section className="mb-6">
                         <MainSectionTitle title="Education" />
-                        {data.education.map(item => <ModernDarkEducationPreview key={item.id} item={item} />)}
+                        {(data.education && data.education.length > 0) ? (
+                            data.education.map(item => <ModernDarkEducationPreview key={item.id} item={item} />)
+                        ) : (
+                            // FIX: Brighter placeholder
+                            <Text className="text-gray-500" italic>Click the edit icon to add education.</Text>
+                        )}
                     </section>
-                )}
+                </div>
             </div>
         </div>
     );

@@ -1,8 +1,17 @@
 import React from 'react';
-import { BrowserRouter, AuthProvider, useAuth, useRouter } from "./Context/context";
-import { Navbar, Button, Icons } from "./Components/random";
-import AuthPage from "./Components/Authentication/Authentication";
+import { ConfigProvider } from 'antd';
+
+// 1. FIX: Import Provider components from 'context.jsx'
+import { BrowserRouter, AuthProvider } from "./Context/context";
+
+// 2. FIX: Import hooks from 'context-definitions.jsx'
+import { useAuth, useRouter } from "./Context/context-definitions";
+
 import ResumeBuilder from "./Components/MainBuilder/MainBuilder";
+import HomePage from "./Homepage";
+import Navbar from "./Components/Navigation/Navbar";
+import AboutPage from "./Components/About/AboutPage";
+import AuthModal from "./Components/Authentication/AuthModal";
 
 // --- Main App Component ---
 
@@ -17,25 +26,14 @@ const App = () => {
 
         switch (path) {
             case '/':
-                return (
-                    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] p-4 pt-16 text-center bg-gray-100 dark:bg-gray-900">
-                        <Icons.Zap className="w-20 h-20 text-indigo-600 dark:text-indigo-400 mb-4" />
-                        <h2 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4">Build Your Best Resume, Powered by AI</h2>
-                        <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mb-8">
-                            Sign up to use our structured editor, live preview, and Gemini AI for refinement, chat-based editing, and parsing old resumes.
-                        </p>
-                        <Button onClick={() => isAuthenticated ? navigate('/builder') : navigate('/register')} className="py-3 px-8 text-lg">
-                            {isAuthenticated ? 'Go to Builder' : 'Get Started'}
-                        </Button>
-                    </div>
-                );
-            case '/login':
-                return <AuthPage type="login" />;
-            case '/register':
-                return <AuthPage type="register" />;
+                return <HomePage />;
+            case '/about':
+                return <AboutPage />;
+            // Routes '/login' and '/register' are removed (handled by modal)
             case '/builder':
-                // Client-side protection before server-side API calls
-                return isAuthenticated ? <ResumeBuilder /> : <AuthPage type="login" />;
+                // If not auth'd, show homepage. The Navbar's 'Get Started'
+                // button will open the auth modal.
+                return isAuthenticated ? <ResumeBuilder /> : <HomePage />;
             default:
                 return <div className="min-h-screen flex items-center justify-center text-xl text-red-600">404 | Page Not Found</div>;
         }
@@ -52,11 +50,25 @@ const App = () => {
 
 // Root component wrapper for contexts
 const AppWrapper = () => (
-    <BrowserRouter>
-        <AuthProvider>
-            <App />
-        </AuthProvider>
-    </BrowserRouter>
+    <ConfigProvider
+        theme={{
+            token: {
+                colorPrimary: '#007B7B',
+                fontFamily: 'Inter, sans-serif',
+                borderRadius: 8,
+            },
+        }}
+    >
+        {/* AuthProvider must be INSIDE BrowserRouter */}
+        <BrowserRouter>
+            <AuthProvider>
+                <App />
+                {/* The AuthModal is rendered here, outside 'App',
+                    so it's controlled by the context. */}
+                <AuthModal />
+            </AuthProvider>
+        </BrowserRouter>
+    </ConfigProvider>
 );
 
 export default AppWrapper;

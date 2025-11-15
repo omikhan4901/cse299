@@ -1,5 +1,10 @@
 // --- Configuration ---
+
+// If running locally (using `npm run dev`), use localhost:5000 (your server port).
+// Otherwise, use the production Render URL.
 export const API_BASE_URL = 'https://cse299-1.onrender.com/api';
+ 
+
 export const RESUME_VERSION = '1.0';
 
 // --- Initial Data Structures ---

@@ -1,11 +1,22 @@
 import React from 'react';
+import { Button, Typography, Space, Divider, Tag } from 'antd';
+import { 
+    EditOutlined, 
+    MailOutlined, 
+    PhoneOutlined, 
+    LinkedinOutlined, 
+    HomeOutlined 
+} from '@ant-design/icons';
 
-// --- Resume Sub-Components & Helpers (Dark Mode) ---
+const { Title, Text, Paragraph } = Typography;
+
+// --- Sub-Components (Polished) ---
 
 const DarkBulletPoints = ({ text }) => {
     if (!text) return null;
     return (
-        <ul className="list-disc list-inside space-y-1 mt-2 text-gray-300 ml-5">
+        // FIX: Brighter text
+        <ul className="list-disc list-inside space-y-1 mt-2 text-gray-200 ml-5">
             {text.split('\n').map((line, index) => (
                 line.trim() && <li key={index}>{line.trim()}</li>
             ))}
@@ -17,10 +28,17 @@ const DarkExperiencePreview = ({ item }) => (
     <div className="mb-4">
         <div className="flex justify-between items-start">
             <div>
-                <h4 className="text-lg font-semibold text-white">{item.title || 'Job Title'}</h4>
-                <p className="text-md italic text-gray-400">{item.company || 'Company Name'}</p>
+                <Title level={5} className="text-white mb-0">
+                    {item.title || 'Job Title'}
+                </Title>
+                <Text italic className="text-gray-400">
+                    {item.company || 'Company Name'}
+                </Text>
             </div>
-            <span className="text-sm text-gray-500 flex-shrink-0 ml-4">{item.startDate} - {item.endDate}</span>
+            {/* FIX: Brighter text */}
+            <Text className="text-gray-400 flex-shrink-0 ml-4">
+                {item.startDate} - {item.endDate}
+            </Text>
         </div>
         <DarkBulletPoints text={item.description} />
     </div>
@@ -30,63 +48,125 @@ const DarkEducationPreview = ({ item }) => (
     <div className="mb-4">
         <div className="flex justify-between items-start">
             <div>
-                <h4 className="text-lg font-semibold text-white">{item.degree || 'Degree'}</h4>
-                <p className="text-md italic text-gray-400">{item.institution || 'Institution Name'}</p>
+                <Title level={5} className="text-white mb-0">
+                    {item.degree || 'Degree'}
+                </Title>
+                <Text italic className="text-gray-400">
+                    {item.institution || 'Institution Name'}
+                </Text>
             </div>
-            <span className="text-sm text-gray-500 flex-shrink-0 ml-4">{item.startYear} - {item.endYear}</span>
+            {/* FIX: Brighter text */}
+            <Text className="text-gray-400 flex-shrink-0 ml-4">
+                {item.startYear} - {item.endYear}
+            </Text>
         </div>
     </div>
 );
 
-const ClassicDarkDesign = ({ data }) => {
+// --- Main Template ---
+
+const ClassicDarkDesign = ({ data, onEditSection }) => {
     const primaryColor = 'text-indigo-400';
-    const borderColor = 'border-indigo-600';
+    
+    const EditButton = ({ section }) => (
+        <Button
+            type="primary"
+            shape="circle"
+            icon={<EditOutlined />}
+            onClick={() => onEditSection(section)}
+            className="print:hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            style={{ zIndex: 10 }}
+        />
+    );
+
+    const SectionTitle = ({ title }) => (
+        <Title level={4} className={`${primaryColor} border-b border-gray-700 pb-1 mb-3 uppercase tracking-wider`}>
+            {title}
+        </Title>
+    );
 
     return (
         <> 
             {/* Header / Personal Info */}
-            <header className="text-center pb-3 border-b-2 border-indigo-600 mb-4">
-                <h1 className="text-3xl font-extrabold text-white mb-1">{data.personal.name || 'Your Name'}</h1>
-                <p className="text-md font-medium text-indigo-400 mb-2">{data.personal.title || 'Professional Title'}</p>
-                <div className="text-sm text-gray-400 flex justify-center flex-wrap gap-x-4">
-                    <span>{data.personal.phone}</span> |
-                    <span className={primaryColor}>{data.personal.email}</span> |
-                    <span>{data.personal.city}</span> |
-                    <span className={primaryColor}>{data.personal.linkedin}</span>
-                </div>
-            </header>
+            <div className="relative"> 
+                <EditButton section="personal" /> 
+                <header className="text-center pb-4 mb-4">
+                    <Title level={1} className="text-white mb-1">
+                        {data.personal.name || 'Your Name'}
+                    </Title>
+                    <Title level={4} className={`${primaryColor} mt-0 mb-3 font-medium`}>
+                        {data.personal.title || 'Professional Title'}
+                    </Title>
+                    <Space size="middle" wrap className="justify-center text-gray-400">
+                        <Space><PhoneOutlined /> {data.personal.phone}</Space>
+                        <Space><MailOutlined /> {data.personal.email}</Space>
+                        <Space><HomeOutlined /> {data.personal.city}</Space>
+                        <Space><LinkedinOutlined /> {data.personal.linkedin}</Space>
+                    </Space>
+                </header>
+                <Divider className="my-0 bg-gray-700" />
+            </div>
 
             {/* Summary */}
-            {data.summary && (
+            <div className="relative mt-4"> 
+                <EditButton section="summary" /> 
                 <section className="mb-4">
-                    <h2 className={`text-lg font-bold uppercase tracking-wider ${primaryColor} border-b border-gray-700 pb-1 mb-2`}>Summary</h2>
-                    <p className="text-sm text-gray-300">{data.summary}</p>
+                    <SectionTitle title="Summary" />
+                    {data.summary ? (
+                        // FIX: Brighter body text
+                        <Paragraph className="text-sm text-gray-100">{data.summary}</Paragraph>
+                    ) : (
+                        // FIX: Brighter placeholder
+                        <Text className="text-gray-500" italic>Click the edit icon to add a professional summary.</Text>
+                    )}
                 </section>
-            )}
+            </div>
 
             {/* Experience */}
-            {data.experience.length > 0 && (
+            <div className="relative"> 
+                <EditButton section="experience" /> 
                 <section className="mb-4">
-                    <h2 className={`text-lg font-bold uppercase tracking-wider ${primaryColor} border-b border-gray-700 pb-1 mb-2`}>Experience</h2>
-                    {data.experience.map(item => <DarkExperiencePreview key={item.id} item={item} />)}
+                    <SectionTitle title="Experience" />
+                    {(data.experience && data.experience.length > 0) ? (
+                        data.experience.map(item => <DarkExperiencePreview key={item.id} item={item} />)
+                    ) : (
+                        // FIX: Brighter placeholder
+                        <Text className="text-gray-500" italic>Click the edit icon to add your work experience.</Text>
+                    )}
                 </section>
-            )}
+            </div>
 
             {/* Education */}
-            {data.education.length > 0 && (
+            <div className="relative"> 
+                <EditButton section="education" /> 
                 <section className="mb-4">
-                    <h2 className={`text-lg font-bold uppercase tracking-wider ${primaryColor} border-b border-gray-700 pb-1 mb-2`}>Education</h2>
-                    {data.education.map(item => <DarkEducationPreview key={item.id} item={item} />)}
+                    <SectionTitle title="Education" />
+                    {(data.education && data.education.length > 0) ? (
+                        data.education.map(item => <DarkEducationPreview key={item.id} item={item} />)
+                    ) : (
+                         // FIX: Brighter placeholder
+                         <Text className="text-gray-500" italic>Click the edit icon to add your education.</Text>
+                    )}
                 </section>
-            )}
+            </div>
 
             {/* Skills */}
-            {data.skills && (
+            <div className="relative"> 
+                <EditButton section="skills" /> 
                 <section>
-                    <h2 className={`text-lg font-bold uppercase tracking-wider ${primaryColor} border-b border-gray-700 pb-1 mb-2`}>Skills</h2>
-                    <p className="text-sm text-gray-300">{data.skills}</p>
+                    <SectionTitle title="Skills" />
+                    {(data.skills && data.skills.trim()) ? (
+                        <Space size={[8, 16]} wrap>
+                            {data.skills.split(',').map(skill => (
+                                <Tag key={skill.trim()} color="indigo">{skill.trim()}</Tag>
+                            ))}
+                        </Space>
+                    ) : (
+                        // FIX: Brighter placeholder
+                        <Text className="text-gray-500" italic>Click the edit icon to add your skills.</Text>
+                    )}
                 </section>
-            )}
+            </div>
         </>
     );
 };
