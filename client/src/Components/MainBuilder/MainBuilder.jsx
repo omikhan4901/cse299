@@ -306,27 +306,27 @@ const ResumeBuilder = () => {
                     <FloatButton 
                         icon={<AppstoreAddOutlined />} 
                         tooltip="Add/View Sections"
-                        onClick={() => setIsSectionDrawerOpen(true)} 
+                        onClick={() => setIsSectionDrawerOpen(true)}  
                     />
                     <FloatButton 
                         icon={<DownloadOutlined />} 
                         tooltip="Download PDF (Print)"
-                        onClick={handleDownloadPDF} 
+                        onClick={handleDownloadPDF}  
                     />
                     <FloatButton 
                         icon={<LayoutOutlined />} 
-                        tooltip="Change Template"
+                        tooltip="Change Template" 
                         onClick={() => setEditingSection('templates')}
                     />
                     <FloatButton 
                         icon={<MessageOutlined />} 
                         tooltip="AI Summary Chat"
-                        onClick={() => setChatOpen(true)}
+                        onClick={() => setChatOpen(true)} 
                     />
                     <FloatButton 
                         icon={isSaving ? <Spin /> : <SaveOutlined />} 
                         tooltip="Save Profile"
-                        onClick={handleSaveProfile}
+                        onClick={handleSaveProfile} 
                     />
                 </FloatButton.Group>
             </Layout>
