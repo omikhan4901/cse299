@@ -125,24 +125,6 @@ const ResumeBuilder = () => {
     initialResumeState.template || "Classic"
   );
 
-  useEffect(() => {
-    if (section === "personal") {
-      personalForm.setFieldsValue(resume.personal);
-    }
-    if (section === "summary") {
-      summaryForm.setFieldsValue({ summary: resume.summary });
-    }
-    if (section === "skills") {
-      skillsForm.setFieldsValue({ skills: resume.skills });
-    }
-    if (section === "templates") {
-      templateForm.setFieldsValue({
-        template: resume.template || "Classic",
-        // If you implemented themeColor, sync it here too
-      });
-    }
-  }, [resume, section, personalForm, summaryForm, skillsForm, templateForm]);
-  
   const isDirty = useMemo(() => {
     const contentChanged = !areResumesEqual(resume, savedResume);
     const designChanged = selectedDesign !== savedDesign; // Compares current preview vs. last saved design
@@ -502,7 +484,7 @@ const ResumeBuilder = () => {
         key: "print_info",
       });
       navigate("/print");
-    }  
+    }
   };
 
   // --- NEW: REORDER LIST ITEMS ---
