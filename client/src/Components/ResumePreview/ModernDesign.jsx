@@ -10,8 +10,7 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-// --- Sub-Components (Polished) ---
-
+// --- Sub-Components ---
 const BulletPoints = ({ text }) => {
     if (!text) return null;
     return (
@@ -82,12 +81,25 @@ const ModernDesign = ({ data, onEditSection }) => {
     ];
 
     return (
-        <div className="grid grid-cols-4 gap-6 min-h-[10in]">
+        <div className="grid grid-cols-4 gap-6 min-h-[11in] print:min-h-screen">
             {/* Left Column (1/4 width) - Contact & Skills */}
             <div className="col-span-1 bg-indigo-50 dark:bg-gray-700 p-4 pt-6 border-r border-indigo-200 dark:border-indigo-600">
                 
                 <div className="relative"> 
                     <EditButton section="personal" /> 
+                    
+                    {/* --- CONDITIONAL PROFILE PICTURE --- */}
+                    {data.personal.profilePic && (
+                        <div className="mb-6 flex justify-center">
+                            <img 
+                                src={data.personal.profilePic} 
+                                alt="Profile" 
+                                className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-sm"
+                            />
+                        </div>
+                    )}
+                    {/* ----------------------------------- */}
+
                     <header className="mb-6">
                         <Title level={2} className="text-gray-900 dark:text-white mb-1">
                             {data.personal.name || 'Your Name'}
@@ -134,7 +146,7 @@ const ModernDesign = ({ data, onEditSection }) => {
                 <div className="relative"> 
                     <EditButton section="summary" /> 
                     <section className="mb-6">
-                        <MainSectionTitle title="Summary" />
+                        <MainSectionTitle title="About Me" />
                         {data.summary ? (
                             <Paragraph className="text-sm text-gray-700 dark:text-gray-300">{data.summary}</Paragraph>
                         ) : (

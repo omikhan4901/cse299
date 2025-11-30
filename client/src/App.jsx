@@ -1,10 +1,10 @@
-import React from 'react';
-import { ConfigProvider } from 'antd';
-
-// 1. FIX: Import Provider components from 'context.jsx'
+import React from "react";
+import { ConfigProvider } from "antd";
+import Footer from "./Components/Footer/Footer";
+// 1. Providers from context.jsx
 import { BrowserRouter, AuthProvider } from "./Context/context";
 
-// 2. FIX: Import hooks from 'context-definitions.jsx'
+// 2. Hooks from context-definitions.jsx
 import { useAuth, useRouter } from "./Context/context-definitions";
 
 import ResumeBuilder from "./Components/MainBuilder/MainBuilder";
@@ -12,63 +12,86 @@ import HomePage from "./Homepage";
 import Navbar from "./Components/Navigation/Navbar";
 import AboutPage from "./Components/About/AboutPage";
 import AuthModal from "./Components/Authentication/AuthModal";
+import ProfilePage from "./Components/Profile/Profile";
+import PublicResumeViewer from "./Components/Public/PublicResumeViewer";
+// 3. NEW IMPORT: The dedicated component for printing
+import PrintLayout from "./Components/Print/PrintLayout";
 
 // --- Main App Component ---
 
 const App = () => {
-    const { path } = useRouter();
-    const { isAuthenticated, loading } = useAuth();
+  const { path } = useRouter();
+  const { isAuthenticated, loading } = useAuth();
 
-    const renderRoute = () => {
-        if (loading) {
-            return <div className="min-h-screen flex items-center justify-center text-xl text-indigo-600 dark:text-indigo-400">Loading authentication state...</div>;
-        }
+  const renderRoute = () => {
+    if (loading)
+      return (
+        <div className="min-h-screen flex items-center justify-center text-xl text-indigo-600">
+          Loading...
+        </div>
+      );
 
-        switch (path) {
-            case '/':
-                return <HomePage />;
-            case '/about':
-                return <AboutPage />;
-            // Routes '/login' and '/register' are removed (handled by modal)
-            case '/builder':
-                // If not auth'd, show homepage. The Navbar's 'Get Started'
-                // button will open the auth modal.
-                return isAuthenticated ? <ResumeBuilder /> : <HomePage />;
-            default:
-                return <div className="min-h-screen flex items-center justify-center text-xl text-red-600">404 | Page Not Found</div>;
-        }
-    };
+    // 2. ADD THIS CHECK BEFORE THE SWITCH
+    // This handles dynamic routes like /view/12345
+    if (path.startsWith("/view/")) {
+      return <PublicResumeViewer />;
+    }
 
-    return (
-        <>
-            <Navbar />
-            <main>{renderRoute()}</main>
-        </>
-    );
+    switch (path) {
+      case "/":
+        return <HomePage />;
+      case "/about":
+        return <AboutPage />;
+      case "/builder":
+        return isAuthenticated ? <ResumeBuilder /> : <HomePage />;
+      case "/profile":
+        return isAuthenticated ? <ProfilePage /> : <HomePage />;
+      case "/print":
+        return <PrintLayout />;
+      default:
+        return (
+          <div className="min-h-screen flex items-center justify-center text-xl text-red-600">
+            404 | Page Not Found
+          </div>    
+        );
+    }
+  };
+
+  const isPrintRoute = path === "/print";
+
+  return (
+    // 2. WRAP IN FLEX CONTAINER FOR STICKY FOOTER
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
+    >
+      {!isPrintRoute && <Navbar />}
+
+      {/* 3. MAIN CONTENT GROWS TO FILL SPACE */}
+      <main style={{ flex: 1 }}>{renderRoute()}</main>
+
+      {/* 4. FOOTER (Hidden on Print Page) */}
+      {!isPrintRoute && <Footer />}
+    </div>
+  );
 };
 
-
-// Root component wrapper for contexts
 const AppWrapper = () => (
-    <ConfigProvider
-        theme={{
-            token: {
-                colorPrimary: '#007B7B',
-                fontFamily: 'Inter, sans-serif',
-                borderRadius: 8,
-            },
-        }}
-    >
-        {/* AuthProvider must be INSIDE BrowserRouter */}
-        <BrowserRouter>
-            <AuthProvider>
-                <App />
-                {/* The AuthModal is rendered here, outside 'App',
-                    so it's controlled by the context. */}
-                <AuthModal />
-            </AuthProvider>
-        </BrowserRouter>
-    </ConfigProvider>
+  <ConfigProvider
+    theme={{
+      token: {
+        colorPrimary: "#007B7B",
+        fontFamily: "Inter, sans-serif",
+        borderRadius: 8,
+      },
+    }}
+  >
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+        <AuthModal />
+      </AuthProvider>
+    </BrowserRouter>
+  </ConfigProvider>
 );
 
 export default AppWrapper;

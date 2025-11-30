@@ -10,13 +10,12 @@ import {
 
 const { Title, Text, Paragraph } = Typography;
 
-// --- Sub-Components (Polished) ---
+// --- Sub-Components ---
 
 const DarkBulletPoints = ({ text }) => {
     if (!text) return null;
     return (
-        // FIX: Brighter text
-        <ul className="list-disc list-inside space-y-1 mt-2 text-gray-200 ml-5">
+        <ul className="list-disc list-inside space-y-1 mt-2 !text-gray-300 ml-5 leading-relaxed">
             {text.split('\n').map((line, index) => (
                 line.trim() && <li key={index}>{line.trim()}</li>
             ))}
@@ -25,18 +24,17 @@ const DarkBulletPoints = ({ text }) => {
 };
 
 const DarkExperiencePreview = ({ item }) => (
-    <div className="mb-4">
-        <div className="flex justify-between items-start">
+    <div className="mb-6">
+        <div className="flex justify-between items-baseline">
             <div>
-                <Title level={5} className="text-white mb-0">
+                <Title level={5} className="!text-white mb-0 text-lg">
                     {item.title || 'Job Title'}
                 </Title>
-                <Text italic className="text-gray-400">
+                <Text className="!text-indigo-400 font-medium block mt-1">
                     {item.company || 'Company Name'}
                 </Text>
             </div>
-            {/* FIX: Brighter text */}
-            <Text className="text-gray-400 flex-shrink-0 ml-4">
+            <Text className="!text-gray-400 flex-shrink-0 ml-4 text-sm font-medium bg-gray-800 px-2 py-1 rounded">
                 {item.startDate} - {item.endDate}
             </Text>
         </div>
@@ -45,18 +43,17 @@ const DarkExperiencePreview = ({ item }) => (
 );
 
 const DarkEducationPreview = ({ item }) => (
-    <div className="mb-4">
+    <div className="mb-5">
         <div className="flex justify-between items-start">
             <div>
-                <Title level={5} className="text-white mb-0">
+                <Title level={5} className="!text-white mb-0 text-lg">
                     {item.degree || 'Degree'}
                 </Title>
-                <Text italic className="text-gray-400">
+                <Text className="!text-indigo-400 font-medium italic mt-1 block">
                     {item.institution || 'Institution Name'}
                 </Text>
             </div>
-            {/* FIX: Brighter text */}
-            <Text className="text-gray-400 flex-shrink-0 ml-4">
+            <Text className="!text-gray-400 flex-shrink-0 ml-4 text-sm bg-gray-800 px-2 py-1 rounded">
                 {item.startYear} - {item.endYear}
             </Text>
         </div>
@@ -66,7 +63,7 @@ const DarkEducationPreview = ({ item }) => (
 // --- Main Template ---
 
 const ClassicDarkDesign = ({ data, onEditSection }) => {
-    const primaryColor = 'text-indigo-400';
+    const primaryColor = '!text-indigo-400';
     
     const EditButton = ({ section }) => (
         <Button
@@ -74,30 +71,43 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             shape="circle"
             icon={<EditOutlined />}
             onClick={() => onEditSection(section)}
-            className="print:hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="print:!hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{ zIndex: 10 }}
         />
     );
 
     const SectionTitle = ({ title }) => (
-        <Title level={4} className={`${primaryColor} border-b border-gray-700 pb-1 mb-3 uppercase tracking-wider`}>
+        <Title level={4} className={`${primaryColor} border-b border-gray-700 pb-2 mb-4 uppercase tracking-widest text-sm font-bold`}>
             {title}
         </Title>
     );
 
     return (
-        <> 
+        <div className="text-gray-300 font-sans"> 
             {/* Header / Personal Info */}
-            <div className="relative"> 
+            <div className="relative mb-8"> 
                 <EditButton section="personal" /> 
-                <header className="text-center pb-4 mb-4">
-                    <Title level={1} className="text-white mb-1">
+                <header className="text-center pb-4">
+                    
+                    {/* --- PROFILE PICTURE --- */}
+                    {data.personal.profilePic && (
+                        <div className="mb-6 flex justify-center">
+                            <img 
+                                src={data.personal.profilePic} 
+                                alt="Profile" 
+                                className="w-32 h-32 rounded-full object-cover border-4 border-gray-800 shadow-xl"
+                            />
+                        </div>
+                    )}
+
+                    <Title level={1} className="!text-white mb-2 text-4xl font-light tracking-wide">
                         {data.personal.name || 'Your Name'}
                     </Title>
-                    <Title level={4} className={`${primaryColor} mt-0 mb-3 font-medium`}>
+                    <Title level={4} className={`${primaryColor} mt-0 mb-4 font-medium uppercase tracking-wider text-base`}>
                         {data.personal.title || 'Professional Title'}
                     </Title>
-                    <Space size="middle" wrap className="justify-center text-gray-400">
+                    
+                    <Space size="large" wrap className="justify-center !text-gray-400 text-sm">
                         <Space><PhoneOutlined /> {data.personal.phone}</Space>
                         <Space><MailOutlined /> {data.personal.email}</Space>
                         <Space><HomeOutlined /> {data.personal.city}</Space>
@@ -108,44 +118,42 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             </div>
 
             {/* Summary */}
-            <div className="relative mt-4"> 
+            <div className="relative mb-8"> 
                 <EditButton section="summary" /> 
-                <section className="mb-4">
-                    <SectionTitle title="Summary" />
+                <section>
+                    <SectionTitle title="About Me" />
                     {data.summary ? (
-                        // FIX: Brighter body text
-                        <Paragraph className="text-sm text-gray-100">{data.summary}</Paragraph>
+                        <Paragraph className="!text-gray-300 leading-7 text-justify text-base">
+                            {data.summary}
+                        </Paragraph>
                     ) : (
-                        // FIX: Brighter placeholder
-                        <Text className="text-gray-500" italic>Click the edit icon to add a professional summary.</Text>
+                        <Text type="secondary" italic className="!text-gray-500">Click the edit icon to add a professional summary.</Text>
                     )}
                 </section>
             </div>
 
             {/* Experience */}
-            <div className="relative"> 
+            <div className="relative mb-8"> 
                 <EditButton section="experience" /> 
-                <section className="mb-4">
+                <section>
                     <SectionTitle title="Experience" />
                     {(data.experience && data.experience.length > 0) ? (
                         data.experience.map(item => <DarkExperiencePreview key={item.id} item={item} />)
                     ) : (
-                        // FIX: Brighter placeholder
-                        <Text className="text-gray-500" italic>Click the edit icon to add your work experience.</Text>
+                        <Text type="secondary" italic className="!text-gray-500">Click the edit icon to add your work experience.</Text>
                     )}
                 </section>
             </div>
 
             {/* Education */}
-            <div className="relative"> 
+            <div className="relative mb-8"> 
                 <EditButton section="education" /> 
-                <section className="mb-4">
+                <section>
                     <SectionTitle title="Education" />
                     {(data.education && data.education.length > 0) ? (
                         data.education.map(item => <DarkEducationPreview key={item.id} item={item} />)
                     ) : (
-                         // FIX: Brighter placeholder
-                         <Text className="text-gray-500" italic>Click the edit icon to add your education.</Text>
+                         <Text type="secondary" italic className="!text-gray-500">Click the edit icon to add your education.</Text>
                     )}
                 </section>
             </div>
@@ -154,20 +162,21 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             <div className="relative"> 
                 <EditButton section="skills" /> 
                 <section>
-                    <SectionTitle title="Skills" />
+                    <SectionTitle title="Expertise" />
                     {(data.skills && data.skills.trim()) ? (
-                        <Space size={[8, 16]} wrap>
+                        <div className="flex flex-wrap gap-2">
                             {data.skills.split(',').map(skill => (
-                                <Tag key={skill.trim()} color="indigo">{skill.trim()}</Tag>
+                                <Tag key={skill.trim()} color="indigo" className="px-3 py-1 text-sm border-0 rounded-full">
+                                    {skill.trim()}
+                                </Tag>
                             ))}
-                        </Space>
+                        </div>
                     ) : (
-                        // FIX: Brighter placeholder
-                        <Text className="text-gray-500" italic>Click the edit icon to add your skills.</Text>
+                        <Text type="secondary" italic className="!text-gray-500">Click the edit icon to add your skills.</Text>
                     )}
                 </section>
             </div>
-        </>
+        </div>
     );
 };
 

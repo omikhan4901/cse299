@@ -10,13 +10,10 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-// --- Sub-Components (Polished) ---
-
 const BulletPoints = ({ text }) => {
     if (!text) return null;
     return (
-        // FIX: Brighter bullet points
-        <ul className="list-disc list-inside space-y-1 mt-1 text-gray-200 ml-5 text-sm">
+        <ul className="list-disc list-inside space-y-1 mt-2 !text-gray-300 ml-5 text-sm leading-relaxed">
             {text.split('\n').map((line, index) => (
                 line.trim() && <li key={index}>{line.trim()}</li>
             ))}
@@ -25,39 +22,38 @@ const BulletPoints = ({ text }) => {
 };
 
 const MainSectionTitle = ({ title }) => (
-    // FIX: Use accent color for section titles
-    <Title level={4} className="text-indigo-400 border-b-2 border-indigo-600 pb-1 mb-4 uppercase tracking-wider">
+    <Title level={4} className="!text-indigo-400 border-b-2 border-indigo-900 pb-2 mb-6 uppercase tracking-widest text-sm font-bold">
         {title}
     </Title>
 );
 
 const ModernDarkExperiencePreview = ({ item }) => (
-    <div className="mb-5">
-        <div className="flex justify-between items-start">
-            <Title level={5} className="text-indigo-400 mb-0">
-                {item.title || 'Job Title'} @ {item.company || 'Company Name'}
+    <div className="mb-8 relative pl-6 border-l-2 border-indigo-900">
+        <div className="absolute -left-[9px] top-1 w-4 h-4 bg-gray-900 border-2 border-indigo-500 rounded-full"></div>
+        <div className="flex justify-between items-baseline mb-1">
+            <Title level={5} className="!text-white mb-0 text-lg">
+                {item.title || 'Job Title'}
             </Title>
-            {/* FIX: Brighter date text */}
-            <Text className="text-gray-400 flex-shrink-0 ml-4 italic">
+            <Text className="!text-gray-400 flex-shrink-0 text-xs font-bold uppercase tracking-wider">
                 {item.startDate} - {item.endDate}
             </Text>
         </div>
+        <div className="!text-indigo-400 font-medium mb-2">{item.company}</div>
         <BulletPoints text={item.description} />
     </div>
 );
 
 const ModernDarkEducationPreview = ({ item }) => (
-    <div className="mb-5">
+    <div className="mb-6">
         <div className="flex justify-between items-start">
-            <Title level={5} className="text-white mb-0">
+            <Title level={5} className="!text-white mb-0 text-lg">
                 {item.degree || 'Degree'}
             </Title>
-            {/* FIX: Brighter date text */}
-            <Text className="text-gray-400 flex-shrink-0 ml-4 italic">
+            <Text className="!text-gray-400 flex-shrink-0 text-sm bg-gray-800 px-2 py-1 rounded">
                 {item.startYear} - {item.endYear}
             </Text>
         </div>
-        <Text italic className="text-sm text-gray-400">
+        <Text italic className="text-sm !text-indigo-400 mt-1 block">
             {item.institution || 'Institution Name'}
         </Text>
     </div>
@@ -73,7 +69,7 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
             shape="circle"
             icon={<EditOutlined />}
             onClick={() => onEditSection(section)}
-            className="print:hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="print:!hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{ zIndex: 10 }}
         />
     );
@@ -82,34 +78,52 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
         { key: '1', label: <MailOutlined />, children: data.personal.email },
         { key: '2', label: <PhoneOutlined />, children: data.personal.phone },
         { key: '3', label: <HomeOutlined />, children: data.personal.city },
-        { key: '4', label: <LinkedinOutlined />, children: <Link href={`https://${data.personal.linkedin}`} target="_blank" className="text-indigo-400">{data.personal.linkedin}</Link> },
+        { key: '4', label: <LinkedinOutlined />, children: <Link href={`https://${data.personal.linkedin}`} target="_blank" className="!text-indigo-400">{data.personal.linkedin}</Link> },
     ];
 
     return (
-        <div className="grid grid-cols-4 gap-6 min-h-[10in]">
-            {/* Left Column (1/4 width) - Contact & Skills */}
-            <div className="col-span-1 bg-gray-800 p-4 pt-6 border-r border-indigo-600">
+        <div className="grid grid-cols-4 gap-0 min-h-[11in] print:min-h-screen">
+            {/* Left Column (Sidebar) */}
+            <div className="col-span-1 bg-[#1f2937] p-6 pt-8 border-r border-gray-700">
                 
                 <div className="relative"> 
                     <EditButton section="personal" /> 
-                    <header className="mb-6">
-                        <Title level={2} className="text-white mb-1">
+                    
+                    {/* --- PROFILE PICTURE --- */}
+                    {data.personal.profilePic && (
+                        <div className="mb-6 flex justify-center">
+                            <img 
+                                src={data.personal.profilePic} 
+                                alt="Profile" 
+                                className="w-32 h-32 rounded-full object-cover border-4 border-gray-700 shadow-lg"
+                            />
+                        </div>
+                    )}
+
+                    <header className="mb-8 text-center md:text-left">
+                        <Title level={2} className="!text-white mb-2 text-2xl font-bold leading-tight">
                             {data.personal.name || 'Your Name'}
                         </Title>
-                        <Title level={5} className="text-indigo-400 font-medium mt-0">
+                        <Title level={5} className="!text-indigo-400 font-medium mt-0 text-sm tracking-wide uppercase">
                             {data.personal.title || 'Professional Title'}
                         </Title>
                     </header>
                 </div>
 
-                <Divider className="my-4 bg-gray-700" />
+                <Divider className="my-6 bg-gray-700" />
 
-                <section className="mb-6">
-                    <Title level={5} className="text-indigo-400 uppercase tracking-wider mb-3">Contact</Title>
-                    {/* FIX: Brighter description text */}
-                    <Descriptions column={1} size="small" layout="horizontal" className="text-xs text-gray-100">
+                <section className="mb-8">
+                    <Title level={5} className="!text-white uppercase tracking-widest text-xs font-bold mb-4 border-b border-gray-700 pb-2">
+                        Contact
+                    </Title>
+                    <Descriptions column={1} size="small" layout="horizontal" className="text-xs !text-gray-300">
                         {contactItems.map(item => (
-                            <Descriptions.Item key={item.key} labelStyle={{ padding: 0, color: '#9ca3af' }} contentStyle={{ padding: 0, fontSize: '12px', color: '#e5e7eb' }} label={item.label}>
+                            <Descriptions.Item 
+                                key={item.key} 
+                                labelStyle={{ display: 'none' }} // Hide labels for cleaner look, icons imply meaning
+                                contentStyle={{ padding: '6px 0', fontSize: '13px', color: '#e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }} 
+                            >
+                                <span className="text-indigo-400 text-base">{item.label}</span>
                                 {item.children}
                             </Descriptions.Item>
                         ))}
@@ -118,60 +132,62 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
 
                 <div className="relative"> 
                     <EditButton section="skills" /> 
-                    <section className="mb-6">
-                        <Title level={5} className="text-indigo-400 uppercase tracking-wider mb-3">Skills</Title>
+                    <section>
+                        <Title level={5} className="!text-white uppercase tracking-widest text-xs font-bold mb-4 border-b border-gray-700 pb-2">
+                            Skills
+                        </Title>
                         {(data.skills && data.skills.trim()) ? (
-                            <Space size={[4, 8]} wrap>
-                                {/* FIX: Use "indigo" tags for theme consistency */}
+                            <div className="flex flex-wrap gap-2">
                                 {data.skills.split(',').map(skill => (
-                                    <Tag key={skill.trim()} color="indigo">{skill.trim()}</Tag>
+                                    <Tag key={skill.trim()} color="transparent" className="!text-gray-300 border border-gray-600 rounded-md m-0 px-2 py-1 text-xs">
+                                        {skill.trim()}
+                                    </Tag>
                                 ))}
-                            </Space>
+                            </div>
                         ) : (
-                            <Text type="secondary" italic>Add skills...</Text>
+                            <Text type="secondary" italic className="!text-gray-500">Add skills...</Text>
                         )}
                     </section>
                 </div>
             </div>
 
-            {/* Right Column (3/4 width) - Content */}
-            <div className="col-span-3 p-4 pt-6">
+            {/* Right Column (Main Content) */}
+            <div className="col-span-3 p-8 pt-10 bg-[#111827]">
                 
-                <div className="relative"> 
+                <div className="relative mb-10"> 
                     <EditButton section="summary" /> 
-                    <section className="mb-6">
-                        <MainSectionTitle title="Summary" />
+                    <section>
+                        <MainSectionTitle title="About Me" />
                         {data.summary ? (
-                            // FIX: Brighter body text
-                            <Paragraph className="text-sm text-gray-100">{data.summary}</Paragraph>
+                            <Paragraph className="text-base !text-gray-300 leading-7">
+                                {data.summary}
+                            </Paragraph>
                         ) : (
-                            <Text type="secondary" italic>Click the edit icon to add a summary.</Text>
+                            <Text type="secondary" italic className="!text-gray-500">Click the edit icon to add a summary.</Text>
                         )}
                     </section>
                 </div>
 
-                <div className="relative"> 
+                <div className="relative mb-10"> 
                     <EditButton section="experience" /> 
-                    <section className="mb-6">
+                    <section>
                         <MainSectionTitle title="Experience" />
                         {(data.experience && data.experience.length > 0) ? (
                             data.experience.map(item => <ModernDarkExperiencePreview key={item.id} item={item} />)
                         ) : (
-                            // FIX: Brighter placeholder
-                            <Text className="text-gray-500" italic>Click the edit icon to add experience.</Text>
+                            <Text className="!text-gray-500" italic>Click the edit icon to add experience.</Text>
                         )}
                     </section>
                 </div>
 
                 <div className="relative"> 
                     <EditButton section="education" /> 
-                    <section className="mb-6">
+                    <section>
                         <MainSectionTitle title="Education" />
                         {(data.education && data.education.length > 0) ? (
                             data.education.map(item => <ModernDarkEducationPreview key={item.id} item={item} />)
                         ) : (
-                            // FIX: Brighter placeholder
-                            <Text className="text-gray-500" italic>Click the edit icon to add education.</Text>
+                            <Text className="!text-gray-500" italic>Click the edit icon to add education.</Text>
                         )}
                     </section>
                 </div>

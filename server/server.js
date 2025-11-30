@@ -6,7 +6,8 @@ const multer = require('multer');
 
 const authRoutes = require('./routes/auth');
 const aiRoutes = require('./routes/ai');
-
+const resumeRoutes = require('./routes/resume');
+const publicRoutes = require('./routes/public');
 // Load environment variables from .env file
 dotenv.config();
 
@@ -39,6 +40,8 @@ const upload = multer({ storage: storage, limits: { fileSize: 10 * 1024 * 1024 }
 
 // Mount the authentication router
 app.use('/api/auth', authRoutes.router);
+app.use('/api/public', publicRoutes);
+app.use('/api/resumes', resumeRoutes);
 
 app.post('/api/ai/parse', authRoutes.protect, upload.single('resumeFile'), (req, res, next) => {
     aiRoutes(req, res, next);

@@ -1,238 +1,406 @@
-import React from 'react';
-import { Layout, Row, Col, Card, Typography, Button, Timeline, Collapse } from 'antd';
-import { 
-    ThunderboltOutlined, 
-    UploadOutlined, 
-    MessageOutlined,
-    RocketOutlined,
-    ExperimentOutlined,
-    FlagOutlined
-} from '@ant-design/icons';
-import { motion } from 'framer-motion';
-import { useRouter } from '../../Context/context-definitions';
-
-const { Content } = Layout;
-const { Title, Paragraph } = Typography;
-const { Panel } = Collapse;
+import React from "react";
+import {
+  Layout,
+  Row,
+  Col,
+  Card,
+  Typography,
+  Button,
+  Collapse,
+  Tag,
+  Avatar,
+  Space,
+  Timeline,
+} from "antd";
+import {
+  ThunderboltOutlined,
+  UploadOutlined,
+  MessageOutlined,
+  UserOutlined,
+  TeamOutlined,
+  GithubOutlined,
+  LinkedinFilled,
+  ExperimentOutlined,
+  RocketOutlined,
+  FlagOutlined,
+  CodeOutlined,
+} from "@ant-design/icons";
+import { motion } from "framer-motion";
+import { useAuth, useRouter } from "../../Context/context-definitions";
+ 
+const { Title, Paragraph, Text } = Typography;
 
 // --- Animation Variants ---
-
-// For sections to fade in as you scroll
-const sectionFadeIn = {
-    hidden: { opacity: 0, y: 50 },
-    visible: {
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.6, ease: 'easeOut' }
-    }
-};
-
-// For the feature cards
-const cardHover = {
-    hover: {
-        y: -10,
-        scale: 1.03,
-        boxShadow: "0 20px 30px rgba(0, 123, 123, 0.2)",
-        transition: { type: 'spring', stiffness: 300 }
-    }
-};
-
-// For the final CTA button
-const buttonHover = {
-    hover: {
-        y: -5,
-        scale: 1.05,
-        boxShadow: "0 10px 20px rgba(0, 123, 123, 0.2)",
-        transition: { type: 'spring', stiffness: 300 }
-    }
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
 };
 
 const AboutPage = () => {
-    const { navigate } = useRouter();
+  const { navigate } = useRouter();
+  const { setAuthModalOpen } = useAuth();
 
-    const faqItems = [
-        {
-            key: '1',
-            label: 'What AI model does ResumeX use?',
-            content: 'ResumeX is powered by Google\'s advanced Gemini family of models. This allows us to provide state-of-the-art text generation for summaries, high-accuracy resume parsing, and nuanced conversational editing.'
-        },
-        {
-            key: '2',
-            label: 'Is ResumeX free to use?',
-            content: 'Yes! ResumeX is a final-year project (CSE299) and is completely free to use. Our goal is to demonstrate the power of modern AI in a practical, helpful application.'
-        },
-        {
-            key: '3',
-            label: 'Who built this project?',
-            content: 'This application was designed, developed, and deployed by a dedicated student as part of their computer science curriculum, showcasing skills in full-stack development (React, Node.js) and AI integration.'
-        },
-        {
-            key: '4',
-            label: 'Is my resume data safe?',
-            content: 'We take privacy seriously. Your data is secured using JWT (JSON Web Token) authentication, and all resume information is stored securely in a MongoDB database. Only you can access your saved profiles.'
-        }
-    ];
+  const techStack = [
+    "React.js",
+    "Node.js",
+    "Express",
+    "MongoDB",
+    "Ant Design",
+    "Gemini AI",
+    "Tailwind CSS",
+  ];
 
-    return (
-        <Layout.Content style={{ backgroundColor: '#fff', color: '#002A3A' }}>
-            
-            {/* --- 1. Hero Section --- */}
-            <motion.div 
-                style={{ 
-                    backgroundColor: '#f0f9f9', 
-                    padding: '80px 40px', 
-                    textAlign: 'center' 
+  const faqItems = [
+    {
+      key: "1",
+      label: "How does the AI Resume Parser work?",
+      children:
+        "We use the Google Gemini 1.5 Flash model to analyze the raw text of your PDF/DOCX. It identifies patterns like dates, job titles, and skills, mapping them into a structured JSON format that our builder can edit.",
+    },
+    {
+      key: "2",
+      label: "Is my data private?",
+      children:
+        "Yes. Your data is stored in a secure MongoDB database protected by JWT authentication. We do not sell your data. The AI processing happens on-demand and your resume context is only used to generate your specific suggestions.",
+    },
+    {
+      key: "3",
+      label: "Can I create multiple resumes?",
+      children:
+        'Absolutely. You can create a "Master Profile" with all your data, and then create tailored versions (e.g., "Frontend Resume", "Manager Resume") based on that master data.',
+    },
+  ];
+
+  return (
+    <Layout style={{ background: "#fff" }}>
+      {/* --- 1. HERO SECTION --- */}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUp}
+        style={{
+          backgroundColor: "#f0f9f9",
+          padding: "100px 24px",
+          textAlign: "center",
+          borderBottom: "1px solid #e6f7ff",
+        }}
+      >
+        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <Tag
+            color="cyan"
+            style={{ marginBottom: 16, padding: "4px 12px", fontSize: "14px" }}
+          >
+            CSE299 Final Project
+          </Tag>
+          <Title
+            level={1}
+            style={{
+              color: "#002A3A",
+              fontSize: "48px",
+              fontWeight: 800,
+              marginBottom: 24,
+            }}
+          >
+            Smarter Resumes,{" "}
+            <span style={{ color: "#007B7B" }}>Powered by Gemini</span>
+          </Title>
+          <Paragraph
+            style={{
+              color: "#555",
+              fontSize: "20px",
+              maxWidth: "700px",
+              margin: "0 auto 40px",
+              lineHeight: "1.6",
+            }}
+          >
+            ResumeX isn't just a template filler. It's an intelligent career
+            assistant that parses, refines, and formats your professional story
+            instantly.
+          </Paragraph>
+          <Button
+            type="primary"
+            size="large"
+            style={{
+              height: "56px",
+              padding: "0 40px",
+              fontSize: "18px",
+              fontWeight: "bold",
+              boxShadow: "0 4px 14px rgba(0, 123, 123, 0.3)",
+            }}
+            onClick={() => setAuthModalOpen("register")}
+          >
+            Build My Resume
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* --- 2. TECH STACK BANNER --- */}
+      <div
+        style={{
+          background: "#fff",
+          padding: "24px",
+          borderBottom: "1px solid #eee",
+        }}
+      >
+        <div
+          style={{ maxWidth: "1200px", margin: "0 auto", textAlign: "center" }}
+        >
+          <Text
+            type="secondary"
+            style={{
+              display: "block",
+              marginBottom: 12,
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              fontSize: "12px",
+            }}
+          >
+            Engineered With Modern Technologies
+          </Text>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              gap: "12px",
+            }}
+          >
+            {techStack.map((tech) => (
+              <Tag
+                key={tech}
+                style={{
+                  padding: "6px 16px",
+                  fontSize: "14px",
+                  borderRadius: "20px",
+                  border: "1px solid #d9d9d9",
+                  color: "#666",
                 }}
-                initial="hidden"
-                animate="visible"
-                variants={sectionFadeIn}
-            >
-                <Title level={1} style={{ color: '#002A3A', fontWeight: 700, marginBottom: '20px' }}>
-                    Our Mission: Smarter Resumes, Faster.
-                </Title>
-                <Paragraph style={{ fontSize: '18px', maxWidth: '800px', margin: 'auto', color: '#555' }}>
-                    In today's competitive job market, a great resume is more than just a document—it's your first impression. 
-                    ResumeX was built to level the playing field, using the power of Generative AI to help you build a professional, polished resume that gets noticed.
-                </Paragraph>
-            </motion.div>
+              >
+                {tech}
+              </Tag>
+            ))}
+          </div>
+        </div>
+      </div>
 
-            {/* --- 2. Features Section --- */}
-            <motion.section 
-                style={{ padding: '80px 40px', maxWidth: '1200px', margin: 'auto' }}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
-                variants={sectionFadeIn}
-            >
-                <Title level={2} style={{ textAlign: 'center', marginBottom: '60px' }}>
-                    What Makes ResumeX Different?
-                </Title>
-                <Row gutter={[32, 32]} justify="center">
-                    <Col xs={24} md={8}>
-                        <motion.div variants={cardHover} whileHover="hover">
-                            <Card title="AI Resume Parser" headStyle={{ color: '#007B7B', fontWeight: 'bold' }}>
-                                <UploadOutlined style={{ fontSize: '32px', color: '#007B7B', marginBottom: '16px' }} />
-                                <Paragraph>Start in seconds. Upload your existing resume (PDF/DOCX) and let our AI parse it, automatically filling in your entire profile.</Paragraph>
-                            </Card>
-                        </motion.div>
-                    </Col>
-                    <Col xs={24} md={8}>
-                        <motion.div variants={cardHover} whileHover="hover">
-                            <Card title="AI Content Refinement" headStyle={{ color: '#007B7B', fontWeight: 'bold' }}>
-                                <ThunderboltOutlined style={{ fontSize: '32px', color: '#007B7B', marginBottom: '16px' }} />
-                                <Paragraph>Stuck on wording? Select any part of your resume and let our AI refine it, improving clarity, grammar, and impact instantly.</Paragraph>
-                            </Card>
-                        </motion.div>
-                    </Col>
-                    <Col xs={24} md={8}>
-                        <motion.div variants={cardHover} whileHover="hover">
-                            <Card title="Conversational AI Chat" headStyle={{ color: '#007B7B', fontWeight: 'bold' }}>
-                                <MessageOutlined style={{ fontSize: '32px', color: '#007B7B', marginBottom: '16px' }} />
-                                <Paragraph>Talk to your resume. Open our AI chat to rewrite your summary, ask for suggestions, or tailor your profile to a specific job description.</Paragraph>
-                            </Card>
-                        </motion.div>
-                    </Col>
-                </Row>
-            </motion.section>
+      {/* --- 3. FEATURES GRID --- */}
+      <div style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <Title level={2} style={{ color: "#002A3A" }}>
+              Why ResumeX?
+            </Title>
+            <Text type="secondary" style={{ fontSize: "16px" }}>
+              Three distinct AI layers working together to land you the job.
+            </Text>
+          </div>
 
-            {/* --- 3. Project Journey Section --- */}
-            <motion.section 
-                style={{ padding: '80px 40px', backgroundColor: '#f0f9f9' }}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
-                variants={sectionFadeIn}
-            >
-                <Title level={2} style={{ textAlign: 'center', marginBottom: '60px' }}>
-                    The Project Journey
-                </Title>
-                <div style={{ maxWidth: '800px', margin: 'auto' }}>
-                    <Timeline mode="alternate">
-                        <Timeline.Item dot={<ExperimentOutlined style={{ fontSize: '18px' }} />} color="#007B7B">
-                            <Title level={4}>The Problem</Title>
-                            <Paragraph>Traditional resume building is slow, tedious, and it's hard to know if you're "doing it right."</Paragraph>
-                        </Timeline.Item>
-                        <Timeline.Item dot={<RocketOutlined style={{ fontSize: '18px' }} />} color="blue">
-                            <Title level={4}>The Idea (CSE299)</Title>
-                            <Paragraph>What if we could use modern AI to automate the most painful parts? An idea for a final-year project was born.</Paragraph>
-                        </Timeline.Item>
-                        <Timeline.Item dot={<ThunderboltOutlined style={{ fontSize: '18px' }} />} color="#007B7B">
-                            <Title level={4}>The Technology</Title>
-                            <Paragraph>Built with a modern stack: React & Ant Design on the frontend, Node.js & Express on the backend, and Google's Gemini AI for intelligence.</Paragraph>
-                        </Timeline.Item>
-                        <Timeline.Item dot={<FlagOutlined style={{ fontSize: '18px' }} />} color="green">
-                            <Title level={4}>The Result</Title>
-                            <Paragraph>A smart, fast, and intuitive resume builder that empowers users to create their best-possible resume.</Paragraph>
-                        </Timeline.Item>
-                    </Timeline>
-                </div>
-            </motion.section>
-
-            {/* --- 4. FAQ Section (Accordion) --- */}
-            <motion.section 
-                style={{ padding: '80px 40px', maxWidth: '900px', margin: 'auto' }}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
-                variants={sectionFadeIn}
-            >
-                <Title level={2} style={{ textAlign: 'center', marginBottom: '60px' }}>
-                    Frequently Asked Questions
-                </Title>
-                <Collapse accordion size="large" bordered={false} style={{ backgroundColor: '#fff' }}>
-                    {faqItems.map(item => (
-                        <Panel header={item.label} key={item.key} style={{ fontSize: '16px', fontWeight: 500 }}>
-                            <Paragraph style={{ fontSize: '16px', color: '#555' }}>{item.content}</Paragraph>
-                        </Panel>
-                    ))}
-                </Collapse>
-            </motion.section>
-
-            {/* --- 5. Final Call to Action --- */}
-            <motion.section 
-                style={{ 
-                    backgroundColor: '#007B7B', 
-                    padding: '80px 40px', 
-                    textAlign: 'center',
-                    color: '#fff'
-                }}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.3 }}
-                variants={sectionFadeIn}
-            >
-                <Title level={1} style={{ color: '#fff', fontWeight: 700, marginBottom: '20px' }}>
-                    Ready to land your next job?
-                </Title>
-                <Paragraph style={{ fontSize: '18px', maxWidth: '600px', margin: 'auto', color: '#f0f9f9', marginBottom: '30px' }}>
-                    Stop worrying about formatting and wording. Let our AI help you build a resume that stands out.
-                </Paragraph>
+          <Row gutter={[32, 32]}>
+            {[
+              {
+                icon: <UploadOutlined />,
+                title: "Context-Aware Parser",
+                text: "Don't start from scratch. Our AI reads your PDF, understands the structure, and auto-fills the builder for you.",
+              },
+              {
+                icon: <ThunderboltOutlined />,
+                title: "Smart Refinement",
+                text: "Turn 'I did sales' into 'Generated 20% revenue growth'. The AI suggests impactful verbs based on your specific job title.",
+              },
+              {
+                icon: <MessageOutlined />,
+                title: "Career Consultant Chat",
+                text: "Ask the AI questions like 'Is my resume good for a Senior Dev role?' It reads your full profile context to give advice.",
+              },
+            ].map((feature, idx) => (
+              <Col xs={24} md={8} key={idx}>
                 <motion.div
-                    style={{ display: 'inline-block' }}
-                    variants={buttonHover}
-                    whileHover="hover"
+                  whileHover={{ y: -10 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
-                    <Button 
-                        type="primary"
-                        size="large" 
-                        style={{ 
-                            height: '50px', 
-                            fontSize: '18px', 
-                            padding: '0 32px',
-                            backgroundColor: '#fff', // White button on teal bg
-                            color: '#007B7B', // Teal text
-                            fontWeight: 'bold',
-                            border: 'none'
-                        }}
-                        onClick={() => navigate('/register')}
+                  <Card
+                    bordered={false}
+                    style={{
+                      height: "100%",
+                      textAlign: "center",
+                      background: "#f9f9f9",
+                      borderRadius: "16px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "40px",
+                        color: "#007B7B",
+                        marginBottom: "24px",
+                        background: "#e6fffa",
+                        width: "80px",
+                        height: "80px",
+                        lineHeight: "80px",
+                        borderRadius: "50%",
+                        margin: "0 auto 24px",
+                      }}
                     >
-                        Get Started for Free
-                    </Button>
+                      {feature.icon}
+                    </div>
+                    <Title level={4} style={{ color: "#002A3A" }}>
+                      {feature.title}
+                    </Title>
+                    <Paragraph style={{ color: "#666" }}>
+                      {feature.text}
+                    </Paragraph>
+                  </Card>
                 </motion.div>
-            </motion.section>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      </div>
 
-        </Layout.Content>
-    );
+      {/* --- 4. PROJECT ROADMAP (NEW SECTION) --- */}
+      <div style={{ padding: "80px 24px", background: "#f0f9f9" }}>
+        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 60 }}>
+            <Title level={2} style={{ color: "#002A3A" }}>
+              The Project Journey
+            </Title>
+            <Text type="secondary" style={{ fontSize: "16px" }}>
+              How ResumeX went from a concept to a full-stack AI platform.
+            </Text>
+          </div>
+
+          <Timeline
+            mode="alternate"
+            items={[
+              {
+                color: "blue",
+                dot: <ExperimentOutlined style={{ fontSize: "20px" }} />,
+                children: (
+                  <>
+                    <Title level={4} style={{ margin: 0 }}>
+                      The Problem
+                    </Title>
+                    <Paragraph style={{ color: "#666" }}>
+                      Resume formatting is tedious. Existing tools are either
+                      expensive or lack intelligent feedback. We identified a
+                      need for a smart, free alternative for students.
+                    </Paragraph>
+                  </>
+                ),
+              },
+              {
+                color: "green",
+                dot: <CodeOutlined style={{ fontSize: "20px" }} />,
+                children: (
+                  <>
+                    <Title level={4} style={{ margin: 0 }}>
+                      The Architecture
+                    </Title>
+                    <Paragraph style={{ color: "#666" }}>
+                      We selected the MERN stack for scalability and Ant Design
+                      for a professional UI. The core challenge was integrating
+                      Google's Gemini API for context-aware text generation.
+                    </Paragraph>
+                  </>
+                ),
+              },
+              {
+                color: "purple",
+                dot: <ThunderboltOutlined style={{ fontSize: "20px" }} />,
+                children: (
+                  <>
+                    <Title level={4} style={{ margin: 0 }}>
+                      Development
+                    </Title>
+                    <Paragraph style={{ color: "#666" }}>
+                      Built a custom PDF rendering engine using CSS print rules,
+                      implemented JWT authentication, and developed the "Master
+                      Profile" system for data reusability.
+                    </Paragraph>
+                  </>
+                ),
+              },
+              {
+                color: "#007B7B",
+                dot: <RocketOutlined style={{ fontSize: "20px" }} />,
+                children: (
+                  <>
+                    <Title level={4} style={{ margin: 0 }}>
+                      Launch (v1.0)
+                    </Title>
+                    <Paragraph style={{ color: "#666" }}>
+                      A complete SaaS MVP featuring multi-profile management,
+                      dark mode templates, and an AI consultant that understands
+                      your specific skills and experience.
+                    </Paragraph>
+                  </>
+                ),
+              },
+            ]}
+          />
+        </div>
+      </div>
+      {/* --- 5. FAQ --- */}
+      <div style={{ padding: "80px 24px", background: "#fff" }}>
+        <div style={{ maxWidth: "800px", margin: "0 auto", width: "100%" }}>
+          <Title
+            level={2}
+            style={{ textAlign: "center", marginBottom: 40, color: "#002A3A" }}
+          >
+            Common Questions
+          </Title>
+
+          <Collapse
+            accordion
+            size="large"
+            items={faqItems.map((item) => ({
+              ...item,
+              // Style individual panels to be stable cards
+              style: {
+                marginBottom: 16,
+                background: "#fafafa",
+                borderRadius: 8,
+                border: "1px solid #f0f0f0",
+                overflow: "hidden",
+              },
+            }))}
+            // Remove default borders from the main container
+            bordered={false}
+            style={{ background: "transparent" }}
+          />
+        </div>
+      </div>
+
+      {/* --- 7. FINAL CTA --- */}
+      <div
+        style={{
+          background: "#002A3A",
+          padding: "60px 24px",
+          textAlign: "center",
+          color: "#fff",
+        }}
+      >
+        <Title level={2} style={{ color: "#fff", marginBottom: 16 }}>
+          Ready to upgrade your career?
+        </Title>
+        <Paragraph style={{ color: "rgba(255,255,255,0.6)", marginBottom: 32 }}>
+          It's free, it's fast, and it's powered by AI.
+        </Paragraph>
+        <Button
+          type="primary"
+          size="large"
+          onClick={() => setAuthModalOpen("register")}
+          style={{
+            height: "50px",
+            padding: "0 40px",
+            background: "#007B7B",
+            border: "none",
+          }}
+        >
+          Get Started for Free
+        </Button>
+      </div>
+    </Layout>
+  );
 };
 
 export default AboutPage;

@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+@media print {
+    @page {
+        margin: 0;
+        size: auto;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* FIX 1: Removed 'header' from this list so your name/contact info shows up */
+    nav, footer, .ant-drawer, .ant-float-btn-group {
+        display: none !important;
+    }
+
+    #root {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+}

@@ -6,23 +6,25 @@ import { API_BASE_URL } from "../../Config/constraints";
 
 const { Paragraph } = Typography;
 
-const ChatModal = ({ resumeText, onSave, onClose, open }) => {
+// CHANGE: Accept 'resumeData' instead of just 'resumeText'
+const ChatModal = ({ resumeData, onSave, onClose, open }) => {
     const { token } = useAuth();
     const [conversation, setConversation] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const chatRef = useRef(null);
 
-    // Reset conversation when modal opens
     useEffect(() => {
         if (open) {
-            setConversation([{ 
-                role: 'assistant', 
-                content: "Hello! I'm your AI assistant. Your current summary is loaded. How can I help you improve it?" 
-            }]);
+            // Context-aware greeting
+            const greeting = resumeData?.personal?.name 
+                ? `Hello ${resumeData.personal.name}! I have read your resume. I can help you write a summary, improve your bullet points, or suggest missing skills. What shall we do?`
+                : "Hello! I'm your AI assistant. I've loaded your resume context. How can I help?";
+
+            setConversation([{ role: 'assistant', content: greeting }]);
             setInput('');
         }
-    }, [open]);
+    }, [open, resumeData]); // React to resumeData changes
 
     const handleSend = async () => {
         if (!input.trim() || loading || !token) return;
@@ -34,7 +36,7 @@ const ChatModal = ({ resumeText, onSave, onClose, open }) => {
 
         const payload = {
             conversation: [...conversation, newUserMessage], 
-            resumeText: resumeText,
+            fullResume: resumeData, // SEND FULL DATA
         };
 
         try {
@@ -46,20 +48,18 @@ const ChatModal = ({ resumeText, onSave, onClose, open }) => {
             const data = await response.json();
 
             if (data.success && data.response) {
-                const aiResponse = data.response;
-                setConversation(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+                setConversation(prev => [...prev, { role: 'assistant', content: data.response }]);
             } else {
                 throw new Error(data.error || 'Failed to get AI response.');
             }
         } catch (error) {
-            console.error('Chat API error:', error);
             setConversation(prev => [...prev, { role: 'assistant', content: `[ERROR] ${error.message}` }]);
         } finally {
             setLoading(false);
         }
     };
 
-    // Auto-scroll chat
+    // ... (Keep Auto-scroll, handleSaveSuggestion, and render logic same as before)
     useEffect(() => {
         if (chatRef.current) {
             chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -67,24 +67,24 @@ const ChatModal = ({ resumeText, onSave, onClose, open }) => {
     }, [conversation]);
 
     const handleSaveSuggestion = (text) => {
-        const match = text.match(/([A-Z][\s\S]*)/);
-        const suggestion = match ? match[1].trim() : text.trim();
+        // Simple heuristic to remove quotes if the AI adds them
+        const cleanText = text.replace(/^"|"$/g, '');
         
         Modal.confirm({
             title: 'Save AI Suggestion?',
             content: (
                 <Paragraph ellipsis={{ rows: 5, expandable: true }}>
-                    {suggestion}
+                    {cleanText}
                 </Paragraph>
             ),
             okText: "Save to Summary",
-            onOk: () => onSave(suggestion),
+            onOk: () => onSave(cleanText),
         });
     };
 
     return (
         <Modal
-            title="AI Conversational Editor (Summary)"
+            title="AI Resume Consultant"
             open={open}
             onCancel={onClose}
             width={700}
@@ -120,12 +120,7 @@ const ChatModal = ({ resumeText, onSave, onClose, open }) => {
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                             }}
                         >
-                            <pre style={{ 
-                                whiteSpace: 'pre-wrap', 
-                                wordWrap: 'break-word', 
-                                margin: 0, 
-                                fontFamily: 'inherit' 
-                            }}>
+                            <pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', margin: 0, fontFamily: 'inherit' }}>
                                 {msg.content}
                             </pre>
                             {index > 0 && msg.role === 'assistant' && !msg.content.startsWith('[ERROR]') && (
@@ -144,7 +139,7 @@ const ChatModal = ({ resumeText, onSave, onClose, open }) => {
                 {loading && (
                     <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', paddingLeft: '12px' }}>
                         <Spin indicator={<ThunderboltOutlined spin />} style={{ marginRight: 12, color: '#007B7B' }} />
-                        AI is thinking...
+                        Analyzing resume data...
                     </div>
                 )}
             </div>
@@ -155,16 +150,10 @@ const ChatModal = ({ resumeText, onSave, onClose, open }) => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="e.g., Make my summary more focused on data science."
+                    placeholder="Ask AI to write a summary or check your skills..."
                     disabled={loading}
                 />
-                <Button 
-                    type="primary" 
-                    icon={<SendOutlined />} 
-                    size="large"
-                    onClick={handleSend} 
-                    loading={loading}
-                />
+                <Button type="primary" icon={<SendOutlined />} size="large" onClick={handleSend} loading={loading} />
             </Space.Compact>
         </Modal>
     );
