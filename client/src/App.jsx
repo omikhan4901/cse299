@@ -16,7 +16,8 @@ import ProfilePage from "./Components/Profile/Profile";
 import PublicResumeViewer from "./Components/Public/PublicResumeViewer";
 // 3. NEW IMPORT: The dedicated component for printing
 import PrintLayout from "./Components/Print/PrintLayout";
-import { Spin, Tooltip, } from "antd";
+import { Spin, Typography } from "antd";
+const { Paragraph } = Typography;
 
 // --- Main App Component ---
 
@@ -27,20 +28,22 @@ const App = () => {
   const renderRoute = () => {
     if (loading)
       return (
-        <Tooltip title="Loading the Site, the Site runs on free hosting, so it might take a while..." placement="top">
-          <div
-            style={{
-              height: "100vh",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Spin size="large" />
+          <Paragraph
+            style={{ fontSize: "18px", color: "#555", margin: "20px 0 30px" }}
           >
-            <Spin
-              size="large"
-            />
-          </div>
-        </Tooltip>
+            With our state-of-the-art AI-driven resume maker, you will finally
+            unlock the full potential of your career story.
+          </Paragraph>
+        </div>
       );
 
     // 2. ADD THIS CHECK BEFORE THE SWITCH

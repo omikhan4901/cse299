@@ -139,47 +139,84 @@ const HomePage = () => {
         </Row>
       </div>
 
-{/* ================= 2. TRUSTED TECH STACK ================= */}
-      <div style={{ background: '#002A3A', padding: '60px 24px' }}>
-          <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
-              <Text style={{ fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', letterSpacing: '2px' }}>
-                  Powering the Next Generation of Resumes
-              </Text>
-              
-              <Row justify="center" align="middle" gutter={[64, 32]} style={{ marginTop: '32px' }}>
-                  {/* Gemini */}
-                  <Col>
-                      <Space size="small" align="center" style={{ cursor: 'default' }}>
-                          <RobotOutlined style={{ fontSize: '28px', color: '#4fd1c5' }} />
-                          <span style={{ fontSize: '22px', fontWeight: 700, color: '#fff' }}>Gemini 1.5</span>
-                      </Space>
-                  </Col>
-                  
-                  {/* React */}
-                  <Col>
-                      <Space size="small" align="center" style={{ cursor: 'default' }}>
-                          <RocketOutlined style={{ fontSize: '28px', color: '#63b3ed' }} />
-                          <span style={{ fontSize: '22px', fontWeight: 700, color: '#fff' }}>React</span>
-                      </Space>
-                  </Col>
+      {/* ================= 2. TRUSTED TECH STACK ================= */}
+      <div style={{ background: "#002A3A", padding: "60px 24px" }}>
+        <div
+          style={{ maxWidth: "1000px", margin: "0 auto", textAlign: "center" }}
+        >
+          <Text
+            style={{
+              fontSize: "13px",
+              fontWeight: "bold",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.5)",
+              letterSpacing: "2px",
+            }}
+          >
+            Powering the Next Generation of Resumes
+          </Text>
 
-                  {/* MongoDB */}
-                  <Col>
-                      <Space size="small" align="center" style={{ cursor: 'default' }}>
-                          <ThunderboltOutlined style={{ fontSize: '28px', color: '#68d391' }} />
-                          <span style={{ fontSize: '22px', fontWeight: 700, color: '#fff' }}>MongoDB</span>
-                      </Space>
-                  </Col>
-                  
-                  {/* Security */}
-                  <Col>
-                      <Space size="small" align="center" style={{ cursor: 'default' }}>
-                          <SafetyCertificateOutlined style={{ fontSize: '28px', color: '#f6e05e' }} />
-                          <span style={{ fontSize: '22px', fontWeight: 700, color: '#fff' }}>Secure</span>
-                      </Space>
-                  </Col>
-              </Row>
-          </div>
+          <Row
+            justify="center"
+            align="middle"
+            gutter={[64, 32]}
+            style={{ marginTop: "32px" }}
+          >
+            {/* Gemini */}
+            <Col>
+              <Space size="small" align="center" style={{ cursor: "default" }}>
+                <RobotOutlined style={{ fontSize: "28px", color: "#4fd1c5" }} />
+                <span
+                  style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}
+                >
+                  Gemini 1.5
+                </span>
+              </Space>
+            </Col>
+
+            {/* React */}
+            <Col>
+              <Space size="small" align="center" style={{ cursor: "default" }}>
+                <RocketOutlined
+                  style={{ fontSize: "28px", color: "#63b3ed" }}
+                />
+                <span
+                  style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}
+                >
+                  React
+                </span>
+              </Space>
+            </Col>
+
+            {/* MongoDB */}
+            <Col>
+              <Space size="small" align="center" style={{ cursor: "default" }}>
+                <ThunderboltOutlined
+                  style={{ fontSize: "28px", color: "#68d391" }}
+                />
+                <span
+                  style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}
+                >
+                  MongoDB
+                </span>
+              </Space>
+            </Col>
+
+            {/* Security */}
+            <Col>
+              <Space size="small" align="center" style={{ cursor: "default" }}>
+                <SafetyCertificateOutlined
+                  style={{ fontSize: "28px", color: "#f6e05e" }}
+                />
+                <span
+                  style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}
+                >
+                  Secure
+                </span>
+              </Space>
+            </Col>
+          </Row>
+        </div>
       </div>
       {/* ================= 3. HOW IT WORKS ================= */}
       <div
