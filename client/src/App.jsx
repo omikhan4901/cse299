@@ -16,6 +16,7 @@ import ProfilePage from "./Components/Profile/Profile";
 import PublicResumeViewer from "./Components/Public/PublicResumeViewer";
 // 3. NEW IMPORT: The dedicated component for printing
 import PrintLayout from "./Components/Print/PrintLayout";
+import { Spin, Tooltip, } from "antd";
 
 // --- Main App Component ---
 
@@ -26,9 +27,20 @@ const App = () => {
   const renderRoute = () => {
     if (loading)
       return (
-        <div className="min-h-screen flex items-center justify-center text-xl text-indigo-600">
-          Loading...
-        </div>
+        <Tooltip title="Loading the Site, the Site runs on free hosting, so it might take a while..." placement="top">
+          <div
+            style={{
+              height: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Spin
+              size="large"
+            />
+          </div>
+        </Tooltip>
       );
 
     // 2. ADD THIS CHECK BEFORE THE SWITCH
@@ -52,7 +64,7 @@ const App = () => {
         return (
           <div className="min-h-screen flex items-center justify-center text-xl text-red-600">
             404 | Page Not Found
-          </div>    
+          </div>
         );
     }
   };
