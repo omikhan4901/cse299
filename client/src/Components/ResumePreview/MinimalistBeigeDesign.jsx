@@ -58,7 +58,7 @@ const MinimalistBeigeDesign = ({ data, onEditSection }) => {
                         <div className="flex items-center gap-2">
                             <PhoneFilled className="text-[#8c7355]" /> {data.personal.phone}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 break-all">
                             <MailFilled className="text-[#8c7355]" /> {data.personal.email}
                         </div>
                         <div className="flex items-center gap-2">

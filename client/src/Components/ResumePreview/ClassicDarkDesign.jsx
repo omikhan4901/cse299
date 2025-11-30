@@ -109,7 +109,7 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
                     
                     <Space size="large" wrap className="justify-center !text-gray-400 text-sm">
                         <Space><PhoneOutlined /> {data.personal.phone}</Space>
-                        <Space><MailOutlined /> {data.personal.email}</Space>
+                        <Space><MailOutlined /> <span className="break-all">{data.personal.email}</span></Space>
                         <Space><HomeOutlined /> {data.personal.city}</Space>
                         <Space><LinkedinOutlined /> {data.personal.linkedin}</Space>
                     </Space>

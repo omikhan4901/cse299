@@ -75,7 +75,7 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
     );
 
     const contactItems = [
-        { key: '1', label: <MailOutlined />, children: data.personal.email },
+        { key: '1', label: <MailOutlined />, children: <span className="break-all">{data.personal.email}</span> },
         { key: '2', label: <PhoneOutlined />, children: data.personal.phone },
         { key: '3', label: <HomeOutlined />, children: data.personal.city },
         { key: '4', label: <LinkedinOutlined />, children: <Link href={`https://${data.personal.linkedin}`} target="_blank" className="!text-indigo-400">{data.personal.linkedin}</Link> },

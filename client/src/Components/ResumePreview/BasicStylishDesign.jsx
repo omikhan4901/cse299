@@ -63,7 +63,7 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
                     </Link>
                 </div>
                 <div className="flex items-center gap-2">
-                    <MailFilled /> {data.personal.email}
+                    <MailFilled /> <span className="break-all">{data.personal.email}</span>
                 </div>
             </div>
 

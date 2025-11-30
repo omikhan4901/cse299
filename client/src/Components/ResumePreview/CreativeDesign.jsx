@@ -54,7 +54,7 @@ const CreativeDesign = ({ data, onEditSection }) => {
                     
                     {/* Left: Contact Info */}
                     <Space direction="vertical" size={6} className="text-sm mt-4">
-                        <Space><MailOutlined className="text-blue-500" /> {data.personal.email}</Space>
+                        <Space ><MailOutlined className="text-blue-500" /> <span className="break-all">{data.personal.email}</span></Space>
                         <Space><PhoneOutlined className="text-blue-500" /> {data.personal.phone}</Space>
                     </Space>
 

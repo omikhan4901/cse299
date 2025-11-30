@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Typography, Space, Divider, Tag, Descriptions } from 'antd';
+import { Button, Typography, Divider, Tag } from 'antd';
 import { 
     EditOutlined, 
     MailOutlined, 
@@ -10,174 +10,161 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-// --- Sub-Components ---
-const BulletPoints = ({ text }) => {
-    if (!text) return null;
-    return (
-        <ul className="list-disc list-inside space-y-1 mt-1 text-gray-700 dark:text-gray-300 ml-5 text-sm">
-            {text.split('\n').map((line, index) => (
-                line.trim() && <li key={index}>{line.trim()}</li>
-            ))}
-        </ul>
-    );
-};
-
-const MainSectionTitle = ({ title }) => (
-    <Title level={4} className="text-gray-800 dark:text-white border-b-2 border-indigo-200 dark:border-indigo-700 pb-1 mb-4 uppercase tracking-wider">
-        {title}
-    </Title>
-);
-
-const ModernExperiencePreview = ({ item }) => (
-    <div className="mb-5">
-        <div className="flex justify-between items-start">
-            <Title level={5} className="text-indigo-700 dark:text-indigo-400 mb-0">
-                {item.title || 'Job Title'} @ {item.company || 'Company Name'}
-            </Title>
-            <Text type="secondary" className="flex-shrink-0 ml-4 italic">
-                {item.startDate} - {item.endDate}
-            </Text>
-        </div>
-        <BulletPoints text={item.description} />
-    </div>
-);
-
-const ModernEducationPreview = ({ item }) => (
-    <div className="mb-5">
-        <div className="flex justify-between items-start">
-            <Title level={5} className="text-gray-800 dark:text-white mb-0">
-                {item.degree || 'Degree'}
-            </Title>
-            <Text type="secondary" className="flex-shrink-0 ml-4 italic">
-                {item.startYear} - {item.endYear}
-            </Text>
-        </div>
-        <Text italic className="text-sm text-gray-600 dark:text-gray-400">
-            {item.institution || 'Institution Name'}
-        </Text>
-    </div>
-);
-
-// --- Main Template ---
-
 const ModernDesign = ({ data, onEditSection }) => {
     
-    const EditButton = ({ section }) => (
+    const EditButton = ({ section, className }) => (
         <Button
             type="primary"
             shape="circle"
             icon={<EditOutlined />}
             onClick={() => onEditSection(section)}
-            className="print:hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            style={{ zIndex: 10 }}
+            className={`print:hidden absolute opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-50 ${className}`}
         />
     );
 
-    const contactItems = [
-        { key: '1', label: <MailOutlined />, children: data.personal.email },
-        { key: '2', label: <PhoneOutlined />, children: data.personal.phone },
-        { key: '3', label: <HomeOutlined />, children: data.personal.city },
-        { key: '4', label: <LinkedinOutlined />, children: <Link href={`https://${data.personal.linkedin}`} target="_blank">{data.personal.linkedin}</Link> },
-    ];
-
     return (
-        <div className="grid grid-cols-4 gap-6 min-h-[11in] print:min-h-screen">
-            {/* Left Column (1/4 width) - Contact & Skills */}
-            <div className="col-span-1 bg-indigo-50 dark:bg-gray-700 p-4 pt-6 border-r border-indigo-200 dark:border-indigo-600">
+        <div className="min-h-[11in] bg-white font-sans flex print:min-h-screen relative text-slate-800">
+            
+            {/* --- LEFT SIDEBAR (Dark Blue) --- */}
+            <div className="w-[32%] bg-[#1e293b] text-slate-300 p-8 flex flex-col relative print:h-auto min-h-full">
                 
-                <div className="relative"> 
-                    <EditButton section="personal" /> 
+                {/* Profile Picture */}
+                <div className="relative mb-8 text-center group/section">
+                    <EditButton section="personal" className="top-0 right-0" />
+                    <div className="w-40 h-40 mx-auto rounded-full border-4 border-slate-500 overflow-hidden mb-6 bg-slate-700">
+                        {data.personal.profilePic ? (
+                            <img src={data.personal.profilePic} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-500">No Photo</div>
+                        )}
+                    </div>
                     
-                    {/* --- CONDITIONAL PROFILE PICTURE --- */}
-                    {data.personal.profilePic && (
-                        <div className="mb-6 flex justify-center">
-                            <img 
-                                src={data.personal.profilePic} 
-                                alt="Profile" 
-                                className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-sm"
-                            />
-                        </div>
-                    )}
-                    {/* ----------------------------------- */}
-
-                    <header className="mb-6">
-                        <Title level={2} className="text-gray-900 dark:text-white mb-1">
-                            {data.personal.name || 'Your Name'}
-                        </Title>
-                        <Title level={5} className="text-indigo-700 dark:text-indigo-400 font-medium mt-0">
-                            {data.personal.title || 'Professional Title'}
-                        </Title>
-                    </header>
+                    <h1 className="text-3xl font-bold text-white uppercase leading-tight tracking-wide mb-2">
+                        {data.personal.name}
+                    </h1>
+                    <p className="text-slate-400 uppercase tracking-widest text-sm font-medium">
+                        {data.personal.title}
+                    </p>
                 </div>
 
-                <Divider className="my-4" />
-
-                <section className="mb-6">
-                    <Title level={5} className="text-indigo-800 dark:text-indigo-400 uppercase tracking-wider mb-3">Contact</Title>
-                    <Descriptions column={1} size="small" layout="horizontal" className="text-xs">
-                        {contactItems.map(item => (
-                            <Descriptions.Item key={item.key} labelStyle={{ padding: 0 }} contentStyle={{ padding: 0, fontSize: '12px' }} label={item.label}>
-                                {item.children}
-                            </Descriptions.Item>
-                        ))}
-                    </Descriptions>
-                </section>
-
-                <div className="relative"> 
-                    <EditButton section="skills" /> 
-                    <section className="mb-6">
-                        <Title level={5} className="text-indigo-800 dark:text-indigo-400 uppercase tracking-wider mb-3">Skills</Title>
-                        {(data.skills && data.skills.trim()) ? (
-                            <Space size={[4, 8]} wrap>
-                                {data.skills.split(',').map(skill => (
-                                    <Tag key={skill.trim()}>{skill.trim()}</Tag>
-                                ))}
-                            </Space>
-                        ) : (
-                            <Text type="secondary" italic>Add skills...</Text>
+                {/* Contact Info */}
+                <div className="relative mb-10 group/section">
+                    <EditButton section="personal" className="top-0 right-0" />
+                    <h3 className="text-slate-400 uppercase tracking-widest text-sm font-bold border-b border-slate-600 pb-2 mb-4">
+                        Contact
+                    </h3>
+                    <div className="space-y-4 text-sm font-light">
+                        <div className="flex items-start gap-3">
+                            <MailOutlined className="mt-1 text-slate-400" />
+                            <span className="break-all">{data.personal.email}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <PhoneOutlined className="text-slate-400" />
+                            <span>{data.personal.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <HomeOutlined className="text-slate-400" />
+                            <span>{data.personal.city}</span>
+                        </div>
+                        {data.personal.linkedin && (
+                            <div className="flex items-start gap-3">
+                                <LinkedinOutlined className="mt-1 text-slate-400" />
+                                <Link href={`https://${data.personal.linkedin}`} target="_blank" className="text-slate-300 hover:text-white break-all">
+                                    {data.personal.linkedin}
+                                </Link>
+                            </div>
                         )}
-                    </section>
+                    </div>
+                </div>
+
+                {/* Skills */}
+                <div className="relative group/section">
+                    <EditButton section="skills" className="top-0 right-0" />
+                    <h3 className="text-slate-400 uppercase tracking-widest text-sm font-bold border-b border-slate-600 pb-2 mb-4">
+                        Skills
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {data.skills ? data.skills.split(',').map((skill, i) => (
+                            <Tag key={i} className="bg-slate-700 border-none text-slate-200 px-3 py-1 mb-1 rounded-full text-xs">
+                                {skill.trim()}
+                            </Tag>
+                        )) : <span className="text-slate-500 italic">Add skills...</span>}
+                    </div>
                 </div>
             </div>
 
-            {/* Right Column (3/4 width) - Content */}
-            <div className="col-span-3 p-4 pt-6">
+            {/* --- RIGHT CONTENT (White) --- */}
+            <div className="w-[68%] p-12 bg-white">
                 
-                <div className="relative"> 
-                    <EditButton section="summary" /> 
-                    <section className="mb-6">
-                        <MainSectionTitle title="About Me" />
-                        {data.summary ? (
-                            <Paragraph className="text-sm text-gray-700 dark:text-gray-300">{data.summary}</Paragraph>
-                        ) : (
-                            <Text type="secondary" italic>Click the edit icon to add a summary.</Text>
-                        )}
-                    </section>
+                {/* About Me */}
+                <div className="relative mb-12 group/section">
+                    <EditButton section="summary" className="-left-4 top-0" />
+                    <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide border-b-2 border-indigo-600 pb-2 mb-4 inline-block pr-12">
+                        About Me
+                    </h2>
+                    <div className="w-full border-b border-slate-200 mb-4 -mt-[11px] z-[-1]"></div>
+                    
+                    <Paragraph className="text-slate-600 leading-relaxed text-justify text-[15px]">
+                        {data.summary || 'Add a professional summary here...'}
+                    </Paragraph>
                 </div>
 
-                <div className="relative"> 
-                    <EditButton section="experience" /> 
-                    <section className="mb-6">
-                        <MainSectionTitle title="Experience" />
-                        {(data.experience && data.experience.length > 0) ? (
-                            data.experience.map(item => <ModernExperiencePreview key={item.id} item={item} />)
-                        ) : (
-                            <Text type="secondary" italic>Click the edit icon to add experience.</Text>
-                        )}
-                    </section>
+                {/* Experience */}
+                <div className="relative mb-12 group/section">
+                    <EditButton section="experience" className="-left-4 top-0" />
+                    <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide border-b-2 border-indigo-600 pb-2 mb-6 inline-block pr-12">
+                        Experience
+                    </h2>
+                    <div className="w-full border-b border-slate-200 mb-8 -mt-[25px] z-[-1]"></div>
+
+                    <div className="space-y-8">
+                        {(data.experience || []).map(item => (
+                            <div key={item.id} className="relative pl-6 border-l-2 border-indigo-100">
+                                {/* Timeline Dot */}
+                                <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 border-indigo-600 bg-white"></div>
+                                
+                                <div className="flex justify-between items-baseline mb-1">
+                                    <h3 className="text-lg font-bold text-slate-800 m-0">
+                                        {item.title} <span className="font-normal text-slate-500 text-base">@ {item.company}</span>
+                                    </h3>
+                                    <span className="text-xs font-bold text-slate-400 italic">
+                                        {item.startDate} - {item.endDate}
+                                    </span>
+                                </div>
+                                
+                                <ul className="list-disc list-outside ml-4 mt-2 text-slate-600 text-sm space-y-1 leading-relaxed">
+                                    {item.description && item.description.split('\n').map((line, i) => line && (
+                                        <li key={i}>{line.replace(/^[•-]\s*/, '')}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                <div className="relative"> 
-                    <EditButton section="education" /> 
-                    <section className="mb-6">
-                        <MainSectionTitle title="Education" />
-                        {(data.education && data.education.length > 0) ? (
-                            data.education.map(item => <ModernEducationPreview key={item.id} item={item} />)
-                        ) : (
-                            <Text type="secondary" italic>Click the edit icon to add education.</Text>
-                        )}
-                    </section>
+                {/* Education */}
+                <div className="relative group/section">
+                    <EditButton section="education" className="-left-4 top-0" />
+                    <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide border-b-2 border-indigo-600 pb-2 mb-6 inline-block pr-12">
+                        Education
+                    </h2>
+                    <div className="w-full border-b border-slate-200 mb-8 -mt-[25px] z-[-1]"></div>
+
+                    <div className="space-y-6">
+                        {(data.education || []).map(item => (
+                            <div key={item.id} className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800 m-0">{item.institution}</h3>
+                                    <div className="text-indigo-600 font-medium">{item.degree}</div>
+                                </div>
+                                <span className="text-sm font-bold text-slate-400 italic">
+                                    {item.startYear} - {item.endYear}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
+
             </div>
         </div>
     );

@@ -108,7 +108,7 @@ const ClassicDesign = ({ data, onEditSection }) => {
                     
                     <Space size="large" wrap className="justify-center text-gray-500 font-sans text-sm">
                         <Space><PhoneOutlined /> {data.personal.phone}</Space>
-                        <Space><MailOutlined /> {data.personal.email}</Space>
+                        <Space><MailOutlined /> <span className="break-all">{data.personal.email}</span></Space>
                         <Space><HomeOutlined /> {data.personal.city}</Space>
                         <Space><LinkedinOutlined /> <Link href={`https://${data.personal.linkedin}`} target="_blank" className="text-gray-500 hover:text-indigo-600">{data.personal.linkedin}</Link></Space>
                     </Space>

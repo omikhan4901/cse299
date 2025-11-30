@@ -73,11 +73,12 @@ router.post('/refine', protect, async (req, res) => {
     if (sectionType === 'summary') {
         // PROMPT FOR "ABOUT ME" (First Person, Narrative)
         specificInstruction = `
-        This is an "About Me" or "Professional Summary" section.
+        This is an "About Me" section.
         Refine the text to be a first-person narrative (using "I", "my", "I am").
         It should sound personal but professional, highlighting the user's strengths and goals.
         Do NOT use bullet points. Write it as a cohesive paragraph. Try to mention what the user did from the data provided to you to add a personal touch.
-        Please Keep it short
+        Please Keep it VERY short. 3-4 lines maximum.
+        Try to make it unique and sound Human-like.
         `;
     } else {
         // PROMPT FOR "EXPERIENCE" (Action Verbs, No "I")

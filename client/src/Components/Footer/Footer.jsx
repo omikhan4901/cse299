@@ -15,7 +15,7 @@ const Footer = () => {
     const { navigate } = useRouter();
 
     return (
-        <AntFooter style={{ background: '#002A3A', color: '#fff', padding: '48px 24px 24px' }}>
+        <AntFooter style={{ background: '#002A3A', color: '#fff', padding: '48px 24px 24px', zIndex: 25 }}>
             <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                 
                 <Row gutter={[32, 32]}>

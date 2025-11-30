@@ -73,7 +73,7 @@ const Navbar = () => {
             borderBottom: '1px solid #d9eaea',
             position: 'sticky',
             top: 0,
-            zIndex: 10,
+            zIndex: 200,
             width: '100%',
             padding: '0 40px', 
         }}>
