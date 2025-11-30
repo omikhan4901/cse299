@@ -24,7 +24,7 @@ const { Paragraph } = Typography;
 const App = () => {
   const { path } = useRouter();
   const { isAuthenticated, loading } = useAuth();
-
+  
   const renderRoute = () => {
     if (loading)
       return (
@@ -32,6 +32,7 @@ const App = () => {
           style={{
             height: "100vh",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
           }}
@@ -40,8 +41,7 @@ const App = () => {
           <Paragraph
             style={{ fontSize: "18px", color: "#555", margin: "20px 0 30px" }}
           >
-            With our state-of-the-art AI-driven resume maker, you will finally
-            unlock the full potential of your career story.
+            Please wait a little, we are using a free server at the moment, so load times are high.
           </Paragraph>
         </div>
       );
