@@ -46,7 +46,7 @@ const AboutPage = () => {
     "Express",
     "MongoDB",
     "Ant Design",
-    "Gemini AI",
+    "Generative AI",
     "Tailwind CSS",
   ];
 
@@ -55,7 +55,7 @@ const AboutPage = () => {
       key: "1",
       label: "How does the AI Resume Parser work?",
       children:
-        "We use the Google Gemini 1.5 Flash model to analyze the raw text of your PDF/DOCX. It identifies patterns like dates, job titles, and skills, mapping them into a structured JSON format that our builder can edit.",
+        "We use an advanced Large Language Model (LLM) to analyze the raw text of your PDF/DOCX. It identifies patterns like dates, job titles, and skills, mapping them into a structured JSON format that our builder can edit.",
     },
     {
       key: "2",
@@ -102,7 +102,7 @@ const AboutPage = () => {
             }}
           >
             Smarter Resumes,{" "}
-            <span style={{ color: "#007B7B" }}>Powered by Gemini</span>
+            <span style={{ color: "#007B7B" }}>Powered by AI</span>
           </Title>
           <Paragraph
             style={{
@@ -298,7 +298,7 @@ const AboutPage = () => {
                     <Paragraph style={{ color: "#666" }}>
                       We selected the MERN stack for scalability and Ant Design
                       for a professional UI. The core challenge was integrating
-                      Google's Gemini API for context-aware text generation.
+                      advanced context-aware LLMs for text generation.
                     </Paragraph>
                   </>
                 ),

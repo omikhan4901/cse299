@@ -1,3 +1,8 @@
+/**
+ * context.jsx
+ * Global State Management.
+ * Implements Authentication Provider and a custom Router solution for navigation.
+ */
 import React, { useState, useEffect, useMemo, useContext } from "react";
 import { API_BASE_URL } from "../Config/constraints";
 

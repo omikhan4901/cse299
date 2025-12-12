@@ -169,7 +169,7 @@ const HomePage = () => {
                 <span
                   style={{ fontSize: "22px", fontWeight: 700, color: "#fff" }}
                 >
-                  Gemini 1.5
+                  Generative AI
                 </span>
               </Space>
             </Col>

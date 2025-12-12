@@ -28,7 +28,7 @@ const MainSectionTitle = ({ title }) => (
 );
 
 const ModernDarkExperiencePreview = ({ item }) => (
-    <div className="mb-8 relative pl-6 border-l-2 border-indigo-900">
+    <div className="mb-8 relative pl-6 border-l-2 border-indigo-900 break-inside-avoid">
         <div className="absolute -left-[9px] top-1 w-4 h-4 bg-gray-900 border-2 border-indigo-500 rounded-full"></div>
         <div className="flex justify-between items-baseline mb-1">
             <Title level={5} className="!text-white mb-0 text-lg">
@@ -44,7 +44,7 @@ const ModernDarkExperiencePreview = ({ item }) => (
 );
 
 const ModernDarkEducationPreview = ({ item }) => (
-    <div className="mb-6">
+    <div className="mb-6 break-inside-avoid">
         <div className="flex justify-between items-start">
             <Title level={5} className="!text-white mb-0 text-lg">
                 {item.degree || 'Degree'}
@@ -61,8 +61,15 @@ const ModernDarkEducationPreview = ({ item }) => (
 
 // --- Main Template ---
 
-const ModernDarkDesign = ({ data, onEditSection }) => {
+const ModernDarkDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        // Dark theme specific highlight
+        return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-indigo-400 bg-indigo-500/10 p-2 -m-2' : ''}`;
+    };
+
     const EditButton = ({ section }) => (
         <Button
             type="primary"
@@ -86,7 +93,7 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
             {/* Left Column (Sidebar) */}
             <div className="col-span-1 bg-[#1f2937] p-6 pt-8 border-r border-gray-700">
                 
-                <div className="relative"> 
+                <div className={getSectionClass('personal')}> 
                     <EditButton section="personal" /> 
                     
                     {/* --- PROFILE PICTURE --- */}
@@ -108,29 +115,31 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
                             {data.personal.title || 'Professional Title'}
                         </Title>
                     </header>
+
+
+                    <Divider className="my-6 bg-gray-700" />
+
+                    <section className="mb-8">
+                        <Title level={5} className="!text-white uppercase tracking-widest text-xs font-bold mb-4 border-b border-gray-700 pb-2">
+                            Contact
+                        </Title>
+                        <Descriptions column={1} size="small" layout="horizontal" className="text-xs !text-gray-300">
+                            {contactItems.map(item => (
+                                <Descriptions.Item 
+                                    key={item.key} 
+                                    labelStyle={{ display: 'none' }} // Hide labels for cleaner look, icons imply meaning
+                                    contentStyle={{ padding: '6px 0', fontSize: '13px', color: '#e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }} 
+                                >
+                                    <span className="text-indigo-400 text-base">{item.label}</span>
+                                    {item.children}
+                                </Descriptions.Item>
+                            ))}
+                        </Descriptions>
+                    </section>
+
                 </div>
 
-                <Divider className="my-6 bg-gray-700" />
-
-                <section className="mb-8">
-                    <Title level={5} className="!text-white uppercase tracking-widest text-xs font-bold mb-4 border-b border-gray-700 pb-2">
-                        Contact
-                    </Title>
-                    <Descriptions column={1} size="small" layout="horizontal" className="text-xs !text-gray-300">
-                        {contactItems.map(item => (
-                            <Descriptions.Item 
-                                key={item.key} 
-                                labelStyle={{ display: 'none' }} // Hide labels for cleaner look, icons imply meaning
-                                contentStyle={{ padding: '6px 0', fontSize: '13px', color: '#e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }} 
-                            >
-                                <span className="text-indigo-400 text-base">{item.label}</span>
-                                {item.children}
-                            </Descriptions.Item>
-                        ))}
-                    </Descriptions>
-                </section>
-
-                <div className="relative"> 
+                <div className={getSectionClass('skills')}> 
                     <EditButton section="skills" /> 
                     <section>
                         <Title level={5} className="!text-white uppercase tracking-widest text-xs font-bold mb-4 border-b border-gray-700 pb-2">
@@ -154,7 +163,7 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
             {/* Right Column (Main Content) */}
             <div className="col-span-3 p-8 pt-10 bg-[#111827]">
                 
-                <div className="relative mb-10"> 
+                <div className={`mb-10 ${getSectionClass('summary')}`}> 
                     <EditButton section="summary" /> 
                     <section>
                         <MainSectionTitle title="About Me" />
@@ -168,7 +177,7 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
                     </section>
                 </div>
 
-                <div className="relative mb-10"> 
+                <div className={`mb-10 ${getSectionClass('experience')}`}> 
                     <EditButton section="experience" /> 
                     <section>
                         <MainSectionTitle title="Experience" />
@@ -180,7 +189,7 @@ const ModernDarkDesign = ({ data, onEditSection }) => {
                     </section>
                 </div>
 
-                <div className="relative"> 
+                <div className={getSectionClass('education')}> 
                     <EditButton section="education" /> 
                     <section>
                         <MainSectionTitle title="Education" />

@@ -10,8 +10,14 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-const CreativeDesign = ({ data, onEditSection }) => {
+const CreativeDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-blue-400 bg-blue-50/50 p-2 -m-2 border border-blue-200' : ''}`;
+    };
+
     const EditButton = ({ section, light = false }) => (
         <Button
             type="primary"
@@ -28,7 +34,7 @@ const CreativeDesign = ({ data, onEditSection }) => {
             
             {/* --- 1. HERO BANNER --- */}
             {/* FIX: Added 'z-0' to keep it below the floating card */}
-            <div className="relative z-0 bg-[#2D3748] h-64 print:h-56 flex flex-col justify-center items-center overflow-hidden">
+            <div className={`relative z-0 bg-[#2D3748] h-64 print:h-56 flex flex-col justify-center items-center overflow-hidden ${editingSection === 'personal' ? 'ring-4 ring-blue-400 z-20' : ''}`}>
                 <EditButton section="personal" light />
                 
                 {/* Decorative Pattern */}
@@ -50,7 +56,7 @@ const CreativeDesign = ({ data, onEditSection }) => {
             {/* --- 2. FLOATING INFO BAR --- */}
             {/* FIX: Added 'z-10' to force this layer ON TOP of the banner */}
             <div className="relative z-10 -mt-16 px-12 mb-12">
-                <div className="bg-white shadow-xl p-6 rounded-xl flex justify-between items-start print:shadow-none print:border print:border-gray-300">
+                <div className={`bg-white shadow-xl p-6 rounded-xl flex justify-between items-start print:shadow-none print:border print:border-gray-300 ${editingSection === 'personal' ? 'ring-2 ring-blue-400' : ''}`}>
                     
                     {/* Left: Contact Info */}
                     <Space direction="vertical" size={6} className="text-sm mt-4">
@@ -91,7 +97,7 @@ const CreativeDesign = ({ data, onEditSection }) => {
                     <Col span={16}>
                         
                         {/* About Me */}
-                        <div className="relative mb-10 break-inside-avoid">
+                        <div className={`${getSectionClass('summary')} mb-10 break-inside-avoid group`}>
                             <EditButton section="summary" />
                             <h3 className="text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-2 mb-4 tracking-wider">
                                 About Me
@@ -102,7 +108,7 @@ const CreativeDesign = ({ data, onEditSection }) => {
                         </div>
 
                         {/* Experience */}
-                        <div className="relative mb-8">
+                        <div className={`${getSectionClass('experience')} mb-8 group`}>
                             <EditButton section="experience" />
                             <h3 className="text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-2 mb-6 tracking-wider">
                                 Experience
@@ -139,13 +145,13 @@ const CreativeDesign = ({ data, onEditSection }) => {
                     {/* RIGHT COLUMN (1/3) */}
                     <Col span={8}>
                         {/* Education */}
-                        <div className="relative mb-12 break-inside-avoid">
+                        <div className={`${getSectionClass('education')} mb-12 break-inside-avoid group`}>
                             <EditButton section="education" />
                             <h3 className="text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-2 mb-6 tracking-wider">
                                 Education
                             </h3>
                             {(data.education || []).map(item => (
-                                <div key={item.id} className="mb-6">
+                                <div key={item.id} className="mb-6 break-inside-avoid">
                                     <h4 className="text-base font-bold text-gray-800 m-0">{item.degree}</h4>
                                     <div className="text-blue-600 font-medium text-sm mt-1 mb-2 uppercase">{item.institution}</div>
                                     <Tag className="bg-gray-100 border-gray-200 text-gray-500 rounded-full px-3">
@@ -156,7 +162,7 @@ const CreativeDesign = ({ data, onEditSection }) => {
                         </div>
 
                         {/* Skills */}
-                        <div className="relative break-inside-avoid">
+                        <div className={`${getSectionClass('skills')} break-inside-avoid group`}>
                             <EditButton section="skills" />
                             <h3 className="text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-200 pb-2 mb-6 tracking-wider">
                                 Expertise

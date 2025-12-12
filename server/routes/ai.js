@@ -5,10 +5,14 @@ const mammoth = require('mammoth');
 const { protect } = require('./auth'); 
 const fetch = global.fetch;
 
+/**
+ * AI Service Route
+ * Handles interactions with the LLM API for text refinement, chat, and parsing.
+ */
 const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
+const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025'; // Selected for optimal context window and latency
 
-// --- UTILITIES (Same as before) ---
+// --- API UTILITIES ---
 const callGeminiApi = async (url, options, maxRetries = 3) => {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -75,8 +79,8 @@ router.post('/refine', protect, async (req, res) => {
         specificInstruction = `
         This is an "About Me" section.
         Refine the text to be a first-person narrative (using "I", "my", "I am").
-        Keep it Short. 4-5 sentences at most. Must be one concise paragraph.It should sound personal, but also professional.
-        Use the data you get about the person, to write a personalized about me section.
+        Keep it Short. 4-5 sentences at most. Must be one concise paragraph. It should sound personal, but also professional.
+        Use the data you get about the person, to write a personalized section.
         Make it as human-like as you can.
         `;
     } else {
@@ -95,7 +99,13 @@ router.post('/refine', protect, async (req, res) => {
     YOUR INSTRUCTIONS:
     ${specificInstruction}
     
-    Use the context provided (Skills/Job Title) to enhance the content.`;
+    CRITICAL RULES:
+    1. Do NOT invent new qualifications, degrees, or job titles not present in the input text.
+    2. STRICTLY adhere to the facts provided. Do not hallucinate.
+    3. Do not merge conflicting career paths (e.g. Do not mix Medical context with Engineering context) unless the user explicitly mentions both in the text found in the "CONTEXT FROM USER'S RESUME" section.
+    4. If the input text contradicts the "CONTEXT", prioritize the input text I am asking you to refine.
+    
+    Use the context provided (Skills/Job Title) ONLY to enhance the tone, not to fabricate facts.`;
     
     const contents = [{ parts: [{ text: `Refine this text: "${resumeText}"` }] }];
 
@@ -118,7 +128,7 @@ router.post('/chat', protect, async (req, res) => {
     // Inject the full resume as the "System Context" for the user
     const resumeContext = fullResume ? JSON.stringify(fullResume, null, 2) : "No resume data available.";
 
-    const systemInstruction = `You are an expert resume consultant named "Gemini Assistant".
+    const systemInstruction = `You are an expert resume consultant named "ResumeX Assistant".
     
     CURRENT RESUME DATA (JSON):
     ${resumeContext}

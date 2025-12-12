@@ -1,3 +1,8 @@
+/**
+ * App.jsx
+ * Main Application Component.
+ * Handles client-side routing, layout structure, and global provider wrapping.
+ */
 import React from "react";
 import { ConfigProvider } from "antd";
 import Footer from "./Components/Footer/Footer";

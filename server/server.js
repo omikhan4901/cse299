@@ -1,3 +1,8 @@
+/**
+ * server.js
+ * Entry point for the Express backend.
+ * Handles database connection, middleware configuration, and route aggregation.
+ */
 const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
@@ -29,7 +34,7 @@ const app = express();
 // --- Middleware Setup ---
 app.use(cors());
 
-// CRITICAL FIX: Increase the JSON payload limit.
+// Increase payload limit to handle large PDF uploads (base64 encoded)
 app.use(express.json({ limit: '20mb' })); 
 
 const storage = multer.memoryStorage();

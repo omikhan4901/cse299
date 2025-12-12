@@ -10,8 +10,14 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-const BasicStylishDesign = ({ data, onEditSection }) => {
+const BasicStylishDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-slate-400 bg-slate-100 p-2 -m-2' : ''}`;
+    };
+
     const EditButton = ({ section, className }) => (
         <Button
             type="primary"
@@ -36,7 +42,7 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
         <div className="min-h-[11in] bg-white font-sans text-slate-800 relative print:min-h-screen">
             
             {/* --- HEADER --- */}
-            <div className="pt-16 pb-8 px-12 relative text-center md:text-left">
+            <div className={`pt-16 pb-8 px-12 relative text-center md:text-left ${getSectionClass('personal')}`}>
                 <EditButton section="personal" className="top-4 right-4" />
                 
                 {/* Name & Title */}
@@ -46,24 +52,24 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
                 <Text className="text-xl text-slate-600 block mt-2 font-light tracking-wide">
                     {data.personal.title || 'Professional Title'}
                 </Text>
-            </div>
 
-            {/* --- CONTACT STRIP --- */}
-            <div className="bg-[#e2e8f0] py-3 px-12 flex flex-wrap justify-between items-center text-sm text-slate-700 relative">
-                <div className="flex items-center gap-2">
-                    <PhoneFilled /> {data.personal.phone}
-                </div>
-                <div className="flex items-center gap-2">
-                    <HomeFilled /> {data.personal.city}
-                </div>
-                <div className="flex items-center gap-2">
-                    <GlobalOutlined /> 
-                    <Link href={`https://${data.personal.linkedin}`} target="_blank" className="text-slate-700 hover:text-slate-900">
-                        {data.personal.linkedin}
-                    </Link>
-                </div>
-                <div className="flex items-center gap-2">
-                    <MailFilled /> <span className="break-all">{data.personal.email}</span>
+                {/* --- CONTACT STRIP (Included in Personal Highlight) --- */}
+                <div className="bg-[#e2e8f0] py-3 px-12 flex flex-wrap justify-between items-center text-sm text-slate-700 relative mt-8 -mx-12">
+                    <div className="flex items-center gap-2">
+                        <PhoneFilled /> {data.personal.phone}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <HomeFilled /> {data.personal.city}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <GlobalOutlined /> 
+                        <Link href={`https://${data.personal.linkedin}`} target="_blank" className="text-slate-700 hover:text-slate-900">
+                            {data.personal.linkedin}
+                        </Link>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <MailFilled /> <span className="break-all">{data.personal.email}</span>
+                    </div>
                 </div>
             </div>
 
@@ -71,7 +77,7 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
             <div className="px-12 py-8">
                 
                 {/* 1. ABOUT ME */}
-                <div className="relative group/section">
+                <div className={`group/section ${getSectionClass('summary')}`}>
                     <EditButton section="summary" className="-left-12 top-2" />
                     <SectionHeader title="About Me" />
                     <Paragraph className="text-slate-600 leading-relaxed text-justify">
@@ -80,13 +86,13 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* 2. EDUCATION */}
-                <div className="relative group/section">
+                <div className={`group/section ${getSectionClass('education')}`}>
                     <EditButton section="education" className="-left-12 top-2" />
                     <SectionHeader title="Education" />
                     
                     <div className="space-y-6">
                         {(data.education || []).map(item => (
-                            <div key={item.id} className="border-b border-slate-100 pb-4 last:border-0">
+                            <div key={item.id} className="border-b border-slate-100 pb-4 last:border-0 break-inside-avoid">
                                 <div className="flex justify-between items-baseline mb-1">
                                     <h4 className="font-bold text-slate-900 uppercase text-base m-0 tracking-wide">
                                         {item.institution}
@@ -102,7 +108,7 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* 3. SKILLS */}
-                <div className="relative group/section">
+                <div className={`group/section ${getSectionClass('skills')}`}>
                     <EditButton section="skills" className="-left-12 top-2" />
                     <SectionHeader title="Skills" />
                     
@@ -118,13 +124,13 @@ const BasicStylishDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* 4. WORK EXPERIENCE */}
-                <div className="relative group/section">
+                <div className={`group/section ${getSectionClass('experience')}`}>
                     <EditButton section="experience" className="-left-12 top-2" />
                     <SectionHeader title="Work Experience" />
                     
                     <div className="space-y-8">
                         {(data.experience || []).map(item => (
-                            <div key={item.id}>
+                            <div key={item.id} className="break-inside-avoid">
                                 <div className="flex justify-between items-end mb-2">
                                     <h4 className="font-bold text-slate-900 text-lg m-0">
                                         {item.company} <span className="font-normal text-slate-500 text-base">– {item.title}</span>

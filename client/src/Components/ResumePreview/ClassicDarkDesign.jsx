@@ -24,7 +24,7 @@ const DarkBulletPoints = ({ text }) => {
 };
 
 const DarkExperiencePreview = ({ item }) => (
-    <div className="mb-6">
+    <div className="mb-6 break-inside-avoid">
         <div className="flex justify-between items-baseline">
             <div>
                 <Title level={5} className="!text-white mb-0 text-lg">
@@ -43,7 +43,7 @@ const DarkExperiencePreview = ({ item }) => (
 );
 
 const DarkEducationPreview = ({ item }) => (
-    <div className="mb-5">
+    <div className="mb-5 break-inside-avoid">
         <div className="flex justify-between items-start">
             <div>
                 <Title level={5} className="!text-white mb-0 text-lg">
@@ -62,16 +62,23 @@ const DarkEducationPreview = ({ item }) => (
 
 // --- Main Template ---
 
-const ClassicDarkDesign = ({ data, onEditSection }) => {
+const ClassicDarkDesign = ({ data, onEditSection, editingSection }) => {
     const primaryColor = '!text-indigo-400';
     
+    // Helper used for section highlight
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        // Using a lighter background for visibility in dark mode
+        return `relative mb-8 transition-all duration-300 p-2 rounded-lg ${isActive ? 'ring-2 ring-indigo-500 bg-indigo-500/10' : 'hover:bg-gray-800'}`;
+    };
+
     const EditButton = ({ section }) => (
         <Button
             type="primary"
             shape="circle"
             icon={<EditOutlined />}
             onClick={() => onEditSection(section)}
-            className="print:!hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="print:!hidden absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{ zIndex: 10 }}
         />
     );
@@ -85,7 +92,7 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
     return (
         <div className="text-gray-300 font-sans"> 
             {/* Header / Personal Info */}
-            <div className="relative mb-8"> 
+            <div className={getSectionClass('personal')}> 
                 <EditButton section="personal" /> 
                 <header className="text-center pb-4">
                     
@@ -118,7 +125,7 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             </div>
 
             {/* Summary */}
-            <div className="relative mb-8"> 
+            <div className={getSectionClass('summary')}> 
                 <EditButton section="summary" /> 
                 <section>
                     <SectionTitle title="About Me" />
@@ -133,7 +140,7 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             </div>
 
             {/* Experience */}
-            <div className="relative mb-8"> 
+            <div className={getSectionClass('experience')}> 
                 <EditButton section="experience" /> 
                 <section>
                     <SectionTitle title="Experience" />
@@ -146,7 +153,7 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             </div>
 
             {/* Education */}
-            <div className="relative mb-8"> 
+            <div className={getSectionClass('education')}> 
                 <EditButton section="education" /> 
                 <section>
                     <SectionTitle title="Education" />
@@ -159,7 +166,7 @@ const ClassicDarkDesign = ({ data, onEditSection }) => {
             </div>
 
             {/* Skills */}
-            <div className="relative"> 
+            <div className={getSectionClass('skills')}> 
                 <EditButton section="skills" /> 
                 <section>
                     <SectionTitle title="Expertise" />

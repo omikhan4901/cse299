@@ -10,8 +10,14 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-const ModernDesign = ({ data, onEditSection }) => {
+const ModernDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper for active section styling (Teal themed)
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-teal-400 bg-teal-50/20 p-2 -m-2' : ''}`;
+    };
+
     const EditButton = ({ section, className }) => (
         <Button
             type="primary"
@@ -29,7 +35,7 @@ const ModernDesign = ({ data, onEditSection }) => {
             <div className="w-[32%] bg-[#1e293b] text-slate-300 p-8 flex flex-col relative print:h-auto min-h-full">
                 
                 {/* Profile Picture */}
-                <div className="relative mb-8 text-center group/section">
+                <div className={`${getSectionClass('personal')} mb-8 text-center group/section`}>
                     <EditButton section="personal" className="top-0 right-0" />
                     <div className="w-40 h-40 mx-auto rounded-full border-4 border-slate-500 overflow-hidden mb-6 bg-slate-700">
                         {data.personal.profilePic ? (
@@ -48,7 +54,7 @@ const ModernDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* Contact Info */}
-                <div className="relative mb-10 group/section">
+                <div className={`${getSectionClass('personal')} mb-10 group/section`}>
                     <EditButton section="personal" className="top-0 right-0" />
                     <h3 className="text-slate-400 uppercase tracking-widest text-sm font-bold border-b border-slate-600 pb-2 mb-4">
                         Contact
@@ -78,7 +84,7 @@ const ModernDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* Skills */}
-                <div className="relative group/section">
+                <div className={`${getSectionClass('skills')} group/section`}>
                     <EditButton section="skills" className="top-0 right-0" />
                     <h3 className="text-slate-400 uppercase tracking-widest text-sm font-bold border-b border-slate-600 pb-2 mb-4">
                         Skills
@@ -97,7 +103,7 @@ const ModernDesign = ({ data, onEditSection }) => {
             <div className="w-[68%] p-12 bg-white">
                 
                 {/* About Me */}
-                <div className="relative mb-12 group/section">
+                <div className={`${getSectionClass('summary')} mb-12 group/section`}>
                     <EditButton section="summary" className="-left-4 top-0" />
                     <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide border-b-2 border-indigo-600 pb-2 mb-4 inline-block pr-12">
                         About Me
@@ -110,7 +116,7 @@ const ModernDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* Experience */}
-                <div className="relative mb-12 group/section">
+                <div className={`${getSectionClass('experience')} mb-12 group/section`}>
                     <EditButton section="experience" className="-left-4 top-0" />
                     <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide border-b-2 border-indigo-600 pb-2 mb-6 inline-block pr-12">
                         Experience
@@ -119,7 +125,7 @@ const ModernDesign = ({ data, onEditSection }) => {
 
                     <div className="space-y-8">
                         {(data.experience || []).map(item => (
-                            <div key={item.id} className="relative pl-6 border-l-2 border-indigo-100">
+                            <div key={item.id} className="relative pl-6 border-l-2 border-indigo-100 break-inside-avoid">
                                 {/* Timeline Dot */}
                                 <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 border-indigo-600 bg-white"></div>
                                 
@@ -143,7 +149,7 @@ const ModernDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* Education */}
-                <div className="relative group/section">
+                <div className={`${getSectionClass('education')} group/section`}>
                     <EditButton section="education" className="-left-4 top-0" />
                     <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide border-b-2 border-indigo-600 pb-2 mb-6 inline-block pr-12">
                         Education
@@ -152,7 +158,7 @@ const ModernDesign = ({ data, onEditSection }) => {
 
                     <div className="space-y-6">
                         {(data.education || []).map(item => (
-                            <div key={item.id} className="flex justify-between items-start">
+                            <div key={item.id} className="flex justify-between items-start break-inside-avoid">
                                 <div>
                                     <h3 className="text-lg font-bold text-slate-800 m-0">{item.institution}</h3>
                                     <div className="text-indigo-600 font-medium">{item.degree}</div>

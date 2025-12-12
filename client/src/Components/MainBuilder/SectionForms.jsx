@@ -26,7 +26,7 @@ export const SectionForms = ({
     const [skillsForm] = Form.useForm();
     const [templateForm] = Form.useForm();
 
-    // FIX: Force sync forms whenever resume data or the active section changes
+    // Sync local form state with global resume state
     useEffect(() => {
         if (section === 'personal') {
             personalForm.setFieldsValue(resume.personal);
@@ -77,9 +77,9 @@ export const SectionForms = ({
                 <Form 
                     form={personalForm} 
                     layout="vertical" 
-                    initialValues={resume.personal} // FIX: Set initial values on mount
+                    initialValues={resume.personal}
                     onValuesChange={(changed) => onFormChange('personal', changed)}
-                    preserve={false} // FIX: Ensure fresh state on reopen
+                    preserve={false} // Ensure fresh state re-render
                 >
                     <Title level={4}>Personal Information</Title>
                     
@@ -138,7 +138,7 @@ export const SectionForms = ({
 
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label="Full Name" name="name">
+                            <Form.Item label="Full Name" name="name" rules={[{ required: true, message: 'Please enter your name' }]}>
                                 <Input />
                             </Form.Item>
                         </Col>
@@ -150,18 +150,41 @@ export const SectionForms = ({
                     </Row>
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item label="Email" name="email">
+                            <Form.Item 
+                                label="Email" 
+                                name="email"
+                                rules={[
+                                    { type: 'email', message: 'Please enter a valid email!' },
+                                    { required: true, message: 'Email is required' }
+                                ]}
+                            >
                                 <Input />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item label="Phone" name="phone">
+                            <Form.Item 
+                                label="Phone" 
+                                name="phone"
+                                rules={[
+                                    { 
+                                        pattern: /^[0-9+\-\s()]*$/, 
+                                        message: 'Please enter a valid phone number' 
+                                    },
+                                    { min: 5, message: 'Too short' }
+                                ]}
+                            >
                                 <Input />
                             </Form.Item>
                         </Col>
                     </Row>
-                    <Form.Item label="LinkedIn/Portfolio URL" name="linkedin">
-                        <Input />
+                    <Form.Item 
+                        label="LinkedIn/Portfolio URL" 
+                        name="linkedin"
+                        rules={[
+                             { type: 'url', warningOnly: true, message: 'Should be a valid URL (https://...)' }
+                        ]}
+                    >
+                        <Input placeholder="https://linkedin.com/in/..." />
                     </Form.Item>
                     <Form.Item label="City, State" name="city">
                         <Input />

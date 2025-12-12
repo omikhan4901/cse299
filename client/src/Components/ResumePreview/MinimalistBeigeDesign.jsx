@@ -9,8 +9,15 @@ import {
 
 const { Title, Text, Paragraph } = Typography;
 
-const MinimalistBeigeDesign = ({ data, onEditSection }) => {
+const MinimalistBeigeDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        // Warm/Classic highlight logic
+        return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-yellow-600/50 bg-[#e6e2d8]/50 p-2 -m-2' : ''}`;
+    };
+
     const EditButton = ({ section, className }) => (
         <Button
             type="primary"
@@ -31,8 +38,8 @@ const MinimalistBeigeDesign = ({ data, onEditSection }) => {
         <div className="min-h-[11in] bg-[#fffbf2] font-sans text-[#4a4a4a] relative print:min-h-screen px-12 py-16">
             
             {/* --- HEADER --- */}
-            <div className="flex items-start gap-10 mb-12 relative">
-                <EditButton section="personal" className="-left-4 top-0" />
+            <div className={`flex items-start gap-10 mb-12 relative ${getSectionClass('personal')}`}>
+                <EditButton section="personal" className="top-0 right-0" />
                 
                 {/* Profile Picture */}
                 <div className="shrink-0">
@@ -75,7 +82,7 @@ const MinimalistBeigeDesign = ({ data, onEditSection }) => {
                 <Col span={10}>
                     
                     {/* SKILLS */}
-                    <div className="relative group/section mb-12">
+                    <div className={`group/section mb-12 ${getSectionClass('skills')}`}>
                         <EditButton section="skills" className="-left-8 top-0" />
                         <SectionHeader title="SKILLSET" />
                         
@@ -93,13 +100,13 @@ const MinimalistBeigeDesign = ({ data, onEditSection }) => {
                     </div>
 
                     {/* EDUCATION */}
-                    <div className="relative group/section mb-12">
+                    <div className={`group/section mb-12 ${getSectionClass('education')}`}>
                         <EditButton section="education" className="-left-8 top-0" />
                         <SectionHeader title="EDUCATION" />
                         
                         <div className="space-y-6">
                             {(data.education || []).map(item => (
-                                <div key={item.id}>
+                                <div key={item.id} className="break-inside-avoid">
                                     <div className="font-bold text-[#2d2a26] text-base">{item.institution}</div>
                                     <div className="text-sm text-[#666] italic mb-1">{item.degree}</div>
                                     <div className="text-xs font-bold text-[#8c7355]">{item.startYear} - {item.endYear}</div>
@@ -117,22 +124,22 @@ const MinimalistBeigeDesign = ({ data, onEditSection }) => {
                 <Col span={14}>
                     
                     {/* PROFILE (SUMMARY) */}
-                    <div className="relative group/section mb-12">
+                    <div className={`group/section mb-12 ${getSectionClass('summary')}`}>
                         <EditButton section="summary" className="-right-8 top-0" />
                         <SectionHeader title="PROFILE" />
-                        <Paragraph className="text-[#555] leading-7 text-justify text-sm">
+                        <Paragraph className="text--[#555] leading-7 text-justify text-sm">
                             {data.summary || 'Add a professional summary to introduce yourself...'}
                         </Paragraph>
                     </div>
 
                     {/* EXPERIENCE */}
-                    <div className="relative group/section">
+                    <div className={`group/section ${getSectionClass('experience')}`}>
                         <EditButton section="experience" className="-right-8 top-0" />
                         <SectionHeader title="EXPERIENCE" />
                         
                         <div className="space-y-8">
                             {(data.experience || []).map(item => (
-                                <div key={item.id}>
+                                <div key={item.id} className="break-inside-avoid">
                                     <div className="flex justify-between items-baseline mb-1">
                                         <h4 className="font-bold text-[#2d2a26] text-base m-0">{item.title}</h4>
                                         <span className="text-xs font-bold text-[#8c7355]">{item.startDate} - {item.endDate}</span>

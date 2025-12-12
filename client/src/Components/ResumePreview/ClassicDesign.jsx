@@ -62,15 +62,21 @@ const EducationPreview = ({ item }) => (
 
 // --- Main Template ---
 
-const ClassicDesign = ({ data, onEditSection }) => {
+const ClassicDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper to determine if a section is being edited
+    const getSectionClass = (sectionName) => {
+        const isActive = editingSection === sectionName;
+        return `relative mb-8 transition-all duration-300 p-2 rounded-lg ${isActive ? 'ring-2 ring-indigo-400 bg-indigo-50/30' : 'hover:bg-gray-50'}`;
+    };
+
     const EditButton = ({ section }) => (
         <Button
             type="primary"
             shape="circle"
             icon={<EditOutlined />}
             onClick={() => onEditSection(section)}
-            className="print:hidden absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            className="print:hidden absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{ zIndex: 10 }}
         />
     );
@@ -84,7 +90,7 @@ const ClassicDesign = ({ data, onEditSection }) => {
     return (
         <div className="font-serif text-gray-800"> 
             {/* Header / Personal Info */}
-            <div className="relative mb-8"> 
+            <div className={getSectionClass('personal')}> 
                 <EditButton section="personal" /> 
                 <header className="text-center pb-6">
                     
@@ -119,7 +125,7 @@ const ClassicDesign = ({ data, onEditSection }) => {
             {/* Content Sections */}
             <div className="font-sans">
                 {/* Summary */}
-                <div className="relative mb-8"> 
+                <div className={getSectionClass('summary')}> 
                     <EditButton section="summary" /> 
                     <section>
                         <SectionTitle title="About Me" />
@@ -134,33 +140,45 @@ const ClassicDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* Experience */}
-                <div className="relative mb-8"> 
-                    <EditButton section="experience" /> 
-                    <section>
-                        <SectionTitle title="Experience" />
-                        {(data.experience && data.experience.length > 0) ? (
-                            data.experience.map(item => <ExperiencePreview key={item.id} item={item} />)
-                        ) : (
-                            <Text type="secondary" italic>Click the edit icon to add your work experience.</Text>
-                        )}
-                    </section>
+                <div className={`${getSectionClass('experience')} mb-8 group`}>
+                    <EditButton section="experience" />
+                    <h3 className="text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-300 pb-2 mb-6 tracking-wider">
+                        Experience
+                    </h3>
+                    
+                    {(data.experience || []).map(item => (
+                        <div key={item.id} className="mb-6 break-inside-avoid">
+                            <div className="flex justify-between items-baseline mb-1">
+                                <h4 className="text-lg font-bold text-gray-800 m-0">{item.title}</h4>
+                                <Tag color="default">{item.startDate} - {item.endDate}</Tag>
+                            </div>
+                            <div className="text-indigo-600 font-medium mb-2">{item.company}</div>
+                            <ul className="list-disc list-inside space-y-1 text-gray-700 ml-2">
+                                {item.description && item.description.split('\n').map((line, i) => line && (
+                                    <li key={i}>{line.replace(/^[•-]\s*/, '')}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
                 </div>
 
                 {/* Education */}
-                <div className="relative mb-8"> 
-                    <EditButton section="education" /> 
-                    <section>
-                        <SectionTitle title="Education" />
-                        {(data.education && data.education.length > 0) ? (
-                            data.education.map(item => <EducationPreview key={item.id} item={item} />)
-                        ) : (
-                             <Text type="secondary" italic>Click the edit icon to add your education.</Text>
-                        )}
-                    </section>
+                <div className={`${getSectionClass('education')} mb-8 group`}>
+                    <EditButton section="education" />
+                    <h3 className="text-xl font-bold text-gray-800 uppercase border-b-2 border-gray-300 pb-2 mb-6 tracking-wider">
+                        Education
+                    </h3>
+                    {(data.education || []).map(item => (
+                        <div key={item.id} className="mb-4 break-inside-avoid">
+                            <h4 className="text-base font-bold text-gray-800 m-0">{item.institution}</h4>
+                            <div className="text-indigo-600 font-medium text-sm mt-1 mb-1">{item.degree}</div>
+                            <div className="text-xs text-gray-500">{item.startYear} - {item.endYear}</div>
+                        </div>
+                    ))}
                 </div>
 
                 {/* Skills */}
-                <div className="relative"> 
+                <div className={getSectionClass('skills')}> 
                     <EditButton section="skills" /> 
                     <section>
                         <SectionTitle title="Expertise" />

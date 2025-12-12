@@ -10,8 +10,18 @@ import {
 
 const { Title, Text, Paragraph, Link } = Typography;
 
-const ModernGothicDesign = ({ data, onEditSection }) => {
+const ModernGothicDesign = ({ data, onEditSection, editingSection }) => {
     
+    // Helper used for section highlight
+    const getSectionClass = (sectionName, isDark = false) => {
+        const isActive = editingSection === sectionName;
+        // High contrast highlight for both dark and light areas
+        if (isDark) {
+            return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-white/70 bg-white/10 p-2 -m-2' : ''}`;
+        }
+        return `relative transition-all duration-300 rounded-lg ${isActive ? 'ring-2 ring-gray-600 bg-gray-200/50 p-2 -m-2' : ''}`;
+    };
+
     const EditButton = ({ section, className }) => (
         <Button
             type="primary"
@@ -26,13 +36,10 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
         <div className="min-h-[11in] bg-[#e6e6e6] font-sans text-[#333] relative print:min-h-screen flex flex-col">
             
             {/* --- HEADER (DARK GREY) --- */}
-            {/* FIX: Changed h-64 to min-h-[16rem] and added padding (py-12) so it grows with content */}
-            <div className="bg-[#404040] min-h-[16rem] relative flex items-center justify-end px-12 py-12 print:py-8">
+            <div className={`bg-[#404040] min-h-[16rem] relative flex items-center justify-end px-12 py-12 print:py-8 ${getSectionClass('personal', true)}`}>
                 <EditButton section="personal" className="top-4 right-4" />
                 
                 {/* Profile Circle (Overlapping) */}
-                {/* FIX: Centered vertically relative to the header content using top-1/2 -translate-y-1/2 isn't ideal for variable height. 
-                    Instead, we anchor it to the left and let the header grow. */}
                 <div className="absolute left-12 top-12 z-20">
                     <div className="w-56 h-56 rounded-full border-4 border-white overflow-hidden bg-gray-300 shadow-xl">
                         {data.personal.profilePic ? (
@@ -44,7 +51,6 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
                 </div>
 
                 {/* Name & Title & Summary */}
-                {/* FIX: Added pl-64 to ensure text doesn't overlap the profile picture if screen is small */}
                 <div className="text-right text-white z-10 w-full pl-60">
                     <h1 className="text-5xl font-bold uppercase tracking-tighter mb-2 font-sans leading-none">
                         {data.personal.name || 'YOUR NAME'}
@@ -69,7 +75,7 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
                 <div className="w-[35%] bg-[#333] text-gray-300 pt-24 px-8 pb-12 relative flex-shrink-0">
                     
                     {/* CONTACT */}
-                    <div className="relative group/section mb-12">
+                    <div className={`group/section mb-12 ${getSectionClass('personal', true)}`}>
                         <EditButton section="personal" className="top-0 right-0" />
                         <h4 className="text-white uppercase tracking-widest font-bold border-b border-gray-500 pb-2 mb-6 text-sm">
                             Contact
@@ -111,7 +117,7 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
                     </div>
 
                     {/* SKILLS */}
-                    <div className="relative group/section mb-12">
+                    <div className={`group/section mb-12 ${getSectionClass('skills', true)}`}>
                         <EditButton section="skills" className="top-0 right-0" />
                         <h4 className="text-white uppercase tracking-widest font-bold border-b border-gray-500 pb-2 mb-6 text-sm">
                             Skills
@@ -134,7 +140,7 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
                 <div className="w-[65%] pt-12 px-10 pb-12 bg-[#e6e6e6]">
                     
                     {/* EDUCATION */}
-                    <div className="relative group/section mb-12">
+                    <div className={`group/section mb-12 ${getSectionClass('education', false)}`}>
                         <EditButton section="education" className="-left-8 top-0" />
                         
                         <div className="flex items-center mb-8">
@@ -144,7 +150,7 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
 
                         <div className="relative border-l-2 border-gray-400 ml-3 pl-8 space-y-8 pb-2">
                             {(data.education || []).map(item => (
-                                <div key={item.id} className="relative">
+                                <div key={item.id} className="relative break-inside-avoid">
                                     {/* Timeline Dot */}
                                     <div className="absolute -left-[39px] top-1.5 w-3 h-3 rounded-full border-2 border-gray-800 bg-[#e6e6e6]"></div>
                                     
@@ -159,7 +165,7 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
                     </div>
 
                     {/* EXPERIENCE */}
-                    <div className="relative group/section">
+                    <div className={`group/section ${getSectionClass('experience', false)}`}>
                         <EditButton section="experience" className="-left-8 top-0" />
                         
                         <div className="flex items-center mb-8">
@@ -169,7 +175,7 @@ const ModernGothicDesign = ({ data, onEditSection }) => {
 
                         <div className="relative border-l-2 border-gray-400 ml-3 pl-8 space-y-10">
                             {(data.experience || []).map(item => (
-                                <div key={item.id} className="relative">
+                                <div key={item.id} className="relative break-inside-avoid">
                                     <div className="absolute -left-[39px] top-1.5 w-3 h-3 rounded-full border-2 border-gray-800 bg-[#e6e6e6]"></div>
                                     
                                     <div className="flex justify-between items-baseline mb-1">

@@ -32,8 +32,11 @@ import {
   FileTextOutlined,
   ThunderboltOutlined,
   BookOutlined,
+  ZoomInOutlined,
+  ZoomOutOutlined,
+  FileSearchOutlined,
   SafetyCertificateOutlined,
-  ShareAltOutlined,
+  ShareAltOutlined
 } from "@ant-design/icons";
 import ShareModal from "./ShareModal"; // Import new mo / Import icon
 import ResumeDesigns from "../ResumePreview/ResumeDesigns";
@@ -117,6 +120,8 @@ const ResumeBuilder = () => {
 
   const [auditOpen, setAuditOpen] = useState(false);
   const [coverLetterOpen, setCoverLetterOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [showPageBreaks, setShowPageBreaks] = useState(false);
 
   const [modal, modalContextHolder] = Modal.useModal();
 
@@ -154,9 +159,9 @@ const ResumeBuilder = () => {
           if (data.success) {
             const loadedResume = data.data;
 
-            // --- FIX A: Set the Resume State ---
+            // Sanitize state on load
             setResume(loadedResume);
-            setSavedResume(loadedResume); // <--- CAPTURE CLEAN CONTENT
+            setSavedResume(loadedResume);
             setSelectedDesign(loadedResume.template || "Classic");
             setSavedDesign(loadedResume.template || "Classic");
             api.success({
@@ -187,6 +192,20 @@ const ResumeBuilder = () => {
   useEffect(() => {
     if (!authLoading && !user) navigate("/");
   }, [authLoading, user, navigate]);
+
+  // --- SHORTCUTS ---
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check for Ctrl+S or Cmd+S
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault(); // Prevent browser save
+        handleSaveProfile();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []); // Empty dependency array = active throughout the component's life
 
   const handleThemeUpdate = (newTemplate) => {
     if (newTemplate) {
@@ -359,7 +378,7 @@ const ResumeBuilder = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        // FIX: Send fullResume along with the text to refine
+        // Context enrichment: Sending full resume data allows better AI inference
         body: JSON.stringify({
           resumeText: originalText,
           fullResume: resume,
@@ -441,8 +460,9 @@ const ResumeBuilder = () => {
     }
   };
 
+  // --- PDF GENERATION ---
   const handleDownloadPDF = () => {
-    // 1. CONDITIONAL WARNING: Only prompt if there are unsaved changes
+    // Check for unsaved changes before printing
     if (isDirty) {
       modal.confirm({
         title: "Unsaved Changes!",
@@ -487,7 +507,7 @@ const ResumeBuilder = () => {
     }
   };
 
-  // --- NEW: REORDER LIST ITEMS ---
+  // --- DRAG AND DROP HANDLERS ---
   const handleMoveItem = (section, index, direction) => {
     // Create a copy of the array to avoid mutating state directly
     const list = [...resume[section]];
@@ -648,7 +668,7 @@ const ResumeBuilder = () => {
           open={chatOpen}
         />
 
-        {/* 2. NEW: AI Audit Modal (Add this block!) */}
+        {/* AI Audit / Analysis Modal */}
         <AiAuditModal
           open={auditOpen}
           onClose={() => setAuditOpen(false)}
@@ -657,13 +677,16 @@ const ResumeBuilder = () => {
         <Content
           style={{
             padding: "24px",
-            paddingLeft: editingSection ? "424px" : "24px",
-            paddingRight: "120px",
-            transition: "all 0.3s ease-in-out",
+            // Removed left padding adjustment since we are removing the fixed sidebar logic if we want
+            // But let's keep the layout simple. We will add a STICKY TOOLBAR at the top of the content.
+            maxWidth: "1200px",
+            margin: "0 auto",
             width: "100%",
             overflowY: "auto",
           }}
         >
+          {/* Main Action Area */}
+          
           <Card
             style={{
               marginBottom: 24,
@@ -713,122 +736,185 @@ const ResumeBuilder = () => {
             </Space>
           </Card>
 
-          <ResumeDesigns
-            data={resume}
-            selectedDesign={selectedDesign}
-            onEditSection={setEditingSection}
-          />
+          <div
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top center",
+              transition: "transform 0.3s ease",
+              // We need to ensure it takes up space so scroll works when zoomed in
+              marginBottom: `${(zoom - 1) * 300}px` 
+            }}
+          >
+            <ResumeDesigns
+              data={resume}
+              selectedDesign={selectedDesign}
+              onEditSection={setEditingSection}
+              showPageBreaks={showPageBreaks}
+              editingSection={editingSection}
+            />
+          </div>
         </Content>
 
-        {/* --- RIGHT SIDEBAR TOOLS --- */}
+        {/* --- PREMIUM FLOATING SIDEBAR --- */}
         <div
-          className="hide-scrollbar"
           style={{
-            width: "90px",
-            backgroundColor: "#fff",
-            borderLeft: "1px solid #f0f0f0",
             position: "fixed",
-            right: 0,
-            top: 64,
-            bottom: 0,
-            zIndex: 10,
+            right: "32px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: "80px",
+            background: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(12px)",
+            borderRadius: "24px",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05)",
+            padding: "24px 0",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            paddingTop: "32px",
-            gap: "24px",
+            gap: "20px",
+            zIndex: 100,
+            maxHeight: "90vh",
             overflowY: "auto",
           }}
+          className="hide-scrollbar"
         >
+          {/* GROUP 1: EDITOR */}
           <Tooltip title="Manage Sections" placement="left">
             <Button
-              style={toolBtnStyle}
+              type="text"
+              shape="circle"
+              size="large"
+              style={{ color: "#595959", fontSize: "20px" }}
               icon={<AppstoreAddOutlined />}
               onClick={() => setIsSectionDrawerOpen(true)}
+            />
+          </Tooltip>
+          <Tooltip title="Change Template" placement="left">
+            <Button
+              type="text"
+              shape="circle"
+              size="large"
+              style={{ color: "#595959", fontSize: "20px" }}
+              icon={<LayoutOutlined />}
+              onClick={() => setEditingSection("templates")}
+            />
+          </Tooltip>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Tooltip title="Zoom In" placement="left">
+                 <Button shape="circle" icon={<ZoomInOutlined />} onClick={() => setZoom(z => Math.min(z + 0.1, 1.5))} />
+              </Tooltip>
+              <Tooltip title="Zoom Out" placement="left">
+                 <Button shape="circle" icon={<ZoomOutOutlined />} onClick={() => setZoom(z => Math.max(z - 0.1, 0.5))} />
+              </Tooltip>
+           </div>
+           
+           <Tooltip title={showPageBreaks ? "Hide Page Breaks" : "Show Page Breaks"} placement="left">
+             <Button 
+               shape="circle" 
+               icon={<FileSearchOutlined />} 
+               type={showPageBreaks ? "primary" : "default"}
+               onClick={() => setShowPageBreaks(!showPageBreaks)} 
+             />
+           </Tooltip>
+
+          <div style={{ width: "40%", height: "1px", background: "#f0f0f0" }} />
+
+          {/* GROUP 2: AI TOOLS */}
+          <Tooltip title="AI Assistant" placement="left">
+            <Button
+              shape="circle"
+              size="large"
+              style={{
+                background: "linear-gradient(135deg, #e6fffb 0%, #E0F2F1 100%)",
+                color: "#006d75",
+                border: "none",
+                boxShadow: "0 4px 10px rgba(0, 123, 123, 0.15)",
+              }}
+              icon={<MessageOutlined style={{ fontSize: "20px" }} />}
+              onClick={() => setChatOpen(true)}
+            />
+          </Tooltip>
+
+          <Tooltip title="ATS Audit" placement="left">
+            <Button
+              shape="circle"
+              size="large"
+              style={{
+                 background: "#f9f0ff",
+                 color: "#722ed1",
+                 border: "none",
+              }}
+              icon={<SafetyCertificateOutlined style={{ fontSize: "20px" }} />}
+              onClick={() => setAuditOpen(true)}
+            />
+          </Tooltip>
+
+           <Tooltip title="Cover Letter" placement="left">
+            <Button
+              shape="circle"
+              size="large"
+              style={{
+                 background: "#fff0f6",
+                 color: "#eb2f96",
+                 border: "none",
+              }}
+              icon={<FileTextOutlined style={{ fontSize: "20px" }} />}
+              onClick={() => setCoverLetterOpen(true)}
+            />
+          </Tooltip>
+
+          <div style={{ width: "40%", height: "1px", background: "#f0f0f0" }} />
+
+          {/* GROUP 3: ACTIONS */}
+          <Tooltip title="Save (Ctrl+S)" placement="left">
+             <Button
+              shape="circle"
+              size="large"
+              style={{
+                color: isDirty ? "#faad14" : "#595959",
+                borderColor: isDirty ? "#faad14" : "transparent"
+              }}
+              icon={isSaving ? <Spin size="small" /> : <SaveOutlined style={{ fontSize: "20px" }} />}
+              onClick={handleSaveProfile}
             />
           </Tooltip>
 
           <Tooltip title="Share Link" placement="left">
             <Button
-              style={{
-                ...toolBtnStyle,
-                color: "#13c2c2",
-                borderColor: "#87e8de",
-                background: "#e6fffb",
-              }}
+              type="text"
+              shape="circle"
+              size="large"
+              style={{ color: "#13c2c2", fontSize: "20px" }}
               icon={<ShareAltOutlined />}
               onClick={() => {
-                if (!resume._id) {
-                  api.warning({
-                    message: "Save First",
-                    description: "Please save your resume before sharing.",
-                  });
-                } else {
-                  setShareModalOpen(true);
-                }
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="Change Template" placement="left">
-            <Button
-              style={toolBtnStyle}
-              icon={<LayoutOutlined />}
-              onClick={() => setEditingSection("templates")}
+                   if (!resume._id || isDirty) {
+                     modal.confirm({
+                       title: "Save Required",
+                       content: "Please save your resume before sharing.",
+                       okText: "Save",
+                       onOk: handleSaveProfile
+                     });
+                   } else {
+                     setShareModalOpen(true);
+                   }
+                }}
             />
           </Tooltip>
 
-          <Divider style={{ margin: 0, width: "40px", minWidth: "40px" }} />
-
-          <Tooltip title="AI Assistant" placement="left">
-            <Button
-              style={{
-                ...toolBtnStyle,
-                color: "#007B7B",
-                borderColor: "#b3e0e0",
-                background: "#f0f9f9",
-              }}
-              icon={<MessageOutlined />}
-              onClick={() => setChatOpen(true)}
-            />
-          </Tooltip>
-
-          <Tooltip title="Score My Resume" placement="left">
-            <Button
-              style={{
-                ...toolBtnStyle,
-                color: "#722ed1",
-                borderColor: "#d3adf7",
-                background: "#f9f0ff",
-              }}
-              icon={<SafetyCertificateOutlined />}
-              onClick={() => setAuditOpen(true)}
-            />
-          </Tooltip>
-          <Tooltip title="Write Cover Letter" placement="left">
-            <Button
-              style={{
-                ...toolBtnStyle,
-                color: "#eb2f96",
-                borderColor: "#ffadd2",
-                background: "#fff0f6",
-              }}
-              icon={<FileTextOutlined />}
-              onClick={() => setCoverLetterOpen(true)}
-            />
-          </Tooltip>
-          <Divider style={{ margin: 0, width: "40px", minWidth: "40px" }} />
-
-          <Tooltip title="Save Profile" placement="left">
-            <Button
-              style={toolBtnStyle}
-              icon={isSaving ? <Spin size="small" /> : <SaveOutlined />}
-              onClick={handleSaveProfile}
-            />
-          </Tooltip>
           <Tooltip title="Download PDF" placement="left">
             <Button
               type="primary"
-              style={{ ...toolBtnStyle, border: "none" }}
+              shape="circle"
+              size="large"
+              style={{
+                backgroundColor: "#002A3A",
+                width: "56px",
+                height: "56px",
+                boxShadow: "0 8px 20px rgba(0, 42, 58, 0.25)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
               icon={<DownloadOutlined style={{ fontSize: "24px" }} />}
               onClick={handleDownloadPDF}
             />
