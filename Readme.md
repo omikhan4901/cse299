@@ -1,81 +1,152 @@
-"""
-# 🚀 ResumeX: AI-Powered Career Platform
+# ResumeX 🚀
+> **Smarter Resumes, Powered by AI.**
 
-**A full-stack, context-aware MERN application built for the CSE299 curriculum, designed to eliminate resume writing friction using Google's Gemini AI.**
+ResumeX is a modern, full-stack web application designed to solve the nightmare of resume formatting and content writing. It combines a professional drag-and-drop builder with context-aware Artificial Intelligence to help students and professionals craft the perfect resume in minutes.
+
+![MERN Stack](https://img.shields.io/badge/Stack-MERN-blue?style=for-the-badge)
+![Ant Design](https://img.shields.io/badge/UI-Ant_Design-red?style=for-the-badge)
+![AI Powered](https://img.shields.io/badge/AI-Generative-teal?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 ---
 
-## ✨ Project Highlights
+## 🌟 Key Features
 
-ResumeX is not just a template builder; it is a complete SaaS Minimum Viable Product (MVP) that integrates complex frontend state management with secure backend APIs and advanced Generative AI capabilities.
+### 🧠 1. AI-Powered Intelligence
+Unlike standard template fillers, ResumeX understands your career:
+-   **Context-Aware Parser**: Upload an existing PDF or DOCX. The system extracts dates, job titles, and skills, mapping them automatically to the editor.
+-   **Smart Refinement**: One-click polish for your bullet points. Turns *"I did sales"* into *"Generated 20% revenue growth YOY through strategic client acquisition."*
+-   **ResumeX Assistant**: A built-in chatbot that knows your resume. Ask it: *"What skills am I missing for a Full Stack role?"*
 
-| Feature | Technical Implementation | Value Proposition |
-| :--- | :--- | :--- |
-| **Contextual AI Refinement** | Gemini 1.5 Flash API reads the user's entire JSON profile (Skills, Experience, Title) before generating targeted, professional suggestions. | Guarantees quality output that is specific and relevant to the user's background. |
-| **Data Parsing & Extraction** | Backend uses `multer` + `pdf-parse`/`mammoth` to ingest documents, then uses Gemini's **Structured JSON Output** to reliably map messy text into the MongoDB schema. | Eliminates manual data entry and improves data quality. |
-| **Dirty State Management** | Implemented a reliable state anchor (`savedResume`) and warning modal to track unsaved edits and template changes, preventing data loss during preview and navigation cycles. | Ensures data integrity and provides enterprise-grade reliability. |
-| **Live Sharing & Profiles** | Secure **JWT** authentication protects user data, while **unique Short Links** and a public viewer allow for easy sharing without login. | Enhances professional presentation and user control. |
-| **Pixel-Perfect Export** | Uses custom **CSS Print Media Queries** (`@page` rules) to force margin-free, high-fidelity PDF exports across **6+ unique templates** (Modern Gothic, Creative, etc.). | Delivers professional output with zero cost-to-download. |
-| **UX & Productivity Tools** | Dynamic list reordering (Move Up/Down), dedicated AI Audit modal, and Cover Letter generation functionality. | Dramatically speeds up the revision and application process. |
+### 🎨 2. Professional Builder
+-   **Real-Time Preview**: See changes instantly as you type.
+-   **ATS-Friendly Templates**: Choose from 9+ designs (Classic, Modern, Creative, Minimalist, etc.).
+-   **Dark Mode Support**: All templates support both light and dark themes.
+-   **Dynamic Page Breaking**: Intelligent layout engine prevents text from being split across pages during print.
 
-## 🛠️ Technical Stack
+### 💾 3. Advanced Management
+-   **Master Profile**: Save huge lists of all your experience in one "Master" profile, then create tailored versions for specific job applications.
+-   **Secure Cloud Storage**: All data is encrypted and stored in MongoDB.
+-   **PDF Generation**: Browser-native high-quality PDF export.
 
-* **Frontend:** React.js, Ant Design (UI Library), Tailwind CSS (Aesthetics), Framer Motion (Animations)
-* **Backend:** Node.js (Express), MongoDB (Mongoose)
-* **AI/LLM:** Google Gemini 1.5 Flash (for content generation, refinement, and parsing)
+---
 
-## 🧑‍💻 The Development Team
+## 🛠️ Tech Stack
 
-ResumeX was proudly built by a focused engineering team:
+### Client-Side (Frontend)
+-   **Framework**: React.js (Vite)
+-   **UI Library**: Ant Design (AntD) + Tailwind CSS
+-   **Animation**: Framer Motion
+-   **State Management**: React Context API
+-   **Routing**: Custom Context-Based Router
 
-| Role | Developer | Contribution Focus | GitHub |
-| :--- | :--- | :--- | :--- |
-| **Core Architect** | Mehboob Ehsan Khan | State Management, AI Integration, Backend Security | `[Your GitHub Link]` |
-| **Full Stack Engineer** | Nabigah Bin Sayeed | UI/UX, Component Development, Quality Assurance | `[Nabigah's GitHub Link]` |
+### Server-Side (Backend)
+-   **Runtime**: Node.js
+-   **Framework**: Express.js
+-   **Database**: MongoDB (Mongoose Schema)
+-   **Authentication**: JWT (JSON Web Tokens) + BCrypt
+-   **File Handling**: Multer (Memory Storage)
+-   **AI Integration**: Google Generative AI API (Gemini Model)
+-   **Parsers**: `pdf-parse`, `mammoth` (for .docx)
 
-## 📋 Installation & Setup
+---
 
-### 1. Backend Setup
+## 🚀 Getting Started
 
-1. Navigate to the `/server` directory.
+Follow these instructions to set up the project locally.
 
-2. Install dependencies: `npm install bcryptjs cors dotenv express jsonwebtoken mongoose multer pdf-parse mammoth`
+### Prerequisites
+-   **Node.js** (v18 or higher)
+-   **MongoDB** (Local instance or Atlas Connection String)
+-   **Git**
 
-3. Create a `.env` file and set the following variables:
+### Installation
 
-   ```
-   MONGO_URI="[Your MongoDB Atlas Connection String]"
-   JWT_SECRET="YOUR_RANDOM_SECRET_KEY"
-   GEMINI_API_KEY="AIzaS...[Your Gemini API Key]"
-   PORT=5000
-   ```
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/omikhan4901/cse299.git
+    cd cse299
+    ```
 
-4. Run the server: `node server.js` (or `nodemon server.js`)
+2.  **Server Setup**
+    ```bash
+    cd server
+    npm install
+    ```
+    *Create a `.env` file in the `/server` directory:*
+    ```env
+    PORT=5000
+    MONGO_URI=mongodb://localhost:27017/resumex_db
+    JWT_SECRET=your_super_secret_jwt_key
+    GEMINI_API_KEY=your_google_ai_api_key
+    NODE_ENV=development
+    ```
 
-### 2. Frontend Setup
+3.  **Client Setup**
+    ```bash
+    cd ../client
+    npm install
+    ```
+    *(No `.env` needed for client unless customizing API endpoint, defaults to localhost:5000)*
 
-1. Navigate to the `/client` directory.
+---
 
-2. Install dependencies: `npm install`
+## 🏃‍♂️ Running the App
 
-3. **Critical Configuration:** Ensure `src/Config/constraints.js` is set for environment detection:
-   ```javascript
-   // src/Config/constraints.js
-   export const API_BASE_URL = window.location.hostname === 'localhost' 
-       ? 'http://localhost:5000/api'
-       : '[https://cse299-1.onrender.com/api](https://cse299-1.onrender.com/api)'; 
-   ```
+You need to run both the backend and frontend terminals.
 
-4. Run the frontend: `npm run dev`
+**Terminal 1 (Server):**
+```bash
+cd server
+npm run dev
+# Server runs on http://localhost:5000
+```
 
-## 🔑 Key API Endpoints
+**Terminal 2 (Client):**
+```bash
+cd client
+npm run dev
+# Client runs on http://localhost:5173
+```
 
-The system relies on protected AI routes for specialized services:
+Open your browser and navigate to `http://localhost:5173` to start building!
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/ai/parse` | Ingests PDF/DOCX and returns **Structured JSON**. |
-| `POST` | `/api/ai/refine` | Contextually improves text blocks. |
-| `POST` | `/api/ai/cover-letter` | Writes a tailored letter using resume and JD context. |
-| `GET` | `/api/public/:shortId` | Retrieves a single resume for live, unauthenticated viewing. |
-"""
+---
+
+## 📂 Project Structure
+
+```text
+cse299/
+├── client/                 # Frontend React Application
+│   ├── src/
+│   │   ├── Components/     # Modular UI Components
+│   │   │   ├── Authentication/  # Login/Register Modals
+│   │   │   ├── MainBuilder/     # Core Resume Editor Logic
+│   │   │   ├── ResumePreview/   # Resume Designs & Templates
+│   │   │   └── ...
+│   │   ├── Context/        # Global Auth & Routing State
+│   │   └── App.jsx         # Main Entry Point
+│   └── ...
+├── server/                 # Backend Express Application
+│   ├── models/             # Mongoose Schemas (User, Resume)
+│   ├── routes/             # API Endpoints (Auth, AI, Public)
+│   ├── server.js           # Server Entry Point
+│   └── ...
+└── Readme.md               # Project Documentation
+```
+
+---
+
+## 🔒 Security & Privacy
+-   **No Data Selling**: We are a student project, not a data broker.
+-   **Encryption**: Passwords are hashed using BCrypt.
+-   **Protection**: API routes are protected via JWT Middleware.
+
+---
+
+## 👥 Contributors
+-   **Omikhan** - Lead Developer & AI Integration
+
+---
+
+*Verified for CSE299 Final Project Submission.*
