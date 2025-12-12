@@ -146,6 +146,7 @@ cse299/
 
 ## 👥 Contributors
 -   **Omikhan** - Lead Developer & AI Integration
+-   **Nabigah Bin Sayeed** - Project Support & Feedback
 
 ---
 
