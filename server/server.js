@@ -1,8 +1,3 @@
-/**
- * server.js
- * Entry point for the Express backend.
- * Handles database connection, middleware configuration, and route aggregation.
- */
 const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');

@@ -80,7 +80,7 @@ router.post('/refine', protect, async (req, res) => {
         This is an "About Me" section.
         Refine the text to be a first-person narrative (using "I", "my", "I am").
         Keep it Short. 4-5 sentences at most. Must be one concise paragraph. It should sound personal, but also professional.
-        Use the data you get about the person, to write a personalized section.
+        Use the data you get about the person, to write a personalized section(about me).
         Make it as human-like as you can.
         `;
     } else {
