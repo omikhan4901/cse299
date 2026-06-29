@@ -22,6 +22,7 @@ import {
   UploadOutlined,
   StarFilled,
   TeamOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 import ResumeIllustration from "./ResumeIllustration";
 import { motion } from "framer-motion";
@@ -58,16 +59,21 @@ const HomePage = () => {
 
   return (
     <div style={{ backgroundColor: "#fff", overflowX: "hidden" }}>
-      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "16px 24px 0" }}>
-        <Alert
-          type="warning"
-          showIcon
-          banner
-          message="Temporary downtime"
-          description="The website is paused for now because the MongoDB trial has expired :3 . I need to fix that before I start it up again."
-        />
-      </div>
-
+      {/* ================= MAINTENANCE BANNER ================= */}
+      <Alert
+        type="warning"
+        banner
+        icon={<ToolOutlined />}
+        message={
+          <span>
+            <strong>Scheduled Maintenance in Progress</strong> &mdash; Some
+            features may be temporarily unavailable while we perform database
+            infrastructure upgrades(Our free tier server ran out ;-;). We appreciate your patience and apologize
+            for any inconvenience.
+          </span>
+        }
+        style={{ textAlign: "center", fontSize: "14px" }}
+      />
       {/* ================= 1. HERO SECTION ================= */}
       <div
         style={{
