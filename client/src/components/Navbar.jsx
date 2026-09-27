@@ -1,0 +1,116 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { Button, Dropdown } from "antd";
+import { Menu, X, LayoutDashboard, LogOut, FilePlus2 } from "lucide-react";
+import Logo from "./Logo";
+import { useAuth } from "./AuthProvider";
+
+const LINKS = [
+  { href: "/templates", label: "Templates" },
+  { href: "/about", label: "About" },
+];
+
+export default function Navbar({ compact = false }) {
+  const pathname = usePathname();
+  const { isAuthenticated, user, loading, logout, openAuth } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  const links = isAuthenticated ? [...LINKS, { href: "/dashboard", label: "My Resumes" }] : LINKS;
+
+  const userMenu = {
+    items: [
+      { key: "dash", icon: <LayoutDashboard size={15} />, label: <Link href="/dashboard">My resumes</Link> },
+      { key: "new", icon: <FilePlus2 size={15} />, label: <Link href="/builder?new=1">New resume</Link> },
+      { type: "divider" },
+      { key: "logout", icon: <LogOut size={15} />, label: "Log out", danger: true, onClick: logout },
+    ],
+  };
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md print:hidden">
+      <nav className={`${compact ? "px-4 md:px-6" : "container-x"} flex h-16 items-center justify-between gap-4`} aria-label="Main">
+        <Logo href="/" />
+
+        <div className="hidden items-center gap-1 md:flex">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                pathname === l.href ? "bg-brand-50 text-brand" : "text-slate-600 hover:bg-slate-50 hover:text-ink"
+              }`}
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="hidden items-center gap-2 md:flex">
+          {loading ? (
+            <div className="h-9 w-40" />
+          ) : isAuthenticated ? (
+            <>
+              <Link href="/builder">
+                <Button type="primary">Open builder</Button>
+              </Link>
+              <Dropdown menu={userMenu} placement="bottomRight" trigger={["click"]}>
+                <button className="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-sm font-semibold text-white" aria-label="Account menu">
+                  {(user?.name || "?").trim().charAt(0).toUpperCase()}
+                </button>
+              </Dropdown>
+            </>
+          ) : (
+            <>
+              <Button type="text" onClick={() => openAuth("login")}>
+                Log in
+              </Button>
+              <Button type="primary" onClick={() => openAuth("register")}>
+                Get started free
+              </Button>
+            </>
+          )}
+        </div>
+
+        <button className="rounded-lg p-2 text-slate-700 md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
+          {open ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </nav>
+
+      {open ? (
+        <div className="border-t border-slate-200 bg-white px-5 py-4 md:hidden">
+          <div className="flex flex-col gap-1">
+            {links.map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
+                {l.label}
+              </Link>
+            ))}
+            <div className="mt-3 flex gap-2">
+              {isAuthenticated ? (
+                <>
+                  <Link href="/builder" className="flex-1" onClick={() => setOpen(false)}>
+                    <Button type="primary" block>
+                      Open builder
+                    </Button>
+                  </Link>
+                  <Button onClick={logout}>Log out</Button>
+                </>
+              ) : (
+                <>
+                  <Button block onClick={() => { setOpen(false); openAuth("login"); }}>
+                    Log in
+                  </Button>
+                  <Button block type="primary" onClick={() => { setOpen(false); openAuth("register"); }}>
+                    Sign up
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </header>
+  );
+}

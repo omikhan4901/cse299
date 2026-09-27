@@ -12,104 +12,78 @@ ResumeX is a modern, full-stack web application designed to solve the nightmare 
 
 ## 🌟 Key Features
 
-### 🧠 1. AI-Powered Intelligence
-Unlike standard template fillers, ResumeX understands your career:
--   **Context-Aware Parser**: Upload an existing PDF or DOCX. The system extracts dates, job titles, and skills, mapping them automatically to the editor.
--   **Smart Refinement**: One-click polish for your bullet points. Turns *"I did sales"* into *"Generated 20% revenue growth YOY through strategic client acquisition."*
--   **ResumeX Assistant**: A built-in chatbot that knows your resume. Ask it: *"What skills am I missing for a Full Stack role?"*
+### 📄 1. Pixel-perfect PDFs
+-   **Live PDF preview**: The preview *is* the PDF. Every keystroke re-renders the real document (in a Web Worker), so page breaks, fonts and spacing are exactly what you download.
+-   **One-click download**: No print dialogs or browser settings — you get a text-based, ATS-readable `Your_Name_Resume.pdf`.
+-   **Multi-page aware**: Sidebars and backgrounds repeat on every page, entries never split mid-line and headings never get stranded at the bottom of a page.
 
 ### 🎨 2. Professional Builder
--   **Real-Time Preview**: See changes instantly as you type.
--   **ATS-Friendly Templates**: Choose from 9+ designs (Classic, Modern, Creative, Minimalist, etc.).
--   **Dark Mode Support**: All templates support both light and dark themes.
--   **Dynamic Page Breaking**: Intelligent layout engine prevents text from being split across pages during print.
+-   **10 templates**: Classic, Modern, Creative, Cool Blue, Basic Stylish, Minimalist Beige, Modern Gothic, Classic Dark, Modern Dark and Compact ATS.
+-   **Make it yours**: Accent colour, six bundled fonts, A4 or US Letter.
+-   **More sections**: Experience, education, projects, certifications, skills and languages. Empty sections are hidden automatically.
+-   **Works without an account**: Guests can build and download; drafts are kept in the browser. Sign up to save and share.
 
-### 💾 3. Advanced Management
--   **Master Profile**: Save huge lists of all your experience in one "Master" profile, then create tailored versions for specific job applications.
--   **Secure Cloud Storage**: All data is encrypted and stored in MongoDB.
--   **PDF Generation**: Browser-native high-quality PDF export.
+### 💾 3. Management & Sharing
+-   **Autosave** for saved resumes, plus a dashboard with real thumbnails, duplicate, delete and download.
+-   **Master Profile**: Keep all your experience in one resume and fill new, tailored resumes from it in one click.
+-   **Public links**: `/view/<id>` is a server-rendered web resume (with SEO metadata and structured data) plus a PDF download.
+
+### 🧠 4. AI (currently paused)
+AI refine, chat assistant, ATS check, cover letter and PDF/DOCX import are powered by Google Gemini. They are locked in the UI until `NEXT_PUBLIC_AI_ENABLED=true` (client) and `GEMINI_API_KEY` (server) are set.
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Client-Side (Frontend)
--   **Framework**: React.js (Vite)
--   **UI Library**: Ant Design (AntD) + Tailwind CSS
--   **Animation**: Framer Motion
--   **State Management**: React Context API
--   **Routing**: Custom Context-Based Router
+### Client (`/client`)
+-   **Framework**: Next.js 16 (App Router) — server-rendered marketing and share pages for SEO
+-   **UI**: Tailwind CSS 4 + Ant Design 6, lucide icons
+-   **PDF engine**: `@react-pdf/renderer` (templates in `src/pdf`), previewed with `pdfjs-dist`
+-   **State**: React context for auth, local component state for the editor
 
-### Server-Side (Backend)
--   **Runtime**: Node.js
--   **Framework**: Express.js
--   **Database**: MongoDB (Mongoose Schema)
--   **Authentication**: JWT (JSON Web Tokens) + BCrypt
--   **File Handling**: Multer (Memory Storage)
--   **AI Integration**: Google Generative AI API (Gemini Model)
--   **Parsers**: `pdf-parse`, `mammoth` (for .docx)
+### Server (`/server`)
+-   **Runtime**: Node.js + Express
+-   **Database**: MongoDB (Mongoose)
+-   **Authentication**: JWT + bcrypt
+-   **AI**: Google Gemini REST API; `pdf-parse` and `mammoth` for imports
 
 ---
 
 ## 🚀 Getting Started
 
-Follow these instructions to set up the project locally.
-
 ### Prerequisites
--   **Node.js** (v18 or higher)
--   **MongoDB** (Local instance or Atlas Connection String)
--   **Git**
+-   **Node.js** 20 or newer
+-   **MongoDB** (local or Atlas)
 
-### Installation
-
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/omikhan4901/cse299.git
-    cd cse299
-    ```
-
-2.  **Server Setup**
-    ```bash
-    cd server
-    npm install
-    ```
-    *Create a `.env` file in the `/server` directory:*
-    ```env
-    PORT=5000
-    MONGO_URI=mongodb://localhost:27017/resumex_db
-    JWT_SECRET=your_super_secret_jwt_key
-    GEMINI_API_KEY=your_google_ai_api_key
-    NODE_ENV=development
-    ```
-
-3.  **Client Setup**
-    ```bash
-    cd ../client
-    npm install
-    ```
-    *(No `.env` needed for client unless customizing API endpoint, defaults to localhost:5000)*
-
----
-
-## 🏃‍♂️ Running the App
-
-You need to run both the backend and frontend terminals.
-
-**Terminal 1 (Server):**
+### 1. Server
 ```bash
 cd server
-npm run dev
-# Server runs on http://localhost:5000
+npm install
+cp .env.example .env   # then fill in MONGO_URI and JWT_SECRET
+npm run dev            # http://localhost:5000
 ```
 
-**Terminal 2 (Client):**
+### 2. Client
 ```bash
 cd client
-npm run dev
-# Client runs on http://localhost:5173
+npm install
+cp .env.example .env.local   # optional — defaults work for local development
+npm run dev                  # http://localhost:3000
 ```
 
-Open your browser and navigate to `http://localhost:5173` to start building!
+| Client variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | Express API base URL. Defaults to `http://localhost:5000/api` in development and the Render deployment in production. |
+| `NEXT_PUBLIC_SITE_URL` | Public site URL for canonical links, the sitemap and share links. On Vercel it defaults to the production domain. |
+| `NEXT_PUBLIC_AI_ENABLED` | `true` unlocks the AI buttons. Leave `false` until Gemini works. |
+| `NEXT_PUBLIC_ANNOUNCEMENT` | Optional banner text shown on the marketing pages (e.g. maintenance notices). |
+
+### Deploying
+-   **Client → Vercel**: root directory `client`. `vercel.json` sets the framework to Next.js (the project used to be Vite, so double-check *Settings → Build & Development* if the first build fails).
+-   **Server → Render**: unchanged (`npm start`). Set the variables from `server/.env.example`.
+
+### Updating template previews
+The images in `client/public/templates/*.jpg` are renders of each template with the sample resume from `client/src/lib/resume.js`. Re-render them after changing a template's design.
 
 ---
 
@@ -117,22 +91,19 @@ Open your browser and navigate to `http://localhost:5173` to start building!
 
 ```text
 cse299/
-├── client/                 # Frontend React Application
-│   ├── src/
-│   │   ├── Components/     # Modular UI Components
-│   │   │   ├── Authentication/  # Login/Register Modals
-│   │   │   ├── MainBuilder/     # Core Resume Editor Logic
-│   │   │   ├── ResumePreview/   # Resume Designs & Templates
-│   │   │   └── ...
-│   │   ├── Context/        # Global Auth & Routing State
-│   │   └── App.jsx         # Main Entry Point
-│   └── ...
-├── server/                 # Backend Express Application
-│   ├── models/             # Mongoose Schemas (User, Resume)
-│   ├── routes/             # API Endpoints (Auth, AI, Public)
-│   ├── server.js           # Server Entry Point
-│   └── ...
-└── Readme.md               # Project Documentation
+├── client/                      # Next.js front end
+│   ├── public/fonts/            # Fonts embedded in the PDFs
+│   ├── public/templates/        # Template preview images
+│   └── src/
+│       ├── app/                 # Routes: (site) marketing pages, (app) builder & dashboard, view/[id]
+│       ├── components/          # UI (builder/, public/, navbar, auth …)
+│       ├── lib/                 # API client, config, resume data model
+│       └── pdf/                 # PDF engine: templates/, shared blocks, fonts, worker
+├── server/                      # Express API
+│   ├── models/                  # User, Resume
+│   ├── routes/                  # auth, resume, public, ai
+│   └── server.js
+└── Readme.md
 ```
 
 ---
