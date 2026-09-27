@@ -1,6 +1,6 @@
 import { Page, View, Text, Svg, Circle } from "@react-pdf/renderer";
 import { contactItems, ContactRow, Photo, Initials, visibleSections, SECTION_TITLES, tint } from "../primitives";
-import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether } from "../blocks";
+import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether, extraSections } from "../blocks";
 
 const PAD = 34;
 
@@ -20,16 +20,16 @@ export default function Creative({ data, accent, font, size }) {
   const k = { font, headingFont: font, text: c.text, muted: c.muted, heading: c.heading, accent, size: 9.3 };
   const show = visibleSections(data);
   const p = data.personal;
-  const contacts = contactItems(p);
+  const contacts = contactItems(p, data.links);
   const left = contacts.filter((i) => i.type === "email" || i.type === "phone");
   const right = contacts.filter((i) => i.type !== "email" && i.type !== "phone");
   const pageWidth = size === "LETTER" ? 612 : 595;
 
-  const Section = ({ id, children }) =>
-    show[id] ? (
+  const Section = ({ id, title, children }) =>
+    title || show[id] ? (
       <View wrap={!keepTogether(id, data)} style={{ marginBottom: 16 }}>
-        <Text minPresenceAhead={36} style={{ fontSize: 11.5, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 1.4, borderBottomWidth: 1.5, borderBottomColor: c.rule, paddingBottom: 4, marginBottom: 9 }}>
-          {SECTION_TITLES[id]}
+        <Text minPresenceAhead={36} style={{ fontSize: 11.5, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.58, borderBottomWidth: 1.5, borderBottomColor: c.rule, paddingBottom: 4, marginBottom: 9 }}>
+          {title || SECTION_TITLES[id]}
         </Text>
         {children}
       </View>
@@ -39,13 +39,13 @@ export default function Creative({ data, accent, font, size }) {
     <Page size={size} style={{ fontFamily: font, backgroundColor: "#ffffff", paddingTop: PAD, paddingBottom: PAD }}>
       <View style={{ marginTop: -PAD, height: 150, backgroundColor: c.banner, alignItems: "center", justifyContent: "center", paddingBottom: 34 }}>
         <DotPattern width={pageWidth} height={150} color="#4a5568" />
-        <Text style={{ fontSize: 26, color: "#ffffff", textTransform: "uppercase", letterSpacing: 5, textAlign: "center", paddingHorizontal: 40 }}>{p.name || "Your Name"}</Text>
+        <Text style={{ fontSize: 26, color: "#ffffff", textTransform: "uppercase", letterSpacing: 1.3, textAlign: "center", paddingHorizontal: 40 }}>{p.name || "Your Name"}</Text>
       </View>
 
       <View style={{ marginTop: -42, marginHorizontal: PAD, backgroundColor: "#ffffff", borderRadius: 8, borderWidth: 0.8, borderColor: c.rule, paddingVertical: 12, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
         <View style={{ flex: 1 }}>
           {left.map((item) => (
-            <ContactRow key={item.type} item={item} color={c.text} iconColor={accent} size={8.3} style={{ marginBottom: 4 }} />
+            <ContactRow key={item.key} item={item} color={c.text} iconColor={accent} size={8.3} style={{ marginBottom: 4 }} />
           ))}
         </View>
         <View style={{ alignItems: "center", width: 150 }}>
@@ -55,12 +55,12 @@ export default function Creative({ data, accent, font, size }) {
             <Initials name={p.name} size={72} bg={tint(accent, 0.85)} color={accent} font={font} style={{ marginTop: -46, borderWidth: 4, borderColor: "#ffffff" }} />
           )}
           {p.title ? (
-            <Text style={{ fontSize: 9, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: 1.8, textAlign: "center", marginTop: 8 }}>{p.title}</Text>
+            <Text style={{ fontSize: 9, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: 0.45, textAlign: "center", marginTop: 8 }}>{p.title}</Text>
           ) : null}
         </View>
         <View style={{ flex: 1, alignItems: "flex-end" }}>
           {right.map((item) => (
-            <ContactRow key={item.type} item={item} color={c.text} iconColor={accent} size={8.3} style={{ marginBottom: 4 }} />
+            <ContactRow key={item.key} item={item} color={c.text} iconColor={accent} size={8.3} style={{ marginBottom: 4 }} />
           ))}
         </View>
       </View>
@@ -76,6 +76,11 @@ export default function Creative({ data, accent, font, size }) {
           <Section id="projects">
             <ProjectList items={data.projects} k={k} />
           </Section>
+          {extraSections(data, k, (id, title, children) => (
+            <Section key={id} id={id} title={title}>
+              {children}
+            </Section>
+          ), { timeline: { line: c.rule, dot: accent } })}
         </View>
         <View style={{ width: "37%", paddingLeft: 6 }}>
           <Section id="education">

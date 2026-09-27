@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Modal, Input, Button, Progress, App } from "antd";
-import { Send, Sparkles, Copy, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Modal, Input, Button, App } from "antd";
+import { Send, Sparkles, Copy } from "lucide-react";
 import { api } from "@/lib/api";
 
 const { TextArea } = Input;
@@ -69,88 +69,6 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary }) {
         <Button size="large" type="primary" icon={<Send size={16} />} onClick={send} loading={loading} />
       </div>
     </Modal>
-  );
-}
-
-export function AuditModal({ open, onClose, resume, token }) {
-  return (
-    <Modal title="ATS check" open={open} onCancel={onClose} footer={null} width={620} destroyOnHidden>
-      <Audit resume={resume} token={token} />
-    </Modal>
-  );
-}
-
-function Audit({ resume, token }) {
-  const [job, setJob] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
-
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api("/ai/audit", { token, method: "POST", body: { resumeData: aiResume(resume), jobDescription: job } });
-      setResult(data.analysis);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const color = (s) => (s >= 75 ? "#16a34a" : s >= 50 ? "#d97706" : "#dc2626");
-
-  return (
-    <>
-      {!result ? (
-        <div>
-          <p className="mb-3 text-sm text-slate-500">Paste a job description to see how well your resume matches it, or leave it empty for a general review.</p>
-          <TextArea rows={7} value={job} onChange={(e) => setJob(e.target.value)} placeholder="Paste the job description here (optional)" />
-          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-          <Button type="primary" size="large" block className="!mt-4" loading={loading} onClick={run}>
-            {job.trim() ? "Check my match" : "Run a general check"}
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-5">
-          <div className="flex items-center gap-5">
-            <Progress type="circle" percent={result.score} size={96} strokeColor={color(result.score)} />
-            <div>
-              <p className="font-semibold text-ink">{job.trim() ? "Job match score" : "Resume health score"}</p>
-              <p className="text-sm text-slate-500">{result.summary}</p>
-            </div>
-          </div>
-          {result.missingKeywords?.length ? (
-            <div>
-              <p className="mb-2 text-sm font-medium text-ink">Missing keywords</p>
-              <div className="flex flex-wrap gap-1.5">
-                {result.missingKeywords.map((k) => (
-                  <span key={k} className="rounded-md bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-amber-200">{k}</span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          <List title="Strengths" icon={<CheckCircle2 size={15} className="text-green-600" />} items={result.strengths} />
-          <List title="Improve" icon={<AlertTriangle size={15} className="text-amber-600" />} items={result.improvements} />
-          <Button block onClick={() => setResult(null)}>Check another job</Button>
-        </div>
-      )}
-    </>
-  );
-}
-
-function List({ title, icon, items = [] }) {
-  if (!items.length) return null;
-  return (
-    <div>
-      <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-ink">{icon} {title}</p>
-      <ul className="space-y-1.5 text-sm text-slate-600">
-        {items.map((it, i) => (
-          <li key={i} className="rounded-lg bg-slate-50 px-3 py-2">{it}</li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

@@ -8,7 +8,8 @@ const { protect } = require("./auth");
 // shortId, timestamps) is controlled by the server.
 const EDITABLE = [
   "nickname", "personal", "summary", "experience", "education", "projects", "certifications",
-  "skills", "languages", "template", "theme", "isMaster", "isPublic",
+  "volunteering", "awards", "publications", "courses", "references", "referencesOnRequest", "links",
+  "customSections", "skills", "languages", "interests", "template", "theme", "isMaster", "isPublic",
 ];
 
 const pickEditable = (body = {}) => {

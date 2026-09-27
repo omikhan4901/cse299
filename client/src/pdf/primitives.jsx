@@ -16,6 +16,16 @@ const ICON_PATHS = {
     { circle: [4, 4, 2] },
   ],
   website: [{ circle: [12, 12, 10] }, { d: "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" }, { d: "M2 12h20" }],
+  github: [
+    { d: "M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" },
+    { d: "M9 18c-4.51 2-5-2-7-2" },
+  ],
+  link: [
+    { d: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" },
+    { d: "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" },
+  ],
+  dob: [{ rect: [3, 4, 18, 18, 2] }, { d: "M16 2v4" }, { d: "M8 2v4" }, { d: "M3 10h18" }],
+  nationality: [{ d: "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" }, { d: "M4 22v-7" }],
 };
 
 export function Icon({ name, size = 9, color = "#333" }) {
@@ -34,15 +44,21 @@ export function Icon({ name, size = 9, color = "#333" }) {
   );
 }
 
-/** Contact entries in display order, with ready-to-use links. */
-export function contactItems(personal = {}) {
+/** Contact entries in display order, with ready-to-use links. Pass the whole resume to include extra links. */
+export function contactItems(personal = {}, links = []) {
   const items = [];
   if (personal.phone) items.push({ type: "phone", label: "Phone", text: personal.phone, href: `tel:${personal.phone.replace(/[^\d+]/g, "")}` });
   if (personal.email) items.push({ type: "email", label: "Email", text: personal.email, href: `mailto:${personal.email}` });
   if (personal.city) items.push({ type: "city", label: "Location", text: personal.city });
   if (personal.linkedin) items.push({ type: "linkedin", label: "LinkedIn", text: prettyUrl(personal.linkedin), href: toHref(personal.linkedin) });
+  if (personal.github) items.push({ type: "github", label: "GitHub", text: prettyUrl(personal.github), href: toHref(personal.github) });
   if (personal.website) items.push({ type: "website", label: "Website", text: prettyUrl(personal.website), href: toHref(personal.website) });
-  return items;
+  for (const l of links || []) {
+    if (l.url) items.push({ type: "link", key: `link-${l.id}`, label: l.label || "Link", text: l.label ? `${l.label}: ${prettyUrl(l.url)}` : prettyUrl(l.url), href: toHref(l.url) });
+  }
+  if (personal.dateOfBirth) items.push({ type: "dob", label: "Date of birth", text: personal.dateOfBirth });
+  if (personal.nationality) items.push({ type: "nationality", label: "Nationality", text: personal.nationality });
+  return items.map((i) => ({ ...i, key: i.key || i.type }));
 }
 
 /** Text that becomes a clickable link in the PDF when it has an href. */
@@ -130,6 +146,12 @@ export function visibleSections(resume) {
     certifications: resume.certifications?.length > 0,
     skills: splitList(resume.skills).length > 0,
     languages: splitList(resume.languages).length > 0,
+    volunteering: resume.volunteering?.length > 0,
+    awards: resume.awards?.length > 0,
+    publications: resume.publications?.length > 0,
+    courses: resume.courses?.length > 0,
+    references: resume.references?.length > 0 || !!resume.referencesOnRequest,
+    interests: splitList(resume.interests).length > 0,
   };
 }
 
@@ -141,6 +163,12 @@ export const SECTION_TITLES = {
   certifications: "Certifications",
   skills: "Skills",
   languages: "Languages",
+  volunteering: "Volunteering",
+  awards: "Awards",
+  publications: "Publications",
+  courses: "Courses",
+  references: "References",
+  interests: "Interests",
 };
 
 /** Mixes a hex colour with white (amount 0..1) for tints of the accent colour. */

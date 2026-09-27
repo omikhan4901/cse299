@@ -1,6 +1,6 @@
 import { Page, View, Text } from "@react-pdf/renderer";
 import { contactItems, ContactRow, Photo, visibleSections, SECTION_TITLES } from "../primitives";
-import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether } from "../blocks";
+import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether, extraSections } from "../blocks";
 
 /** Warm paper background, serif headings, two columns. */
 export default function MinimalistBeige({ data, accent, font, size, bodyFont }) {
@@ -9,13 +9,13 @@ export default function MinimalistBeige({ data, accent, font, size, bodyFont }) 
   const k = { font: body, headingFont: font, text: c.text, muted: c.muted, heading: c.heading, accent, size: 9.2, subtitleColor: c.muted, dateColor: accent };
   const show = visibleSections(data);
   const p = data.personal;
-  const titles = { ...SECTION_TITLES, summary: "Profile", skills: "Skillset" };
+  const titles = { ...SECTION_TITLES, summary: "Profile", skills: "Skills" };
 
-  const Section = ({ id, children }) =>
-    show[id] ? (
+  const Section = ({ id, title, children }) =>
+    title || show[id] ? (
       <View wrap={!keepTogether(id, data)} style={{ marginBottom: 18 }}>
-        <Text minPresenceAhead={36} style={{ fontFamily: font, fontSize: 12.5, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>
-          {titles[id]}
+        <Text minPresenceAhead={36} style={{ fontFamily: font, fontSize: 12.5, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.62, marginBottom: 10 }}>
+          {title || titles[id]}
         </Text>
         {children}
       </View>
@@ -29,8 +29,8 @@ export default function MinimalistBeige({ data, accent, font, size, bodyFont }) 
           <Text style={{ fontFamily: font, fontSize: 28, fontWeight: 700, color: "#1a1a1a" }}>{p.name || "Your Name"}</Text>
           {p.title ? <Text style={{ fontFamily: font, fontStyle: "italic", fontSize: 12.5, color: c.muted, marginTop: 4 }}>{p.title}</Text> : null}
           <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 10 }}>
-            {contactItems(p).map((item) => (
-              <ContactRow key={item.type} item={item} color={c.muted} iconColor={accent} size={8.3} style={{ marginRight: 14, marginBottom: 4 }} />
+            {contactItems(p, data.links).map((item) => (
+              <ContactRow key={item.key} item={item} color={c.muted} iconColor={accent} size={8.3} style={{ marginRight: 14, marginBottom: 4 }} />
             ))}
           </View>
         </View>
@@ -62,6 +62,11 @@ export default function MinimalistBeige({ data, accent, font, size, bodyFont }) 
           <Section id="projects">
             <ProjectList items={data.projects} k={k} />
           </Section>
+          {extraSections(data, k, (id, title, children) => (
+            <Section key={id} id={id} title={title}>
+              {children}
+            </Section>
+          ))}
         </View>
       </View>
     </Page>

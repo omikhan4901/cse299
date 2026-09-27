@@ -15,10 +15,15 @@ export function loadPdfJs() {
   return pdfjsPromise;
 }
 
+const MAX_PAGE_WIDTH = 820;
+
 /**
  * Live preview: renders the real PDF (the exact file that gets downloaded)
  * and paints each page onto a canvas. Updates are debounced while typing and
  * the previous pages stay visible until the new ones are ready.
+ *
+ * Zoom works like a PDF viewer: the pages are resized straight away, then
+ * re-rendered at the new size so the text stays sharp.
  */
 export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 }) {
   const containerRef = useRef(null);
@@ -39,7 +44,14 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
   }, []);
 
   const json = JSON.stringify(resume);
-  const renderKey = `${json}|${width}|${zoom}`;
+  const pageWidth = Math.floor(Math.min(width || MAX_PAGE_WIDTH, MAX_PAGE_WIDTH) * zoom);
+
+  // Instant zoom: resize the pages already on screen while the sharp render catches up.
+  useEffect(() => {
+    if (!pagesRef.current || !width) return;
+    for (const canvas of pagesRef.current.children) canvas.style.width = `${pageWidth}px`;
+  }, [pageWidth, width]);
+  const renderKey = `${json}|${pageWidth}`;
   const updating = status !== "loading" && renderedKey !== renderKey;
 
   useEffect(() => {
@@ -51,8 +63,8 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
         if (version !== versionRef.current) return;
         const task = pdfjs.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false });
         const doc = await task.promise;
-        const pageWidth = Math.min(width, 900) * zoom;
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        // Render resolution follows the zoom (capped so huge zooms stay fast).
+        const dpr = Math.min((window.devicePixelRatio || 1) * Math.max(zoom, 1), 3);
         const canvases = [];
         for (let n = 1; n <= doc.numPages; n++) {
           const page = await doc.getPage(n);
@@ -61,8 +73,8 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
           const canvas = document.createElement("canvas");
           canvas.width = Math.floor(viewport.width);
           canvas.height = Math.floor(viewport.height);
-          canvas.style.width = `${Math.floor(pageWidth)}px`;
-          canvas.style.height = `${Math.floor(viewport.height / dpr)}px`;
+          canvas.style.width = `${pageWidth}px`;
+          canvas.style.height = "auto";
           canvas.className = "block rounded-sm bg-white shadow-[0_8px_30px_rgba(15,31,42,0.12)] ring-1 ring-slate-900/5";
           canvas.setAttribute("aria-label", `Resume page ${n}`);
           await page.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
@@ -78,24 +90,24 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
         onPageCount?.(canvases.length);
         setError(null);
         setStatus("ready");
-        setRenderedKey(`${json}|${width}|${zoom}`);
+        setRenderedKey(`${json}|${pageWidth}`);
       } catch (err) {
         if (version !== versionRef.current) return;
         console.error(err);
         setError(err.message || "Could not render the preview.");
         setStatus("error");
-        setRenderedKey(`${json}|${width}|${zoom}`);
+        setRenderedKey(`${json}|${pageWidth}`);
       }
     }, status === "loading" ? 0 : delay);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [json, width, zoom]);
+  }, [json, pageWidth]);
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <div ref={pagesRef} className="flex flex-col items-center gap-6" />
+      <div ref={pagesRef} className="mx-auto flex w-max min-w-full flex-col items-center gap-6" />
       {status === "loading" ? (
-        <div className="flex aspect-[1/1.414] w-full max-w-[900px] items-center justify-center rounded-sm bg-white shadow-sm">
+        <div className="mx-auto flex aspect-[1/1.414] w-full max-w-[820px] items-center justify-center rounded-sm bg-white shadow-sm">
           <Loader2 className="animate-spin text-brand" size={28} />
         </div>
       ) : null}

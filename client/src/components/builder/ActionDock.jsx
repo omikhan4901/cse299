@@ -80,7 +80,7 @@ export default function ActionDock({
         <DockButton title={aiTitle("AI assistant")} onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={lock}>
           <MessageSquare size={18} />
         </DockButton>
-        <DockButton title={aiTitle("ATS check")} onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm" badge={lock}>
+        <DockButton title="ATS check" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm">
           <ScanSearch size={18} />
         </DockButton>
         <DockButton title={aiTitle("Cover letter")} onClick={() => onAi("cover")} className="bg-pink-50 text-pink-600 shadow-sm" badge={lock}>

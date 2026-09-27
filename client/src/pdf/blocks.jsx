@@ -66,7 +66,7 @@ export function ExperienceList({ items, k, timeline, companyFirst, dateBelow }) 
       k={k}
       title={(companyFirst ? item.company : item.title) || (companyFirst ? "Company" : "Job Title")}
       subtitle={companyFirst ? item.title : item.company}
-      location={item.location}
+      location={[item.location, item.employmentType].filter(Boolean).join("  ·  ")}
       date={dateRange(item.startDate, item.endDate)}
       description={item.description}
       timeline={timeline}
@@ -82,8 +82,9 @@ export function EducationList({ items, k, timeline, institutionFirst, dateBelow 
       k={k}
       title={(institutionFirst ? item.institution : item.degree) || (institutionFirst ? "Institution" : "Degree")}
       subtitle={institutionFirst ? item.degree : item.institution}
+      location={item.location}
       date={dateRange(item.startYear, item.endYear)}
-      description={item.details}
+      description={[item.gpa ? `GPA: ${item.gpa}` : "", item.details].filter(Boolean).join("  ·  ")}
       bullets={false}
       timeline={timeline}
       dateBelow={dateBelow}
@@ -102,6 +103,17 @@ export function ProjectList({ items, k, timeline }) {
           </MaybeLink>
         ) : null}
       </View>
+      {item.role || item.startDate || item.endDate ? (
+        <Text style={{ fontSize: k.size - 0.5, color: k.muted, marginTop: 1.5 }}>
+          {[item.role, dateRange(item.startDate, item.endDate)].filter(Boolean).join("  ·  ")}
+        </Text>
+      ) : null}
+      {item.technologies ? (
+        <Text style={{ fontSize: k.size - 0.5, color: k.muted, marginTop: 1.5 }}>
+          <Text style={{ fontWeight: 700, color: k.heading }}>Tech: </Text>
+          {splitList(item.technologies).join(", ")}
+        </Text>
+      ) : null}
       {item.description ? (
         <Bullets text={item.description} color={k.text} size={k.size} bulletColor={k.bulletColor || k.accent} style={{ marginTop: 3 }} bullet={timeline === false ? null : "•"} />
       ) : null}
@@ -112,7 +124,9 @@ export function ProjectList({ items, k, timeline }) {
 export function CertificationList({ items, k, compact }) {
   return items.map((item) => (
     <View key={item.id} wrap={false} style={{ marginBottom: compact ? 4 : 7 }}>
-      <Text style={{ fontSize: k.size, color: k.heading, fontWeight: 700 }}>{item.name || "Certification"}</Text>
+      <MaybeLink href={item.link ? projectHref(item.link) : ""} style={{ fontSize: k.size, color: k.heading, fontWeight: 700 }}>
+        {item.name || "Certification"}
+      </MaybeLink>
       {item.issuer || item.date ? (
         <Text style={{ fontSize: k.size - 1, color: k.muted, marginTop: 1 }}>{[item.issuer, item.date].filter(Boolean).join(" · ")}</Text>
       ) : null}
@@ -155,7 +169,7 @@ export function SkillList({ text, k, variant = "chips", chip = {} }) {
             marginRight: 4,
             marginBottom: 4,
             textTransform: chip.upper ? "uppercase" : "none",
-            letterSpacing: chip.upper ? 0.5 : 0,
+            letterSpacing: chip.upper ? 0.35 : 0,
           }}
         >
           {s}
@@ -171,4 +185,102 @@ export function Paragraph({ text, k, style }) {
 
 /** Short sections are kept on one page so their heading never gets stranded. */
 export const keepTogether = (id, data) =>
-  ["skills", "languages", "certifications"].includes(id) || (id === "summary" && (data.summary || "").length < 700);
+  ["skills", "languages", "certifications", "interests", "references", "courses"].includes(id) ||
+  (id === "summary" && (data.summary || "").length < 700);
+
+const joinDot = (...parts) => parts.filter(Boolean).join("  ·  ");
+
+export function VolunteerList({ items, k, timeline }) {
+  return items.map((item) => (
+    <Entry
+      key={item.id}
+      k={k}
+      title={item.role || "Volunteer"}
+      subtitle={item.organization}
+      location={item.location}
+      date={dateRange(item.startDate, item.endDate)}
+      description={item.description}
+      timeline={timeline}
+    />
+  ));
+}
+
+export function AwardList({ items, k }) {
+  return items.map((item) => (
+    <Entry key={item.id} k={k} title={item.title || "Award"} subtitle={item.issuer} date={item.date} description={item.description} bullets={false} />
+  ));
+}
+
+export function PublicationList({ items, k }) {
+  return items.map((item) => (
+    <View key={item.id} style={{ marginBottom: k.entryGap ?? 9 }}>
+      <View wrap={false} minPresenceAhead={16}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <MaybeLink href={item.link ? projectHref(item.link) : ""} style={{ flex: 1, fontFamily: k.headingFont, fontWeight: 700, fontSize: k.size + 0.5, color: k.heading, paddingRight: 8 }}>
+            {item.title || "Publication"}
+          </MaybeLink>
+          {item.date ? <Text style={{ fontSize: k.size - 1, color: k.dateColor || k.muted }}>{item.date}</Text> : null}
+        </View>
+        {item.publisher ? <Text style={{ fontSize: k.size, color: k.subtitleColor || k.accent, marginTop: 1.5 }}>{item.publisher}</Text> : null}
+      </View>
+      {item.description ? <Text style={{ fontSize: k.size, color: k.text, lineHeight: 1.45, marginTop: 2 }}>{item.description}</Text> : null}
+    </View>
+  ));
+}
+
+export function CourseList({ items, k }) {
+  return items.map((item) => (
+    <View key={item.id} wrap={false} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+      <Text style={{ flex: 1, fontSize: k.size, color: k.text, paddingRight: 8 }}>
+        <Text style={{ fontWeight: 700, color: k.heading }}>{item.name || "Course"}</Text>
+        {item.institution ? `  ·  ${item.institution}` : ""}
+      </Text>
+      {item.date ? <Text style={{ fontSize: k.size - 1, color: k.dateColor || k.muted }}>{item.date}</Text> : null}
+    </View>
+  ));
+}
+
+export function ReferenceList({ items, k }) {
+  if (!items.length) return <Text style={{ fontSize: k.size, color: k.text, fontStyle: "italic" }}>Available on request.</Text>;
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+      {items.map((item) => (
+        <View key={item.id} wrap={false} style={{ width: "50%", paddingRight: 10, marginBottom: 8 }}>
+          <Text style={{ fontSize: k.size, fontWeight: 700, color: k.heading }}>{item.name || "Reference"}</Text>
+          {item.position || item.company ? <Text style={{ fontSize: k.size - 0.5, color: k.muted }}>{[item.position, item.company].filter(Boolean).join(", ")}</Text> : null}
+          {item.email ? <MaybeLink href={`mailto:${item.email}`} style={{ fontSize: k.size - 0.5, color: k.text }}>{item.email}</MaybeLink> : null}
+          {item.phone ? <Text style={{ fontSize: k.size - 0.5, color: k.text }}>{item.phone}</Text> : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function CustomItems({ items, k }) {
+  return items.map((item) => (
+    <Entry key={item.id} k={k} title={item.title || "Item"} subtitle={item.subtitle} date={item.date} description={item.description} />
+  ));
+}
+
+/**
+ * The sections every template gets "for free" after its core layout:
+ * volunteering, awards, publications, courses, custom sections, references
+ * and interests. `render(id, title, children)` wraps each one in the
+ * template's own section style; only sections with content are rendered.
+ */
+export function extraSections(data, k, render, { timeline, titles = {} } = {}) {
+  const t = (id, fallback) => titles[id] || fallback;
+  const out = [];
+  if (data.volunteering?.length) out.push(render("volunteering", t("volunteering", "Volunteering"), <VolunteerList items={data.volunteering} k={k} timeline={timeline} />));
+  if (data.awards?.length) out.push(render("awards", t("awards", "Awards"), <AwardList items={data.awards} k={k} />));
+  if (data.publications?.length) out.push(render("publications", t("publications", "Publications"), <PublicationList items={data.publications} k={k} />));
+  if (data.courses?.length) out.push(render("courses", t("courses", "Courses"), <CourseList items={data.courses} k={k} />));
+  for (const sec of data.customSections || []) {
+    if (sec.items?.length) out.push(render(`custom-${sec.id}`, sec.title || "Other", <CustomItems items={sec.items} k={k} />));
+  }
+  if (data.references?.length || data.referencesOnRequest) out.push(render("references", t("references", "References"), <ReferenceList items={data.references || []} k={k} />));
+  if (splitList(data.interests).length) out.push(render("interests", t("interests", "Interests"), <SkillList text={data.interests} k={k} variant="inline" />));
+  return out;
+}
+
+export { joinDot };

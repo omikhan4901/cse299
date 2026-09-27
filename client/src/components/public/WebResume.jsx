@@ -1,9 +1,9 @@
-import { Mail, Phone, MapPin, Globe } from "lucide-react";
-import { LinkedinIcon as Linkedin } from "../BrandIcons";
+import { Mail, Phone, MapPin, Globe, Link2 } from "lucide-react";
+import { LinkedinIcon as Linkedin, GithubIcon as Github } from "../BrandIcons";
 import { templateById } from "@/pdf/registry";
 import { splitBullets, splitList, dateRange, toHref, prettyUrl } from "@/lib/resume";
 
-const ICONS = { email: Mail, phone: Phone, city: MapPin, linkedin: Linkedin, website: Globe };
+const ICONS = { email: Mail, phone: Phone, city: MapPin, linkedin: Linkedin, github: Github, website: Globe, link: Link2 };
 
 function Section({ title, children }) {
   return (
@@ -24,11 +24,14 @@ export default function WebResume({ resume }) {
     p.phone && { type: "phone", text: p.phone, href: `tel:${p.phone.replace(/[^\d+]/g, "")}` },
     p.city && { type: "city", text: p.city },
     p.linkedin && { type: "linkedin", text: prettyUrl(p.linkedin), href: toHref(p.linkedin) },
+    p.github && { type: "github", text: prettyUrl(p.github), href: toHref(p.github) },
     p.website && { type: "website", text: prettyUrl(p.website), href: toHref(p.website) },
+    ...resume.links.filter((l) => l.url).map((l) => ({ type: "link", key: `link-${l.id}`, text: l.label || prettyUrl(l.url), href: toHref(l.url) })),
   ].filter(Boolean);
   const skills = splitList(resume.skills);
   const languages = splitList(resume.languages);
-  const hasAside = skills.length > 0 || languages.length > 0 || resume.certifications.length > 0;
+  const interests = splitList(resume.interests);
+  const hasAside = skills.length > 0 || languages.length > 0 || interests.length > 0 || resume.certifications.length > 0 || resume.courses.length > 0 || resume.awards.length > 0;
 
   return (
     <article className="mx-auto max-w-4xl overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-20px_rgba(15,31,42,0.25)]">
@@ -50,9 +53,9 @@ export default function WebResume({ resume }) {
                   </>
                 );
                 return (
-                  <li key={c.type}>
+                  <li key={c.key || c.type}>
                     {c.href ? (
-                      <a href={c.href} className="inline-flex items-center gap-1.5 text-white/85 hover:text-white hover:underline" target={c.type === "linkedin" || c.type === "website" ? "_blank" : undefined} rel="noopener noreferrer">
+                      <a href={c.href} className="inline-flex items-center gap-1.5 text-white/85 hover:text-white hover:underline" target={["linkedin", "github", "website", "link"].includes(c.type) ? "_blank" : undefined} rel="noopener noreferrer">
                         {inner}
                       </a>
                     ) : (
@@ -85,7 +88,9 @@ export default function WebResume({ resume }) {
                     </div>
                     <p className="text-sm font-medium" style={{ color: accent }}>
                       {e.company}
-                      {e.location ? <span className="font-normal text-slate-400"> · {e.location}</span> : null}
+                      {[e.location, e.employmentType].filter(Boolean).map((x) => (
+                        <span key={x} className="font-normal text-slate-400"> · {x}</span>
+                      ))}
                     </p>
                     {splitBullets(e.description).length ? (
                       <ul className="mt-2 list-disc space-y-1 pl-4 text-[15px] text-slate-600 marker:text-slate-300">
@@ -112,6 +117,14 @@ export default function WebResume({ resume }) {
                         </a>
                       ) : null}
                     </h3>
+                    {pr.role || pr.startDate || pr.endDate ? <p className="text-sm text-slate-400">{[pr.role, dateRange(pr.startDate, pr.endDate)].filter(Boolean).join(" · ")}</p> : null}
+                    {pr.technologies ? (
+                      <p className="mt-1 flex flex-wrap gap-1.5">
+                        {splitList(pr.technologies).map((t) => (
+                          <span key={t} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">{t}</span>
+                        ))}
+                      </p>
+                    ) : null}
                     <ul className="mt-1 space-y-0.5 text-[15px] text-slate-600">
                       {splitBullets(pr.description).map((line, i) => (
                         <li key={i}>{line}</li>
@@ -131,11 +144,81 @@ export default function WebResume({ resume }) {
                       <h3 className="font-semibold text-ink">{ed.degree || ed.institution}</h3>
                       <span className="text-sm text-slate-400">{dateRange(ed.startYear, ed.endYear)}</span>
                     </div>
-                    {ed.degree ? <p className="text-sm text-slate-600">{ed.institution}</p> : null}
+                    {ed.degree ? <p className="text-sm text-slate-600">{[ed.institution, ed.location].filter(Boolean).join(" · ")}</p> : null}
+                    {ed.gpa ? <p className="text-sm text-slate-500">GPA: {ed.gpa}</p> : null}
                     {ed.details ? <p className="text-sm text-slate-500">{ed.details}</p> : null}
                   </li>
                 ))}
               </ul>
+            </Section>
+          ) : null}
+          {resume.volunteering.length ? (
+            <Section title="Volunteering">
+              <ul className="space-y-4">
+                {resume.volunteering.map((v) => (
+                  <li key={v.id}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <h3 className="font-semibold text-ink">{v.role}</h3>
+                      <span className="text-sm text-slate-400">{dateRange(v.startDate, v.endDate)}</span>
+                    </div>
+                    <p className="text-sm" style={{ color: accent }}>{[v.organization, v.location].filter(Boolean).join(" · ")}</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[15px] text-slate-600 marker:text-slate-300">
+                      {splitBullets(v.description).map((line, i) => <li key={i}>{line}</li>)}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+          {resume.publications.length ? (
+            <Section title="Publications">
+              <ul className="space-y-3">
+                {resume.publications.map((pub) => (
+                  <li key={pub.id}>
+                    <h3 className="font-semibold text-ink">
+                      {pub.link ? <a href={toHref(pub.link)} target="_blank" rel="noopener noreferrer" className="hover:underline">{pub.title}</a> : pub.title}
+                    </h3>
+                    <p className="text-sm text-slate-500">{[pub.publisher, pub.date].filter(Boolean).join(" · ")}</p>
+                    {pub.description ? <p className="text-[15px] text-slate-600">{pub.description}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+          {resume.customSections.filter((sec) => sec.items.length).map((sec) => (
+            <Section key={sec.id} title={sec.title || "Other"}>
+              <ul className="space-y-4">
+                {sec.items.map((it) => (
+                  <li key={it.id}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <h3 className="font-semibold text-ink">{it.title}</h3>
+                      <span className="text-sm text-slate-400">{it.date}</span>
+                    </div>
+                    {it.subtitle ? <p className="text-sm" style={{ color: accent }}>{it.subtitle}</p> : null}
+                    <ul className="mt-1 space-y-0.5 text-[15px] text-slate-600">
+                      {splitBullets(it.description).map((line, i) => <li key={i}>{line}</li>)}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ))}
+          {resume.references.length || resume.referencesOnRequest ? (
+            <Section title="References">
+              {resume.references.length ? (
+                <ul className="grid gap-4 sm:grid-cols-2">
+                  {resume.references.map((r) => (
+                    <li key={r.id} className="text-sm">
+                      <p className="font-semibold text-ink">{r.name}</p>
+                      <p className="text-slate-500">{[r.position, r.company].filter(Boolean).join(", ")}</p>
+                      {r.email ? <a href={`mailto:${r.email}`} className="block text-slate-600 hover:underline">{r.email}</a> : null}
+                      {r.phone ? <p className="text-slate-600">{r.phone}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-500 italic">Available on request.</p>
+              )}
             </Section>
           ) : null}
         </div>
@@ -162,6 +245,36 @@ export default function WebResume({ resume }) {
                   </li>
                 ))}
               </ul>
+            </Section>
+          ) : null}
+          {resume.awards.length ? (
+            <Section title="Awards">
+              <ul className="space-y-3">
+                {resume.awards.map((a) => (
+                  <li key={a.id}>
+                    <p className="text-sm font-semibold text-ink">{a.title}</p>
+                    <p className="text-xs text-slate-500">{[a.issuer, a.date].filter(Boolean).join(" · ")}</p>
+                    {a.description ? <p className="text-xs text-slate-500">{a.description}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+          {resume.courses.length ? (
+            <Section title="Courses">
+              <ul className="space-y-2">
+                {resume.courses.map((c) => (
+                  <li key={c.id}>
+                    <p className="text-sm font-semibold text-ink">{c.name}</p>
+                    <p className="text-xs text-slate-500">{[c.institution, c.date].filter(Boolean).join(" · ")}</p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          ) : null}
+          {interests.length ? (
+            <Section title="Interests">
+              <p className="text-sm text-slate-600">{interests.join(" · ")}</p>
             </Section>
           ) : null}
           {languages.length ? (

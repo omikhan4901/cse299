@@ -1,6 +1,6 @@
 import { Page, View, Text } from "@react-pdf/renderer";
 import { contactItems, ContactRow, Photo, Initials, visibleSections, SECTION_TITLES, tint } from "../primitives";
-import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether } from "../blocks";
+import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether, extraSections } from "../blocks";
 
 const SIDEBAR = "33%";
 
@@ -15,16 +15,16 @@ export default function Modern({ data, accent, font, size, dark = false }) {
   const p = data.personal;
 
   const SideTitle = ({ children }) => (
-    <Text minPresenceAhead={30} style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.8, textTransform: "uppercase", color: c.sideMuted, borderBottomWidth: 0.8, borderBottomColor: c.sideRule, paddingBottom: 4, marginBottom: 8, marginTop: 18 }}>
+    <Text minPresenceAhead={30} style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.45, textTransform: "uppercase", color: c.sideMuted, borderBottomWidth: 0.8, borderBottomColor: c.sideRule, paddingBottom: 4, marginBottom: 8, marginTop: 18 }}>
       {children}
     </Text>
   );
 
-  const MainSection = ({ id, children }) =>
-    show[id] ? (
+  const MainSection = ({ id, title, children }) =>
+    title || show[id] ? (
       <View wrap={!keepTogether(id, data)} style={{ marginBottom: 14 }}>
         <View minPresenceAhead={36} style={{ flexDirection: "row", alignItems: "center", marginBottom: 9 }}>
-          <Text style={{ fontSize: 12, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 1.2 }}>{SECTION_TITLES[id]}</Text>
+          <Text style={{ fontSize: 12, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.6 }}>{title || SECTION_TITLES[id]}</Text>
           <View style={{ flex: 1, height: 1, backgroundColor: c.rule, marginLeft: 8 }} />
         </View>
         {children}
@@ -48,13 +48,13 @@ export default function Modern({ data, accent, font, size, dark = false }) {
             {p.name || "Your Name"}
           </Text>
           {p.title ? (
-            <Text style={{ fontSize: 8.5, color: tint(accent, 0.5), textAlign: "center", marginTop: 5, textTransform: "uppercase", letterSpacing: 1.6 }}>{p.title}</Text>
+            <Text style={{ fontSize: 8.5, color: tint(accent, 0.5), textAlign: "center", marginTop: 5, textTransform: "uppercase", letterSpacing: 0.43 }}>{p.title}</Text>
           ) : null}
         </View>
 
-        {contactItems(p).length ? <SideTitle>Contact</SideTitle> : null}
-        {contactItems(p).map((item) => (
-          <ContactRow key={item.type} item={item} color={c.sideText} iconColor={tint(accent, 0.45)} size={8.3} style={{ marginBottom: 6 }} />
+        {contactItems(p, data.links).length ? <SideTitle>Contact</SideTitle> : null}
+        {contactItems(p, data.links).map((item) => (
+          <ContactRow key={item.key} item={item} color={c.sideText} iconColor={tint(accent, 0.45)} size={8.3} style={{ marginBottom: 6 }} />
         ))}
 
         {show.skills ? (
@@ -90,6 +90,11 @@ export default function Modern({ data, accent, font, size, dark = false }) {
         <MainSection id="projects">
           <ProjectList items={data.projects} k={k} />
         </MainSection>
+        {extraSections(data, k, (id, title, children) => (
+          <MainSection key={id} id={id} title={title}>
+            {children}
+          </MainSection>
+        ), { timeline: timeline })}
       </View>
     </Page>
   );

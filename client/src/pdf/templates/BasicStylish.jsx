@@ -1,6 +1,6 @@
 import { Page, View, Text } from "@react-pdf/renderer";
 import { contactItems, ContactRow, visibleSections, SECTION_TITLES } from "../primitives";
-import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether } from "../blocks";
+import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, Paragraph, keepTogether, extraSections } from "../blocks";
 
 const PAD = 42;
 
@@ -12,12 +12,12 @@ export default function BasicStylish({ data, accent, font, size }) {
   const p = data.personal;
   const titles = { ...SECTION_TITLES, experience: "Work Experience" };
 
-  const Section = ({ id, children }) =>
-    show[id] ? (
+  const Section = ({ id, title, children }) =>
+    title || show[id] ? (
       <View wrap={!keepTogether(id, data)} style={{ marginTop: 16 }}>
         <View minPresenceAhead={36} style={{ marginBottom: 10 }}>
-          <Text style={{ alignSelf: "flex-start", backgroundColor: c.strip, color: c.heading, fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.4, paddingVertical: 5, paddingHorizontal: 14 }}>
-            {titles[id]}
+          <Text style={{ alignSelf: "flex-start", backgroundColor: c.strip, color: c.heading, fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.48, paddingVertical: 5, paddingHorizontal: 14 }}>
+            {title || titles[id]}
           </Text>
           <View style={{ height: 1, backgroundColor: c.line }} />
         </View>
@@ -27,12 +27,12 @@ export default function BasicStylish({ data, accent, font, size }) {
 
   return (
     <Page size={size} style={{ fontFamily: font, backgroundColor: "#ffffff", paddingTop: 40, paddingBottom: 40, paddingHorizontal: PAD }}>
-      <Text style={{ fontSize: 30, fontWeight: 800, color: c.heading, textTransform: "uppercase", letterSpacing: 3 }}>{p.name || "Your Name"}</Text>
+      <Text style={{ fontSize: 30, fontWeight: 800, color: c.heading, textTransform: "uppercase", letterSpacing: 1.5 }}>{p.name || "Your Name"}</Text>
       {p.title ? <Text style={{ fontSize: 13, color: c.muted, marginTop: 4, letterSpacing: 0.6 }}>{p.title}</Text> : null}
-      {contactItems(p).length ? (
+      {contactItems(p, data.links).length ? (
         <View style={{ backgroundColor: c.strip, marginHorizontal: -PAD, marginTop: 16, paddingVertical: 8, paddingHorizontal: PAD, flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
-          {contactItems(p).map((item) => (
-            <ContactRow key={item.type} item={item} color="#334155" iconColor={accent} size={8.3} style={{ marginVertical: 2, marginRight: 8 }} />
+          {contactItems(p, data.links).map((item) => (
+            <ContactRow key={item.key} item={item} color="#334155" iconColor={accent} size={8.3} style={{ marginVertical: 2, marginRight: 8 }} />
           ))}
         </View>
       ) : null}
@@ -55,6 +55,11 @@ export default function BasicStylish({ data, accent, font, size }) {
       <Section id="certifications">
         <CertificationList items={data.certifications} k={k} />
       </Section>
+      {extraSections(data, k, (id, title, children) => (
+        <Section key={id} id={id} title={title}>
+          {children}
+        </Section>
+      ))}
       <Section id="languages">
         <SkillList text={data.languages} k={k} variant="grid" />
       </Section>

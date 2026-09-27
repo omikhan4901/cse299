@@ -1,6 +1,6 @@
 import { Page, View, Text } from "@react-pdf/renderer";
 import { contactItems, Icon, MaybeLink, Photo, Initials, visibleSections, SECTION_TITLES } from "../primitives";
-import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, keepTogether } from "../blocks";
+import { ExperienceList, EducationList, ProjectList, CertificationList, SkillList, keepTogether, extraSections } from "../blocks";
 
 const PAD = 34;
 const SIDE = "35%";
@@ -14,17 +14,17 @@ export default function ModernGothic({ data, accent, font, size }) {
   const p = data.personal;
 
   const SideTitle = ({ children }) => (
-    <Text minPresenceAhead={30} style={{ fontSize: 9.5, fontWeight: 700, color: "#ffffff", textTransform: "uppercase", letterSpacing: 2, borderBottomWidth: 0.8, borderBottomColor: "#737373", paddingBottom: 4, marginBottom: 10, marginTop: 18 }}>
+    <Text minPresenceAhead={30} style={{ fontSize: 9.5, fontWeight: 700, color: "#ffffff", textTransform: "uppercase", letterSpacing: 0.48, borderBottomWidth: 0.8, borderBottomColor: "#737373", paddingBottom: 4, marginBottom: 10, marginTop: 18 }}>
       {children}
     </Text>
   );
 
-  const Section = ({ id, children }) =>
-    show[id] ? (
+  const Section = ({ id, title, children }) =>
+    title || show[id] ? (
       <View wrap={!keepTogether(id, data)} style={{ marginBottom: 16 }}>
         <View minPresenceAhead={36} style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
           <View style={{ width: 26, height: 2, backgroundColor: c.heading, marginRight: 10 }} />
-          <Text style={{ fontSize: 12, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 2.4 }}>{SECTION_TITLES[id]}</Text>
+          <Text style={{ fontSize: 12, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.6 }}>{title || SECTION_TITLES[id]}</Text>
         </View>
         {children}
       </View>
@@ -46,7 +46,7 @@ export default function ModernGothic({ data, accent, font, size }) {
         </View>
         <View style={{ flex: 1, alignItems: "flex-end" }}>
           <Text style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", textTransform: "uppercase", textAlign: "right", lineHeight: 1.05 }}>{p.name || "Your Name"}</Text>
-          {p.title ? <Text style={{ fontSize: 10.5, color: "#d4d4d4", textTransform: "uppercase", letterSpacing: 2, marginTop: 6, textAlign: "right" }}>{p.title}</Text> : null}
+          {p.title ? <Text style={{ fontSize: 10.5, color: "#d4d4d4", textTransform: "uppercase", letterSpacing: 0.53, marginTop: 6, textAlign: "right" }}>{p.title}</Text> : null}
           {show.summary ? (
             <Text style={{ fontSize: 8.8, color: "#bdbdbd", lineHeight: 1.5, textAlign: "justify", borderTopWidth: 0.8, borderTopColor: "#737373", paddingTop: 8, marginTop: 10 }}>
               {data.summary}
@@ -57,14 +57,14 @@ export default function ModernGothic({ data, accent, font, size }) {
 
       <View style={{ flexDirection: "row" }}>
         <View style={{ width: SIDE, paddingHorizontal: 22, paddingTop: 4 }}>
-          {contactItems(p).length ? <SideTitle>Contact</SideTitle> : null}
-          {contactItems(p).map((item) => (
-            <View key={item.type} wrap={false} style={{ flexDirection: "row", marginBottom: 9 }}>
+          {contactItems(p, data.links).length ? <SideTitle>Contact</SideTitle> : null}
+          {contactItems(p, data.links).map((item) => (
+            <View key={item.key} wrap={false} style={{ flexDirection: "row", marginBottom: 9 }}>
               <View style={{ marginRight: 8, marginTop: 1 }}>
                 <Icon name={item.type} size={9} color="#a3a3a3" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 7.5, fontWeight: 700, color: "#ffffff", letterSpacing: 1, textTransform: "uppercase", marginBottom: 1.5 }}>{item.label}</Text>
+                <Text style={{ fontSize: 7.5, fontWeight: 700, color: "#ffffff", letterSpacing: 0.38, textTransform: "uppercase", marginBottom: 1.5 }}>{item.label}</Text>
                 <MaybeLink href={item.href} style={{ fontSize: 8.3, color: c.sideText }}>
                   {item.text}
                 </MaybeLink>
@@ -100,6 +100,11 @@ export default function ModernGothic({ data, accent, font, size }) {
           <Section id="projects">
             <ProjectList items={data.projects} k={k} />
           </Section>
+          {extraSections(data, k, (id, title, children) => (
+            <Section key={id} id={id} title={title}>
+              {children}
+            </Section>
+          ), { timeline: timeline })}
         </View>
       </View>
     </Page>

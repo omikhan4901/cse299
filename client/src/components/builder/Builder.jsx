@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
-import { normalizeResume, sampleResume, blankResume, toPayload } from "@/lib/resume";
+import { normalizeResume, sampleResume, blankResume, toPayload, withContentOf } from "@/lib/resume";
 import { templateById, TEMPLATES } from "@/pdf/registry";
 import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "../AuthProvider";
@@ -20,7 +20,8 @@ import DesignPanel from "./DesignPanel";
 import PdfPreview from "./PdfPreview";
 import SaveModal from "./SaveModal";
 import ShareModal from "./ShareModal";
-import { ChatModal, AuditModal, CoverLetterModal, aiResume } from "./AiModals";
+import { ChatModal, CoverLetterModal, aiResume } from "./AiModals";
+import AtsModal from "./AtsModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
 import { celebrate } from "../celebrate";
@@ -270,7 +271,7 @@ function Editor({ initial, example, onSaved }) {
         okText: "Replace content",
         onOk: () => {
           const m = normalizeResume(master);
-          setResume((r) => ({ ...r, personal: m.personal, summary: m.summary, experience: m.experience, education: m.education, projects: m.projects, certifications: m.certifications, skills: m.skills, languages: m.languages }));
+          setResume((r) => withContentOf(r, m));
           setShowExample(false);
           message.success("Filled from your master profile");
         },
@@ -322,7 +323,7 @@ function Editor({ initial, example, onSaved }) {
     try {
       const { extractedData } = await api("/ai/parse", { token, method: "POST", body: form, timeout: 120000 });
       const x = normalizeResume(extractedData);
-      setResume((r) => ({ ...r, personal: { ...x.personal, profilePic: r.personal.profilePic, profilePicSource: r.personal.profilePicSource, photoCrop: r.personal.photoCrop }, summary: x.summary, experience: x.experience, education: x.education, projects: x.projects, certifications: x.certifications, skills: x.skills, languages: x.languages }));
+      setResume((r) => withContentOf(r, x, { keepPhoto: true }));
       setShowExample(false);
       message.success("Imported! Check each section and fix anything we missed.");
     } catch (err) {
@@ -333,6 +334,8 @@ function Editor({ initial, example, onSaved }) {
   };
 
   const openAi = (key) => {
+    // The ATS check is rule-based and runs locally, so it works without AI or an account.
+    if (key === "audit") return setAiModal("audit");
     if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
     if (!requireAccount()) return;
     if (key === "import") document.getElementById("resume-import")?.click();
@@ -351,9 +354,9 @@ function Editor({ initial, example, onSaved }) {
 
   const moreMenu = {
     items: [
+      { key: "ats", icon: <ScanSearch size={15} />, label: "ATS check", onClick: () => openAi("audit") },
       { type: "group", label: "AI tools", children: [
         aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
-        aiItem("audit", <ScanSearch size={15} />, "ATS check", () => openAi("audit")),
         aiItem("cover", <Mail size={15} />, "Cover letter", () => openAi("cover")),
         aiItem("import", <Upload size={15} />, "Import PDF / DOCX", () => openAi("import")),
       ] },
@@ -466,7 +469,7 @@ function Editor({ initial, example, onSaved }) {
         </aside>
 
         {/* Preview */}
-        <section className={`thin-scroll min-w-0 flex-1 overflow-y-auto bg-slate-200/60 lg:block lg:pr-24 ${mobileView === "preview" ? "block" : "hidden"}`} aria-label="Resume preview">
+        <section className={`thin-scroll min-w-0 flex-1 overflow-auto bg-slate-200/60 lg:block lg:pr-24 ${mobileView === "preview" ? "block" : "hidden"}`} aria-label="Resume preview">
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200/70 bg-slate-100/90 px-4 py-2 text-xs text-slate-500 backdrop-blur">
             <span>
               <b className="font-medium text-slate-700">{tpl.name}</b> · {resume.theme.pageSize === "LETTER" ? "US Letter" : "A4"} · {pages} page{pages === 1 ? "" : "s"}
@@ -478,7 +481,7 @@ function Editor({ initial, example, onSaved }) {
               <Button size="small" type="text" icon={<ZoomIn size={14} />} onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(1)))} aria-label="Zoom in" />
             </span>
           </div>
-          <div className="mx-auto max-w-[900px] overflow-x-auto px-4 py-6 md:px-8">
+          <div className="px-4 py-6 md:px-8">
             <PdfPreview resume={resume} zoom={zoom} onPageCount={setPages} />
           </div>
         </section>
@@ -503,10 +506,10 @@ function Editor({ initial, example, onSaved }) {
 
       <SaveModal open={saveOpen} onCancel={() => setSaveOpen(false)} onSave={createResume} loading={saving} resume={resume} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />
+      <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
       {AI_ENABLED ? (
         <>
           <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
-          <AuditModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
           <CoverLetterModal open={aiModal === "cover"} onClose={() => setAiModal(null)} resume={resume} token={token} />
         </>
       ) : null}

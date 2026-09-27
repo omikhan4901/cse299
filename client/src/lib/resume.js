@@ -8,11 +8,20 @@ let idCounter = 0;
 export const newId = () => Date.now() * 100 + (idCounter++ % 100);
 
 export const EMPTY_ITEMS = {
-  experience: { company: "", title: "", location: "", startDate: "", endDate: "", description: "" },
-  education: { institution: "", degree: "", startYear: "", endYear: "", details: "" },
-  projects: { name: "", link: "", description: "" },
-  certifications: { name: "", issuer: "", date: "" },
+  experience: { company: "", title: "", employmentType: "", location: "", startDate: "", endDate: "", description: "" },
+  education: { institution: "", degree: "", location: "", startYear: "", endYear: "", gpa: "", details: "" },
+  projects: { name: "", role: "", link: "", startDate: "", endDate: "", technologies: "", description: "" },
+  certifications: { name: "", issuer: "", date: "", link: "" },
+  volunteering: { role: "", organization: "", location: "", startDate: "", endDate: "", description: "" },
+  awards: { title: "", issuer: "", date: "", description: "" },
+  publications: { title: "", publisher: "", date: "", link: "", description: "" },
+  courses: { name: "", institution: "", date: "" },
+  references: { name: "", position: "", company: "", email: "", phone: "" },
+  links: { label: "", url: "" },
 };
+
+/** Items inside a user-defined section. */
+export const EMPTY_CUSTOM_ITEM = { title: "", subtitle: "", date: "", description: "" };
 
 export const LIST_SECTIONS = Object.keys(EMPTY_ITEMS);
 
@@ -24,14 +33,29 @@ export const blankResume = () => ({
   theme: { ...DEFAULT_THEME },
   // profilePic is the cropped photo used in the PDF; profilePicSource and photoCrop
   // keep the original and the crop settings so the photo can be re-adjusted.
-  personal: { name: "", title: "", email: "", phone: "", city: "", linkedin: "", website: "", profilePic: "", profilePicSource: "", photoCrop: null },
+  personal: {
+    name: "", title: "", email: "", phone: "", city: "", linkedin: "", github: "", website: "",
+    // Shown only by templates that use them (common on CVs in some countries).
+    dateOfBirth: "", nationality: "",
+    profilePic: "", profilePicSource: "", photoCrop: null,
+  },
   summary: "",
   experience: [],
   education: [],
   projects: [],
   certifications: [],
+  volunteering: [],
+  awards: [],
+  publications: [],
+  courses: [],
+  references: [],
+  referencesOnRequest: false,
+  links: [],
   skills: "",
   languages: "",
+  interests: "",
+  // [{ id, title, items: [{ id, title, subtitle, date, description }] }]
+  customSections: [],
 });
 
 export const sampleResume = () => ({
@@ -100,20 +124,44 @@ export function normalizeResume(input) {
     summary: str(data.summary),
     skills: str(data.skills),
     languages: str(data.languages),
+    interests: str(data.interests),
+    referencesOnRequest: !!data.referencesOnRequest,
   };
   for (const key of Object.keys(base.personal)) out.personal[key] = str(data.personal?.[key]);
   const crop = data.personal?.photoCrop;
   out.personal.photoCrop = crop && typeof crop === "object" ? crop : null;
+  const cleanItem = (item, shape) => {
+    const clean = { id: item?.id ?? newId() };
+    for (const field of Object.keys(shape)) clean[field] = str(item?.[field]);
+    return clean;
+  };
   for (const section of LIST_SECTIONS) {
     const list = Array.isArray(data[section]) ? data[section] : [];
-    out[section] = list.map((item) => {
-      const clean = { id: item?.id ?? newId() };
-      for (const field of Object.keys(EMPTY_ITEMS[section])) clean[field] = str(item?.[field]);
-      return clean;
-    });
+    out[section] = list.map((item) => cleanItem(item, EMPTY_ITEMS[section]));
   }
+  out.customSections = (Array.isArray(data.customSections) ? data.customSections : []).map((sec) => ({
+    id: sec?.id ?? newId(),
+    title: str(sec?.title),
+    items: (Array.isArray(sec?.items) ? sec.items : []).map((item) => cleanItem(item, EMPTY_CUSTOM_ITEM)),
+  }));
   return out;
 }
+
+/** Everything that is resume content (as opposed to name, design or sharing settings). */
+export const CONTENT_KEYS = [
+  "personal", "summary", "experience", "education", "projects", "certifications", "volunteering", "awards",
+  "publications", "courses", "references", "referencesOnRequest", "links", "skills", "languages", "interests", "customSections",
+];
+
+/** Copies the content of `source` into `target`, keeping target's design, name and ids. */
+export const withContentOf = (target, source, { keepPhoto = false } = {}) => {
+  const next = { ...target };
+  for (const key of CONTENT_KEYS) next[key] = source[key];
+  if (keepPhoto) {
+    next.personal = { ...source.personal, profilePic: target.personal.profilePic, profilePicSource: target.personal.profilePicSource, photoCrop: target.personal.photoCrop };
+  }
+  return next;
+};
 
 /** The fields the API accepts when saving (no ids, owner or timestamps). */
 export function toPayload(resume) {
@@ -149,7 +197,7 @@ export const toHref = (url) => {
 export const prettyUrl = (url) => str(url).trim().replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
 
 export const hasContent = (resume, section) => {
-  if (section === "summary" || section === "skills" || section === "languages") return !!str(resume[section]).trim();
+  if (["summary", "skills", "languages", "interests"].includes(section)) return !!str(resume[section]).trim();
   if (LIST_SECTIONS.includes(section)) return (resume[section] || []).length > 0;
   return true;
 };

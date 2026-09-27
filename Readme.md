@@ -20,15 +20,22 @@ ResumeX is a modern, full-stack web application designed to solve the nightmare 
 ### 🎨 2. Professional Builder
 -   **10 templates**: Classic, Modern, Creative, Cool Blue, Basic Stylish, Minimalist Beige, Modern Gothic, Classic Dark, Modern Dark and Compact ATS.
 -   **Make it yours**: Accent colour, six bundled fonts, A4 or US Letter.
--   **More sections**: Experience, education, projects, certifications, skills and languages. Empty sections are hidden automatically.
+-   **Every section you need**: experience, education, projects, skills, certifications, languages, volunteering, awards, publications, courses, references, interests and your own custom sections, plus GitHub and extra links. Empty sections are hidden automatically.
+-   **Photo cropper**: drag, zoom in/out and re-adjust your photo any time.
 -   **Works without an account**: Guests can build and download; drafts are kept in the browser. Sign up to save and share.
 
-### 💾 3. Management & Sharing
+### 🎯 3. Rigorous ATS check
+-   **Checks the real PDF**: renders your resume, extracts the text the way applicant tracking systems do, and verifies the name, contact details, headings, dates and reading order come through intact.
+-   **30+ explainable checks**: action verbs, quantified results, bullet counts, clichés, date consistency, length and more. Each is pass / warn / fail with the reason.
+-   **Job matching**: paste a job description to see weighted keyword coverage (required vs nice-to-have), skills backed by experience, title, years and degree requirements.
+-   Deterministic (`client/src/lib/ats`), runs in the browser and needs no AI.
+
+### 💾 4. Management & Sharing
 -   **Autosave** for saved resumes, plus a dashboard with real thumbnails, duplicate, delete and download.
 -   **Master Profile**: Keep all your experience in one resume and fill new, tailored resumes from it in one click.
 -   **Public links**: `/view/<id>` is a server-rendered web resume (with SEO metadata and structured data) plus a PDF download.
 
-### 🧠 4. AI
+### 🧠 5. AI
 AI refine, chat assistant, ATS check, cover letter and PDF/DOCX import are powered by Google Gemini. Set `GEMINI_API_KEY` on the server and `NEXT_PUBLIC_AI_ENABLED=true` on the client; without them the AI buttons show as locked. When the main model is overloaded the server retries and then falls back to a lighter model.
 
 ---

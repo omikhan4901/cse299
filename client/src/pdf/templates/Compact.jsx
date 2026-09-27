@@ -1,6 +1,6 @@
 import { Page, View, Text } from "@react-pdf/renderer";
 import { contactItems, MaybeLink, visibleSections, SECTION_TITLES, splitList } from "../primitives";
-import { ExperienceList, EducationList, ProjectList, keepTogether } from "../blocks";
+import { ExperienceList, EducationList, ProjectList, keepTogether, extraSections } from "../blocks";
 
 /**
  * Plain single-column layout for applicant tracking systems: no photo, no
@@ -11,14 +11,14 @@ export default function Compact({ data, accent, font, size }) {
   const k = { font, headingFont: font, text: c.text, muted: c.muted, heading: c.heading, accent: c.heading, size: 9.6, subtitleColor: c.text, bulletColor: c.text, entryGap: 8 };
   const show = visibleSections(data);
   const p = data.personal;
-  const contacts = contactItems(p);
+  const contacts = contactItems(p, data.links);
   const titles = { ...SECTION_TITLES, summary: "Summary" };
 
-  const Section = ({ id, children }) =>
-    show[id] ? (
+  const Section = ({ id, title, children }) =>
+    title || show[id] ? (
       <View wrap={!keepTogether(id, data)} style={{ marginTop: 11 }}>
-        <Text minPresenceAhead={36} style={{ fontSize: 10.5, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: 1, borderBottomWidth: 1, borderBottomColor: accent, paddingBottom: 2, marginBottom: 7 }}>
-          {titles[id]}
+        <Text minPresenceAhead={36} style={{ fontSize: 10.5, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: 0.53, borderBottomWidth: 1, borderBottomColor: accent, paddingBottom: 2, marginBottom: 7 }}>
+          {title || titles[id]}
         </Text>
         {children}
       </View>
@@ -29,16 +29,17 @@ export default function Compact({ data, accent, font, size }) {
       <Text style={{ fontSize: 21, fontWeight: 700, color: c.heading }}>{p.name || "Your Name"}</Text>
       {p.title ? <Text style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{p.title}</Text> : null}
       {contacts.length ? (
-        <Text style={{ fontSize: 9, color: c.text, marginTop: 6 }}>
+        // Each item is its own box so a line never breaks inside a link.
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 6 }}>
           {contacts.map((item, i) => (
-            <Text key={item.type}>
-              {i ? "  |  " : ""}
-              <MaybeLink href={item.href} style={{ color: c.text }}>
+            <View key={item.key} style={{ flexDirection: "row" }}>
+              {i ? <Text style={{ fontSize: 9, color: c.muted }}>{"  |  "}</Text> : null}
+              <MaybeLink href={item.href} style={{ fontSize: 9, color: c.text }}>
                 {item.text}
               </MaybeLink>
-            </Text>
+            </View>
           ))}
-        </Text>
+        </View>
       ) : null}
 
       <Section id="summary">
@@ -64,6 +65,11 @@ export default function Compact({ data, accent, font, size }) {
           </Text>
         ))}
       </Section>
+      {extraSections(data, k, (id, title, children) => (
+        <Section key={id} id={id} title={title}>
+          {children}
+        </Section>
+      ))}
       <Section id="languages">
         <Text style={{ fontSize: k.size, color: c.text }}>{splitList(data.languages).join(", ")}</Text>
       </Section>

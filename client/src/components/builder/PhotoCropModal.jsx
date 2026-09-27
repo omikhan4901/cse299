@@ -2,9 +2,9 @@
 
 import { useCallback, useState } from "react";
 import Cropper from "react-easy-crop";
-import { Modal, Slider, Button, Segmented } from "antd";
-import { ZoomIn, ZoomOut, RotateCcw, Move } from "lucide-react";
-import { cropPhoto } from "./photo";
+import { Modal, Slider, Button, Segmented, App } from "antd";
+import { ZoomIn, ZoomOut, RotateCcw, Move, ImagePlus, Info } from "lucide-react";
+import { cropPhoto, readPhoto } from "./photo";
 
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 4;
@@ -13,15 +13,20 @@ const MAX_ZOOM = 4;
  * Position and zoom a profile photo inside the round frame. Zooming below 100%
  * fits more of the photo in and fills the gap with a background colour.
  */
-export default function PhotoCropModal({ open, src, initial, onCancel, onSave }) {
+export default function PhotoCropModal({ open, src, initial, legacy, onCancel, onSave }) {
   return (
     <Modal open={open} onCancel={onCancel} footer={null} width={520} title="Adjust your photo" destroyOnHidden centered>
-      {src ? <CropEditor src={src} initial={initial} onCancel={onCancel} onSave={onSave} /> : null}
+      {src ? <CropEditor initialSrc={src} initial={initial} legacy={legacy} onCancel={onCancel} onSave={onSave} /> : null}
     </Modal>
   );
 }
 
-function CropEditor({ src, initial, onCancel, onSave }) {
+function CropEditor({ initialSrc, initial, legacy: initialLegacy, onCancel, onSave }) {
+  const { message } = App.useApp();
+  const [src, setSrc] = useState(initialSrc);
+  // True when we only have an already-cropped photo (saved before the cropper existed).
+  const [legacy, setLegacy] = useState(!!initialLegacy);
+  const [framed, setFramed] = useState(!!initial);
   const [crop, setCrop] = useState(initial?.crop || { x: 0, y: 0 });
   const [zoom, setZoom] = useState(initial?.zoom || 1);
   const [background, setBackground] = useState(initial?.background || "#ffffff");
@@ -30,12 +35,37 @@ function CropEditor({ src, initial, onCancel, onSave }) {
 
   const onCropComplete = useCallback((_, pixels) => setArea(pixels), []);
 
+  // First framing for a new photo: portraits start aligned to the top, where the
+  // face usually is, instead of the centre (which cuts off the head).
+  const onMediaLoaded = useCallback(
+    ({ width, height }) => {
+      if (framed) return;
+      setFramed(true);
+      setZoom(1);
+      setCrop({ x: 0, y: height > width ? ((height - width) / 2) * 0.85 : 0 });
+    },
+    [framed]
+  );
+
+  const replace = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const next = await readPhoto(file);
+      setFramed(false);
+      setLegacy(false);
+      setSrc(next);
+    } catch (err) {
+      message.error(err.message);
+    }
+  };
   const save = async () => {
     if (!area) return;
     setSaving(true);
     try {
       const cropped = await cropPhoto(src, area, { background });
-      onSave({ image: cropped, settings: { crop, zoom, background } });
+      onSave({ image: cropped, source: src, settings: { crop, zoom, background } });
     } finally {
       setSaving(false);
     }
@@ -43,6 +73,14 @@ function CropEditor({ src, initial, onCancel, onSave }) {
 
   return (
     <div>
+      {legacy ? (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <Info size={16} className="mt-0.5 shrink-0" />
+          <span>
+            This photo was saved already cropped, so parts of it are gone. <b>Upload the original</b> to frame it freely.
+          </span>
+        </div>
+      ) : null}
       <div className="relative h-80 overflow-hidden rounded-2xl">
         <Cropper
           image={src}
@@ -58,6 +96,7 @@ function CropEditor({ src, initial, onCancel, onSave }) {
           onCropChange={setCrop}
           onZoomChange={setZoom}
           onCropComplete={onCropComplete}
+          onMediaLoaded={onMediaLoaded}
           // The container shows the fill colour, so zoomed-out space previews exactly as saved.
           style={{
             containerStyle: { backgroundColor: background },
@@ -101,11 +140,17 @@ function CropEditor({ src, initial, onCancel, onSave }) {
         </div>
       ) : null}
 
-      <div className="mt-6 flex justify-end gap-2">
+      <div className="mt-6 flex items-center justify-between gap-2">
+        <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${legacy ? "bg-brand text-white hover:bg-brand-dark" : "text-slate-600 hover:bg-slate-100"}`}>
+          <ImagePlus size={15} /> {legacy ? "Upload original" : "Choose another photo"}
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={replace} />
+        </label>
+        <span className="flex gap-2">
         <Button onClick={onCancel}>Cancel</Button>
         <Button type="primary" onClick={save} loading={saving} disabled={!area}>
           Use photo
         </Button>
+        </span>
       </div>
     </div>
   );
