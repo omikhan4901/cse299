@@ -184,7 +184,7 @@ function parsingChecks({ resume, pdfText, pageCount, template }) {
   checks.push(check("fidelity", "Text survives extraction", faithful ? PASS : WARN, faithful ? "Sentences come out of the PDF exactly as written." : "Some text changes when extracted (merged words or odd characters).", 2));
 
   // Layout.
-  const columns = template?.tags?.some((t) => /sidebar|two column/i.test(t));
+  const columns = template?.tags?.some((t) => /sidebar|two column|side headings/i.test(t));
   checks.push(
     check(
       "layout",
@@ -197,8 +197,8 @@ function parsingChecks({ resume, pdfText, pageCount, template }) {
     )
   );
 
-  // Every template except these two prints the photo when there is one.
-  const hasPhoto = !!p.profilePic && !["Compact", "BasicStylish"].includes(template?.id);
+  // Only templates with a photo area print it.
+  const hasPhoto = !!p.profilePic && !!template?.tags?.includes("Photo");
   checks.push(check("photo", "No photo", hasPhoto ? WARN : PASS, hasPhoto ? "ATS ignore photos, and employers in the US, UK and Canada often prefer none. Keep it only where photos are expected." : "No photo — the safest choice for ATS.", 1));
 
   checks.push(
@@ -457,6 +457,35 @@ const categoryScore = (checks) => {
   return w ? Math.round((checks.reduce((s, c) => s + c.points * c.weight, 0) / w) * 100) : 0;
 };
 
+/** Facts gathered along the way, shown step by step while the scan runs. */
+function scanStats({ resume, pdfText, pageCount, keywords }) {
+  const text = String(pdfText || "");
+  const lines = text.split(/\n+/).map((l) => squash(l).replace(/^[\d.)\s-]+/, "").replace(/[:\d.\s]+$/, "").trim());
+  const sections = Object.entries(STANDARD_HEADINGS)
+    .filter(([, names]) => lines.some((l) => names.includes(l)))
+    .map(([id]) => id[0].toUpperCase() + id.slice(1));
+  const bullets = [
+    ...resume.experience.flatMap((e) => splitBullets(e.description)),
+    ...resume.projects.flatMap((e) => splitBullets(e.description)),
+    ...resume.volunteering.flatMap((e) => splitBullets(e.description)),
+  ];
+  const p = resume.personal;
+  return {
+    pages: pageCount,
+    words: words(text).length,
+    characters: text.replace(/\s/g, "").length,
+    sections,
+    contact: [p.email, p.phone, p.city, p.linkedin].filter(Boolean).length,
+    roles: resume.experience.length,
+    bullets: bullets.length,
+    quantified: bullets.filter((b) => /\d|%|\$|€|£|৳/.test(b)).length,
+    actionVerbs: bullets.filter((b) => ACTION_VERBS.has(lower(words(b)[0] || ""))).length,
+    skills: splitList(resume.skills).length,
+    keywords: keywords ? keywords.length : null,
+    matched: keywords ? keywords.filter((k) => k.matched).length : null,
+  };
+}
+
 export function gradeFor(score) {
   if (score >= 85) return { label: "Excellent", tone: "green" };
   if (score >= 70) return { label: "Good", tone: "teal" };
@@ -483,6 +512,7 @@ export function analyzeResume({ resume, pdfText = "", pageCount = 1, template, j
 
   const all = categories.flatMap((c) => c.checks);
   return {
+    stats: scanStats({ resume, pdfText, pageCount, keywords: match?.keywords }),
     score,
     grade: gradeFor(score),
     categories,

@@ -37,9 +37,9 @@ export default function Creative({ data, accent, font, size }) {
 
   return (
     <Page size={size} style={{ fontFamily: font, backgroundColor: "#ffffff", paddingTop: PAD, paddingBottom: PAD }}>
-      <View style={{ marginTop: -PAD, height: 150, backgroundColor: c.banner, alignItems: "center", justifyContent: "center", paddingBottom: 34 }}>
+      <View style={{ marginTop: -PAD, height: 150, backgroundColor: c.banner, alignItems: "center", justifyContent: "center", paddingBottom: p.profilePic ? 66 : 34 }}>
         <DotPattern width={pageWidth} height={150} color="#4a5568" />
-        <Text style={{ fontSize: 26, color: "#ffffff", textTransform: "uppercase", letterSpacing: 1.3, textAlign: "center", paddingHorizontal: 40 }}>{p.name || "Your Name"}</Text>
+        <Text style={{ fontSize: 26, color: "#ffffff", textTransform: "uppercase", letterSpacing: 0.8, textAlign: "center", paddingHorizontal: 40 }}>{p.name || "Your Name"}</Text>
       </View>
 
       <View style={{ marginTop: -42, marginHorizontal: PAD, backgroundColor: "#ffffff", borderRadius: 8, borderWidth: 0.8, borderColor: c.rule, paddingVertical: 12, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", marginBottom: 20 }}>

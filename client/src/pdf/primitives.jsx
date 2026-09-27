@@ -85,6 +85,36 @@ export function ContactRow({ item, color, iconColor, size = 9, gap = 5, style, i
 }
 
 /**
+ * A bullet marker. Shapes are drawn (not typed) so they look identical in
+ * every font: "dot", "square", "ring", "diamond", "dash", "chevron".
+ */
+export function Marker({ shape, size, color }) {
+  const s = size * 0.36;
+  const box = { width: s, height: s };
+  const base = { marginTop: size * 0.52 };
+  switch (shape) {
+    case "square":
+      return <View style={[base, box, { backgroundColor: color }]} />;
+    case "ring":
+      return <View style={[base, box, { borderRadius: s, borderWidth: 0.9, borderColor: color }]} />;
+    case "diamond":
+      return <View style={[base, box, { backgroundColor: color, transform: "rotate(45deg)" }]} />;
+    case "dash":
+      return <View style={[base, { width: s * 1.6, height: 0.9, marginTop: size * 0.72, backgroundColor: color }]} />;
+    case "chevron":
+      return (
+        <Svg width={s * 1.2} height={s * 1.4} viewBox="0 0 10 12" style={{ marginTop: size * 0.45 }}>
+          <Path d="M2 1l6 5-6 5" stroke={color} strokeWidth={2} fill="none" />
+        </Svg>
+      );
+    default:
+      return <View style={[base, box, { borderRadius: s, backgroundColor: color }]} />;
+  }
+}
+
+const SHAPES = new Set(["dot", "square", "ring", "diamond", "dash", "chevron"]);
+
+/**
  * Bullet list from a multi-line description. Each line is kept whole so a
  * bullet never splits across a page break.
  */
@@ -95,7 +125,11 @@ export function Bullets({ text, color = "#333", size = 9.5, bullet = "•", bull
     <View style={style}>
       {lines.map((line, i) => (
         <View key={i} wrap={false} style={{ flexDirection: "row", marginTop: i ? gap : 0 }}>
-          {bullet ? (
+          {SHAPES.has(bullet) ? (
+            <View style={{ width: indent }}>
+              <Marker shape={bullet} size={size} color={bulletColor || color} />
+            </View>
+          ) : bullet ? (
             <Text style={{ width: indent, fontSize: size, color: bulletColor || color, lineHeight }}>{bullet}</Text>
           ) : null}
           <Text style={{ flex: 1, fontSize: size, color, lineHeight }}>{line}</Text>

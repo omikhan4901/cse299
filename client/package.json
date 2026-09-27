@@ -3,7 +3,10 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
+    "sync-guide": "node scripts/sync-guide.mjs",
+    "predev": "node scripts/sync-guide.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/sync-guide.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."

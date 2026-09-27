@@ -13,7 +13,7 @@ const JOURNEY = [
   { icon: Lightbulb, title: "The problem", text: "Formatting a resume is tedious, and the good tools are expensive or lock the PDF behind a paywall. Students needed a smart, free alternative." },
   { icon: Layers, title: "The architecture", text: "A MongoDB, Express and Node.js API with JWT authentication, and a React front end — now on Next.js so every public page is fast and search-friendly." },
   { icon: Hammer, title: "The hard part: PDFs", text: "Browser printing made layouts break across pages. Version 2 renders real PDFs with a dedicated layout engine, so the preview and the download are identical." },
-  { icon: Rocket, title: "Version 2.0", text: "Ten templates, custom colours and fonts, live PDF preview, share links, master profiles and a builder that works without an account." },
+  { icon: Rocket, title: "Version 2.0", text: "Fifty templates in seven categories, custom colours and fonts, live PDF preview, share links, master profiles and a builder that works without an account." },
 ];
 
 const FAQ = [

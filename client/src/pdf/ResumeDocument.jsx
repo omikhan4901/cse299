@@ -8,6 +8,7 @@ import BasicStylish from "./templates/BasicStylish";
 import MinimalistBeige from "./templates/MinimalistBeige";
 import ModernGothic from "./templates/ModernGothic";
 import Compact from "./templates/Compact";
+import EngineTemplate from "./engine/Engine";
 
 const COMPONENTS = {
   Classic: (props) => <Classic {...props} />,
@@ -26,7 +27,7 @@ const COMPONENTS = {
 /** The full PDF document for a (normalized) resume. */
 export default function ResumeDocument({ resume }) {
   const tpl = templateById(resume.template);
-  const render = COMPONENTS[tpl.id] || COMPONENTS.Classic;
+  const render = COMPONENTS[tpl.id] || (tpl.spec ? (props) => <EngineTemplate {...props} spec={tpl.spec} /> : COMPONENTS.Classic);
   const accent = resume.theme?.accent || tpl.accent;
   const font = resume.theme?.font || tpl.font;
   const size = resume.theme?.pageSize === "LETTER" ? "LETTER" : "A4";

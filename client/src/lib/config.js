@@ -13,4 +13,4 @@ export const AI_ENABLED = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
 
 export const SITE_NAME = "ResumeX";
 export const SITE_DESCRIPTION =
-  "Build a professional, ATS-friendly resume in minutes. Pick from 10 designer templates, see a live preview and download a pixel-perfect PDF for free.";
+  "Build a professional, ATS-friendly resume in minutes. Pick from 50 designer templates, see a live preview and download a pixel-perfect PDF for free.";

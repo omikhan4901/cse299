@@ -3,7 +3,7 @@
 import { Tooltip } from "antd";
 import { motion } from "motion/react";
 import {
-  Palette, PenLine, ZoomIn, ZoomOut, Maximize2, MessageSquare, ScanSearch, Mail, Upload, Save, Share2, Download, Loader2, Lock, Check,
+  Palette, PenLine, BookOpen, ZoomIn, ZoomOut, Maximize2, MessageSquare, ScanSearch, Mail, Upload, Save, Share2, Download, Loader2, Lock, Check,
 } from "lucide-react";
 import { AI_LOCKED_MESSAGE } from "./ai";
 
@@ -33,7 +33,7 @@ const Divider = () => <div className="my-1 h-px w-7 bg-slate-200" />;
  * original ResumeX builder: editing, view, AI tools, then save/share/download.
  */
 export default function ActionDock({
-  tab, onTab, zoom, onZoom, aiEnabled, onAi, saveState, onSave, onShare, onDownload, downloading,
+  tab, onTab, zoom, onZoom, aiEnabled, onAi, saveState, onSave, onShare, onDownload, downloading, onHelp,
 }) {
   const lock = aiEnabled ? null : (
     <span className="absolute -right-0.5 -bottom-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow ring-1 ring-slate-200">
@@ -56,6 +56,9 @@ export default function ActionDock({
         </DockButton>
         <DockButton title="Templates, colours & fonts" onClick={() => onTab("design")} className={tab === "design" ? "bg-brand-50 text-brand" : "text-slate-500 hover:bg-slate-100"}>
           <Palette size={19} />
+        </DockButton>
+        <DockButton title="How to write a good resume" onClick={onHelp} className="text-slate-500 hover:bg-amber-50 hover:text-amber-600">
+          <BookOpen size={18} />
         </DockButton>
 
         <Divider />

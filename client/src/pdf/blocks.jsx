@@ -7,7 +7,18 @@ import { View, Text } from "@react-pdf/renderer";
 import { Bullets, MaybeLink, splitList, dateRange, projectHref, prettyUrl } from "./primitives";
 
 /** One experience/education/project entry with optional timeline marker. */
-export function Entry({ k, title, subtitle, date, location, description, bullets = true, timeline, dateBelow, style }) {
+export function Entry({ k, title, subtitle, date, location, description, bullets = true, timeline, dateBelow, dateLeft, style }) {
+  // Dates in a narrow column on the left (CV / timeline style).
+  if (dateLeft) {
+    return (
+      <View style={[{ flexDirection: "row", marginBottom: k.entryGap ?? 10 }, style]}>
+        <Text style={{ width: k.dateWidth || 62, paddingRight: 8, fontSize: k.size - 1, color: k.dateColor || k.muted, fontWeight: 500, marginTop: 1.5 }}>{date}</Text>
+        <View style={{ flex: 1 }}>
+          <Entry k={k} title={title} subtitle={subtitle} location={location} description={description} bullets={bullets} style={{ marginBottom: 0 }} />
+        </View>
+      </View>
+    );
+  }
   const header = (
     <View wrap={false} minPresenceAhead={24}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -31,7 +42,7 @@ export function Entry({ k, title, subtitle, date, location, description, bullets
 
   const body = description ? (
     bullets ? (
-      <Bullets text={description} color={k.text} size={k.size} bulletColor={k.bulletColor || k.accent} style={{ marginTop: 4 }} />
+      <Bullets text={description} color={k.text} size={k.size} bullet={k.marker ?? "•"} bulletColor={k.bulletColor || k.accent} style={{ marginTop: 4 }} />
     ) : (
       <Text style={{ fontSize: k.size, color: k.text, lineHeight: 1.45, marginTop: 3 }}>{description}</Text>
     )
@@ -59,7 +70,7 @@ export function Entry({ k, title, subtitle, date, location, description, bullets
   );
 }
 
-export function ExperienceList({ items, k, timeline, companyFirst, dateBelow }) {
+export function ExperienceList({ items, k, timeline, companyFirst, dateBelow, dateLeft }) {
   return items.map((item) => (
     <Entry
       key={item.id}
@@ -71,11 +82,12 @@ export function ExperienceList({ items, k, timeline, companyFirst, dateBelow }) 
       description={item.description}
       timeline={timeline}
       dateBelow={dateBelow}
+      dateLeft={dateLeft}
     />
   ));
 }
 
-export function EducationList({ items, k, timeline, institutionFirst, dateBelow }) {
+export function EducationList({ items, k, timeline, institutionFirst, dateBelow, dateLeft }) {
   return items.map((item) => (
     <Entry
       key={item.id}
@@ -88,6 +100,7 @@ export function EducationList({ items, k, timeline, institutionFirst, dateBelow 
       bullets={false}
       timeline={timeline}
       dateBelow={dateBelow}
+      dateLeft={dateLeft}
     />
   ));
 }
@@ -115,7 +128,7 @@ export function ProjectList({ items, k, timeline }) {
         </Text>
       ) : null}
       {item.description ? (
-        <Bullets text={item.description} color={k.text} size={k.size} bulletColor={k.bulletColor || k.accent} style={{ marginTop: 3 }} bullet={timeline === false ? null : "•"} />
+        <Bullets text={item.description} color={k.text} size={k.size} bulletColor={k.bulletColor || k.accent} style={{ marginTop: 3 }} bullet={timeline === false ? null : k.marker ?? "•"} />
       ) : null}
     </View>
   ));
@@ -135,7 +148,7 @@ export function CertificationList({ items, k, compact }) {
 }
 
 /** Skills in one of several looks: chips, bullets, grid (two columns) or inline text. */
-export function SkillList({ text, k, variant = "chips", chip = {} }) {
+export function SkillList({ text, k, variant = "chips", chip = {}, columns = 2 }) {
   const skills = splitList(text);
   if (variant === "inline") {
     return <Text style={{ fontSize: k.size, color: k.text, lineHeight: 1.5 }}>{skills.join("  ·  ")}</Text>;
@@ -144,7 +157,7 @@ export function SkillList({ text, k, variant = "chips", chip = {} }) {
     return (
       <View style={variant === "grid" ? { flexDirection: "row", flexWrap: "wrap" } : undefined}>
         {skills.map((s, i) => (
-          <View key={i} wrap={false} style={{ flexDirection: "row", alignItems: "center", width: variant === "grid" ? "50%" : "100%", marginBottom: 4 }}>
+          <View key={i} wrap={false} style={{ flexDirection: "row", alignItems: "center", width: variant === "grid" ? `${100 / columns}%` : "100%", marginBottom: 4 }}>
             <View style={{ width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: k.bulletColor || k.accent, marginRight: 6 }} />
             <Text style={{ fontSize: k.size, color: k.text }}>{s}</Text>
           </View>
@@ -268,9 +281,11 @@ export function CustomItems({ items, k }) {
  * and interests. `render(id, title, children)` wraps each one in the
  * template's own section style; only sections with content are rendered.
  */
-export function extraSections(data, k, render, { timeline, titles = {} } = {}) {
+export function extraSections(data, k, render, { timeline, titles = {}, skip = [] } = {}) {
   const t = (id, fallback) => titles[id] || fallback;
   const out = [];
+  data = { ...data };
+  for (const id of skip) data[id] = Array.isArray(data[id]) ? [] : id === "referencesOnRequest" ? false : "";
   if (data.volunteering?.length) out.push(render("volunteering", t("volunteering", "Volunteering"), <VolunteerList items={data.volunteering} k={k} timeline={timeline} />));
   if (data.awards?.length) out.push(render("awards", t("awards", "Awards"), <AwardList items={data.awards} k={k} />));
   if (data.publications?.length) out.push(render("publications", t("publications", "Publications"), <PublicationList items={data.publications} k={k} />));

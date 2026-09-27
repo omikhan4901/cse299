@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button, Dropdown, Segmented, Tooltip, App, Input, Result, Spin } from "antd";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, FilePlus2, Eraser,
-  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft,
+  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
@@ -22,6 +22,8 @@ import SaveModal from "./SaveModal";
 import ShareModal from "./ShareModal";
 import { ChatModal, CoverLetterModal, aiResume } from "./AiModals";
 import AtsModal from "./AtsModal";
+import TemplateGallery from "./TemplateGallery";
+import ResumeGuideModal from "./ResumeGuideModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
 import { celebrate } from "../celebrate";
@@ -136,6 +138,8 @@ function Editor({ initial, example, onSaved }) {
   const [saveOpen, setSaveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [aiModal, setAiModal] = useState(null);
+  const [gallery, setGallery] = useState(null);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [refiningId, setRefiningId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -355,6 +359,7 @@ function Editor({ initial, example, onSaved }) {
   const moreMenu = {
     items: [
       { key: "ats", icon: <ScanSearch size={15} />, label: "ATS check", onClick: () => openAi("audit") },
+      { key: "guide", icon: <BookOpen size={15} />, label: "How to write a good resume", onClick: () => setGuideOpen(true) },
       { type: "group", label: "AI tools", children: [
         aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
         aiItem("cover", <Mail size={15} />, "Cover letter", () => openAi("cover")),
@@ -461,9 +466,9 @@ function Editor({ initial, example, onSaved }) {
               </div>
             ) : null}
             {tab === "content" ? (
-              <ContentPanel editor={editor} onRefineSummary={refineSummary} onRefineItem={refineItem} refiningId={refiningId} />
+              <ContentPanel editor={editor} onRefineSummary={refineSummary} onRefineItem={refineItem} refiningId={refiningId} onHelp={() => setGuideOpen(true)} />
             ) : (
-              <DesignPanel resume={resume} onTemplate={(t) => editor.setField("template", t)} setTheme={editor.setTheme} />
+              <DesignPanel resume={resume} onTemplate={(t) => editor.setField("template", t)} setTheme={editor.setTheme} onBrowse={setGallery} onHelp={() => setGuideOpen(true)} />
             )}
           </div>
         </aside>
@@ -502,14 +507,26 @@ function Editor({ initial, example, onSaved }) {
         onShare={handleShare}
         onDownload={handleDownload}
         downloading={downloading}
+        onHelp={() => setGuideOpen(true)}
       />
 
       <SaveModal open={saveOpen} onCancel={() => setSaveOpen(false)} onSave={createResume} loading={saving} resume={resume} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />
+      <TemplateGallery
+        open={!!gallery}
+        initialCategory={gallery}
+        current={resume.template}
+        onClose={() => setGallery(null)}
+        onPick={(t) => {
+          editor.setField("template", t);
+          message.success(`Switched to ${templateById(t).name}`);
+        }}
+      />
+      <ResumeGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
       {AI_ENABLED ? (
         <>
-          <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
+          <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onOpenGuide={() => setGuideOpen(true)} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
           <CoverLetterModal open={aiModal === "cover"} onClose={() => setAiModal(null)} resume={resume} token={token} />
         </>
       ) : null}

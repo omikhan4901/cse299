@@ -1,19 +1,85 @@
 "use client";
 
 import Image from "next/image";
-import { ColorPicker, Select, Segmented, Tooltip } from "antd";
-import { motion } from "motion/react";
-import { Check, RotateCcw } from "lucide-react";
-import { TEMPLATES, ACCENT_SWATCHES, templateById } from "@/pdf/registry";
+import { Button, ColorPicker, Select, Segmented, Tooltip } from "antd";
+import { AnimatePresence, motion } from "motion/react";
+import { Check, HelpCircle, LayoutGrid, RotateCcw } from "lucide-react";
+import { TEMPLATES, CATEGORIES, ACCENT_SWATCHES, templateById, templatesIn, categoryById } from "@/pdf/registry";
 import { FONT_OPTIONS } from "@/pdf/fonts";
 
-export default function DesignPanel({ resume, onTemplate, setTheme }) {
+/**
+ * Design tab: the current template with quick picks from its category (the
+ * full 50 live in the TemplateGallery dialog), then colour, font and paper.
+ */
+export default function DesignPanel({ resume, onTemplate, setTheme, onBrowse, onHelp }) {
   const tpl = templateById(resume.template);
+  const category = categoryById(tpl.category);
+  const siblings = templatesIn(tpl.category);
   const accent = resume.theme.accent || tpl.accent;
   const customised = !!(resume.theme.accent || resume.theme.font);
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-[15px] font-semibold text-ink">Template</h3>
+          <button type="button" onClick={onHelp} className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-brand">
+            <HelpCircle size={13} /> How to write a good resume
+          </button>
+        </div>
+        <div className="flex gap-4">
+          <button type="button" onClick={() => onBrowse(tpl.category)} className="group relative aspect-[1/1.414] w-28 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
+            <Image src={`/templates/${tpl.id}.jpg`} alt={`${tpl.name} resume template`} fill sizes="112px" className="object-cover object-top transition group-hover:scale-105" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <AnimatePresence mode="wait">
+              <motion.div key={tpl.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+                <p className="font-display text-lg font-bold text-ink">{tpl.name}</p>
+                <span className="mt-0.5 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand">{category?.name}</span>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">{tpl.description}</p>
+                <p className="mt-1 text-[11px] text-slate-400">{tpl.tags.join(" · ")}</p>
+              </motion.div>
+            </AnimatePresence>
+            <Button type="primary" className="mt-3" icon={<LayoutGrid size={15} />} onClick={() => onBrowse("all")}>
+              Browse all {TEMPLATES.length} templates
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <p className="mb-2 text-xs font-medium text-slate-600">More {category?.name} designs</p>
+          <div className="thin-scroll -mx-1 flex gap-2.5 overflow-x-auto px-1 pb-2">
+            {siblings.map((t) => {
+              const active = t.id === tpl.id;
+              return (
+                <Tooltip key={t.id} title={t.name}>
+                  <button
+                    type="button"
+                    onClick={() => onTemplate(t.id)}
+                    aria-label={`Use the ${t.name} template`}
+                    aria-pressed={active}
+                    className={`relative aspect-[1/1.414] w-[74px] shrink-0 overflow-hidden rounded-md border bg-slate-100 transition duration-200 ${active ? "border-brand ring-2 ring-brand" : "border-slate-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"}`}
+                  >
+                    <Image src={`/templates/${t.id}.jpg`} alt="" fill sizes="74px" className="object-cover object-top" />
+                    {active ? (
+                      <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-white shadow">
+                        <Check size={10} />
+                      </span>
+                    ) : null}
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {CATEGORIES.filter((c) => c.id !== tpl.category).map((c) => (
+              <button key={c.id} type="button" onClick={() => onBrowse(c.id)} className="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] text-slate-600 transition hover:border-brand hover:text-brand">
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-[15px] font-semibold text-ink">Colour &amp; font</h3>
@@ -52,40 +118,6 @@ export default function DesignPanel({ resume, onTemplate, setTheme }) {
         </div>
       </section>
 
-      <section>
-        <h3 className="mb-3 px-1 text-[15px] font-semibold text-ink">Templates</h3>
-        <div className="grid grid-cols-2 gap-3">
-          {TEMPLATES.map((t) => {
-            const active = t.id === tpl.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onTemplate(t.id)}
-                className={`group overflow-hidden rounded-xl border bg-white text-left transition duration-300 ${active ? "border-brand ring-2 ring-brand" : "border-slate-200 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg"}`}
-              >
-                <div className="relative aspect-[1/1.414] overflow-hidden bg-slate-100">
-                  <Image src={`/templates/${t.id}.jpg`} alt={`${t.name} resume template`} fill sizes="200px" className="object-cover object-top transition group-hover:scale-[1.02]" />
-                  {active ? (
-                    <motion.span
-                      initial={{ scale: 0, rotate: -90 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                      className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow"
-                    >
-                      <Check size={14} />
-                    </motion.span>
-                  ) : null}
-                </div>
-                <div className="px-3 py-2">
-                  <p className="text-sm font-semibold text-ink">{t.name}</p>
-                  <p className="truncate text-[11px] text-slate-400">{t.tags.join(" · ")}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }

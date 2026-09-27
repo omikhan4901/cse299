@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight, Eye, Download, Share2, Crown, Palette, ScanSearch, Sparkles, FileText, MousePointerClick, CheckCircle2, Star,
 } from "lucide-react";
-import { TEMPLATES } from "@/pdf/registry";
+import { TEMPLATES, templateById } from "@/pdf/registry";
 import TemplateCard from "@/components/TemplateCard";
 import HeroVisual from "@/components/HeroVisual";
 import TemplateMarquee from "@/components/TemplateMarquee";
@@ -21,7 +21,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: MousePointerClick, title: "Pick a template", text: "Start from ten designs — from classic single-column to bold sidebars." },
+  { icon: MousePointerClick, title: "Pick a template", text: "Start from 50 designs in seven styles — from ATS-safe single columns to bold sidebars." },
   { icon: FileText, title: "Fill in your story", text: "Guided sections with tips for each part. Your progress saves as you type." },
   { icon: Download, title: "Download & apply", text: "Export a pixel-perfect PDF or share a public link in seconds." },
 ];
@@ -130,7 +130,7 @@ export default function HomePage() {
             </Link>
           </Reveal>
           <Stagger className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {TEMPLATES.slice(0, 4).map((t) => (
+            {["Nordic", "Sunset", "Executive", "Metro"].map(templateById).map((t) => (
               <StaggerItem key={t.id}>
                 <TemplateCard template={t} />
               </StaggerItem>

@@ -3,6 +3,7 @@ const multer = require('multer');
 const mammoth = require('mammoth');
 const { protect } = require('./auth');
 const { toResume, TRANSCRIPT_SCHEMA, TRANSCRIBE_INSTRUCTION } = require('../lib/resumeImport');
+const { loadResumeGuide } = require('../lib/resumeGuide');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -159,10 +160,21 @@ router.post('/chat', protect, async (req, res) => {
     while (contents.length && contents[0].role !== 'user') contents.shift();
     if (!contents.length) return res.status(400).json({ success: false, error: 'No question provided.' });
 
+    // Grounding: before answering, the model gets the "How to Write a Good Resume"
+    // guide (shared/resume-guide.md — the same text the builder's help dialog shows)
+    // followed by the user's resume. Both go in the system instruction, ahead of the conversation.
+    const guide = loadResumeGuide();
     const systemInstruction = `You are "ResumeX Assistant", an expert, encouraging resume consultant.
 Use the user's resume (JSON below) to give specific, practical answers. Keep replies short and use plain text (no markdown).
 When asked to write resume text, return only the text they can paste.
+Never invent facts or numbers about the user: if a result needs a figure they haven't given, use a placeholder such as [X%] or [N users] and ask them for it.
+${guide ? `
+Base your advice on the ResumeX guide below. Follow its rules (section structure, the action verb + task + quantified result bullet formula, keyword tailoring, formatting and length) and do not contradict it. When it helps, point the user to the relevant part of the guide, e.g. "see Write strong bullet points in the guide". If the guide does not cover a question, answer from general best practice.
 
+<resume_guide>
+${guide}
+</resume_guide>
+` : ''}
 RESUME:
 ${JSON.stringify(cleanResume(fullResume))}`;
 

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TEMPLATES } from "@/pdf/registry";
+import { FEATURED as TEMPLATES } from "@/pdf/registry";
 
 function Row({ items, reverse }) {
   // The list is doubled so the strip can loop seamlessly.

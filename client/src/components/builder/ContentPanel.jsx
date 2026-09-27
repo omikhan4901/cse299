@@ -5,7 +5,7 @@ import { Input, Button, Select, Checkbox, Tooltip, Popconfirm, App, AutoComplete
 import { AnimatePresence, motion } from "motion/react";
 import {
   User, FileText, Briefcase, GraduationCap, FolderGit2, Award, Wrench, Languages, HeartHandshake, Trophy, BookOpen,
-  Library, Contact, Smile, LayoutList, Link2, ChevronDown, ArrowUp, ArrowDown, Copy, Trash2, Plus, Camera, X, Crop,
+  Library, Contact, Smile, LayoutList, Link2, ChevronDown, ArrowUp, ArrowDown, Copy, Trash2, Plus, Camera, X, Crop, Lightbulb, ChevronRight,
 } from "lucide-react";
 import { dateRange, splitList, newId, EMPTY_CUSTOM_ITEM } from "@/lib/resume";
 import { readPhoto } from "./photo";
@@ -456,7 +456,7 @@ const OPTIONAL = [
   { id: "custom", title: "Custom section", icon: LayoutList, hint: "Anything else: talks, research…" },
 ];
 
-export default function ContentPanel({ editor, onRefineSummary, onRefineItem, refiningId }) {
+export default function ContentPanel({ editor, onRefineSummary, onRefineItem, refiningId, onHelp }) {
   const { resume, setPersonal, setField, setResume } = editor;
   const [open, setOpen] = useState("personal");
   const [added, setAdded] = useState([]);
@@ -507,6 +507,18 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
 
   return (
     <div className="space-y-3">
+      {onHelp ? (
+        <button type="button" onClick={onHelp} className="group flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-3 text-left transition hover:border-amber-300 hover:shadow-sm">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+            <Lightbulb size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-ink">How to write a good resume</span>
+            <span className="block text-xs text-slate-500">Structure, strong bullet points, ATS keywords and common mistakes</span>
+          </span>
+          <ChevronRight size={16} className="text-slate-400 transition group-hover:translate-x-0.5" />
+        </button>
+      ) : null}
       <SectionCard icon={User} title="Personal details" meta={resume.personal.name || "Name, contact and photo"} open={open === "personal"} onToggle={() => toggle("personal")}>
         <PersonalForm personal={resume.personal} setPersonal={setPersonal} />
         <div className="mt-5">

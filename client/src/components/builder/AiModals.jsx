@@ -13,7 +13,7 @@ export function aiResume(resume) {
   return { ...rest, personal: { ...rest.personal, profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 }
 
-export function ChatModal({ open, onClose, resume, token, onUseAsSummary }) {
+export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpenGuide }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,6 +68,13 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary }) {
         <Input size="large" value={input} onChange={(e) => setInput(e.target.value)} onPressEnter={send} placeholder="e.g. What skills am I missing for a data analyst role?" disabled={loading} />
         <Button size="large" type="primary" icon={<Send size={16} />} onClick={send} loading={loading} />
       </div>
+      {onOpenGuide ? (
+        <p className="mt-2 text-xs text-slate-400">
+          Answers follow our{" "}
+          <button type="button" onClick={onOpenGuide} className="font-medium text-brand hover:underline">How to write a good resume</button>{" "}
+          guide.
+        </p>
+      ) : null}
     </Modal>
   );
 }
