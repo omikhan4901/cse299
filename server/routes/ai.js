@@ -10,10 +10,10 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 /**
  * AI routes (Gemini). Switched off unless GEMINI_API_KEY is set, and can be
  * forced off with AI_ENABLED=false while the provider is being fixed.
- * GEMINI_MODEL picks the model (preview models get retired, so it's configurable).
+ * GEMINI_MODEL picks the model (defaults to Google's always-current Flash alias, since pinned models get retired).
  */
 const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 
 const aiEnabled = () => process.env.AI_ENABLED !== 'false' && !!process.env.GEMINI_API_KEY;
 
