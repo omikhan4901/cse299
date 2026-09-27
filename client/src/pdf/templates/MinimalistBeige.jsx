@@ -13,7 +13,7 @@ export default function MinimalistBeige({ data, accent, font, size, bodyFont }) 
 
   const Section = ({ id, title, children }) =>
     title || show[id] ? (
-      <View wrap={!keepTogether(id, data)} style={{ marginBottom: 18 }}>
+      <View wrap={!keepTogether(id, data)} style={{ paddingBottom: 18 }}>
         <Text minPresenceAhead={36} style={{ fontFamily: font, fontSize: 12.5, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.62, marginBottom: 10 }}>
           {title || titles[id]}
         </Text>

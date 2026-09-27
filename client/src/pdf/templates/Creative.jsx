@@ -27,7 +27,7 @@ export default function Creative({ data, accent, font, size }) {
 
   const Section = ({ id, title, children }) =>
     title || show[id] ? (
-      <View wrap={!keepTogether(id, data)} style={{ marginBottom: 16 }}>
+      <View wrap={!keepTogether(id, data)} style={{ paddingBottom: 16 }}>
         <Text minPresenceAhead={36} style={{ fontSize: 11.5, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.58, borderBottomWidth: 1.5, borderBottomColor: c.rule, paddingBottom: 4, marginBottom: 9 }}>
           {title || SECTION_TITLES[id]}
         </Text>

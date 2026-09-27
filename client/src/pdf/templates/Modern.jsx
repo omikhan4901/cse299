@@ -22,7 +22,7 @@ export default function Modern({ data, accent, font, size, dark = false }) {
 
   const MainSection = ({ id, title, children }) =>
     title || show[id] ? (
-      <View wrap={!keepTogether(id, data)} style={{ marginBottom: 14 }}>
+      <View wrap={!keepTogether(id, data)} style={{ paddingBottom: 14 }}>
         <View minPresenceAhead={36} style={{ flexDirection: "row", alignItems: "center", marginBottom: 9 }}>
           <Text style={{ fontSize: 12, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.6 }}>{title || SECTION_TITLES[id]}</Text>
           <View style={{ flex: 1, height: 1, backgroundColor: c.rule, marginLeft: 8 }} />

@@ -23,7 +23,7 @@ export default function CoolBlue({ data, accent, font, size }) {
   const titles = { summary: "Professional Profile", education: "Education", experience: "Experience", projects: "Projects" };
 
   const Numbered = ({ id, title, number, children }) => (
-    <View wrap={!keepTogether(id, data)} style={{ marginBottom: 14 }}>
+    <View wrap={!keepTogether(id, data)} style={{ paddingBottom: 14 }}>
       <View minPresenceAhead={36} style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
         <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: c.rose, alignItems: "center", justifyContent: "center", marginRight: 10, backgroundColor: "#ffffff" }}>
           <Text style={{ fontSize: 9, color: c.muted }}>{String(number ?? order.indexOf(id) + 1).padStart(2, "0")}</Text>

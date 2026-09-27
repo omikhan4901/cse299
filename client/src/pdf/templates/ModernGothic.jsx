@@ -21,7 +21,7 @@ export default function ModernGothic({ data, accent, font, size }) {
 
   const Section = ({ id, title, children }) =>
     title || show[id] ? (
-      <View wrap={!keepTogether(id, data)} style={{ marginBottom: 16 }}>
+      <View wrap={!keepTogether(id, data)} style={{ paddingBottom: 16 }}>
         <View minPresenceAhead={36} style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
           <View style={{ width: 26, height: 2, backgroundColor: c.heading, marginRight: 10 }} />
           <Text style={{ fontSize: 12, fontWeight: 700, color: c.heading, textTransform: "uppercase", letterSpacing: 0.6 }}>{title || SECTION_TITLES[id]}</Text>

@@ -11,10 +11,10 @@ export function Entry({ k, title, subtitle, date, location, description, bullets
   // Dates in a narrow column on the left (CV / timeline style).
   if (dateLeft) {
     return (
-      <View style={[{ flexDirection: "row", marginBottom: k.entryGap ?? 10 }, style]}>
+      <View style={[{ flexDirection: "row", paddingBottom: k.entryGap ?? 10 }, style]}>
         <Text style={{ width: k.dateWidth || 62, paddingRight: 8, fontSize: k.size - 1, color: k.dateColor || k.muted, fontWeight: 500, marginTop: 1.5 }}>{date}</Text>
         <View style={{ flex: 1 }}>
-          <Entry k={k} title={title} subtitle={subtitle} location={location} description={description} bullets={bullets} style={{ marginBottom: 0 }} />
+          <Entry k={k} title={title} subtitle={subtitle} location={location} description={description} bullets={bullets} style={{ paddingBottom: 0 }} />
         </View>
       </View>
     );
@@ -50,7 +50,7 @@ export function Entry({ k, title, subtitle, date, location, description, bullets
 
   if (!timeline) {
     return (
-      <View style={[{ marginBottom: k.entryGap ?? 10 }, style]}>
+      <View style={[{ paddingBottom: k.entryGap ?? 10 }, style]}>
         {header}
         {body}
       </View>
@@ -107,7 +107,7 @@ export function EducationList({ items, k, timeline, institutionFirst, dateBelow,
 
 export function ProjectList({ items, k, timeline }) {
   return items.map((item) => (
-    <View key={item.id} style={{ marginBottom: k.entryGap ?? 10 }}>
+    <View key={item.id} style={{ paddingBottom: k.entryGap ?? 10 }}>
       <View wrap={false} minPresenceAhead={20} style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "baseline" }}>
         <Text style={{ fontFamily: k.headingFont, fontWeight: 700, fontSize: k.size + 1, color: k.heading }}>{item.name || "Project"}</Text>
         {item.link ? (
@@ -226,7 +226,7 @@ export function AwardList({ items, k }) {
 
 export function PublicationList({ items, k }) {
   return items.map((item) => (
-    <View key={item.id} style={{ marginBottom: k.entryGap ?? 9 }}>
+    <View key={item.id} style={{ paddingBottom: k.entryGap ?? 9 }}>
       <View wrap={false} minPresenceAhead={16}>
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
           <MaybeLink href={item.link ? projectHref(item.link) : ""} style={{ flex: 1, fontFamily: k.headingFont, fontWeight: 700, fontSize: k.size + 0.5, color: k.heading, paddingRight: 8 }}>

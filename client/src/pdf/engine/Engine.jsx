@@ -207,7 +207,7 @@ export default function EngineTemplate({ data, accent, font, size, spec, customF
     const idx = sectionIndex++;
     if (spec.layout === "gutter" && area === "main") {
       return (
-        <View key={id} wrap={!keepTogether(id, data)} style={{ flexDirection: "row", marginBottom: d.gap }}>
+        <View key={id} wrap={!keepTogether(id, data)} style={{ flexDirection: "row", paddingBottom: d.gap }}>
           <View style={{ width: spec.gutter || "24%", paddingRight: 10 }}>{heading(title, "main", idx)}</View>
           {/* The body starts a little below the heading so text extraction (and so ATS)
               reads the heading as its own line instead of merging it into the first entry. */}
@@ -216,7 +216,7 @@ export default function EngineTemplate({ data, accent, font, size, spec, customF
       );
     }
     return (
-      <View key={id} wrap={!keepTogether(id, data)} style={{ marginBottom: area === "side" ? d.gap + 2 : d.gap }}>
+      <View key={id} wrap={!keepTogether(id, data)} style={{ paddingBottom: area === "side" ? d.gap + 2 : d.gap }}>
         <View minPresenceAhead={36}>{heading(title, area, idx)}</View>
         {inner}
       </View>
