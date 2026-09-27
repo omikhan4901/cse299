@@ -1,154 +1,114 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Resume = require('../models/Resume');
-const { protect } = require('./auth'); //
+const mongoose = require("mongoose");
+const Resume = require("../models/Resume");
+const { protect } = require("./auth");
 
-// @route   POST /api/resumes
-// @desc    Create a new resume
-// @access  Private
-router.post('/', protect, async (req, res) => {
-    try {
-        const { 
-            nickname, 
-            profilePic, 
-            personal, 
-            summary, 
-            experience, 
-            education, 
-            skills, 
-            template,
-            isMaster 
-        } = req.body;
+// Only these fields can be written by the client. Everything else (owner,
+// shortId, timestamps) is controlled by the server.
+const EDITABLE = [
+  "nickname", "personal", "summary", "experience", "education", "projects", "certifications",
+  "skills", "languages", "template", "theme", "isMaster", "isPublic",
+];
 
-        // If user wants this to be the master, unset others first (optional logic)
-        if (isMaster) {
-            await Resume.updateMany({ user: req.userId }, { isMaster: false });
-        }
+const pickEditable = (body = {}) => {
+  const out = {};
+  for (const key of EDITABLE) if (body[key] !== undefined) out[key] = body[key];
+  return out;
+};
 
-        const newResume = await Resume.create({
-            user: req.userId, // From the protect middleware
-            nickname,
-            profilePic,
-            personal,
-            summary,
-            experience,
-            education,
-            skills,
-            template,
-            isMaster
-        });
+// Finds a resume owned by the logged-in user, or sends the right error.
+async function findOwned(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    res.status(404).json({ success: false, error: "Resume not found" });
+    return null;
+  }
+  const resume = await Resume.findById(req.params.id);
+  if (!resume || resume.user.toString() !== req.userId) {
+    res.status(404).json({ success: false, error: "Resume not found" });
+    return null;
+  }
+  return resume;
+}
 
-        res.status(201).json({
-            success: true,
-            data: newResume
-        });
+const handleError = (res, err, fallback) => {
+  console.error(err);
+  if (err.name === "ValidationError") {
+    return res.status(400).json({ success: false, error: Object.values(err.errors)[0]?.message || "Invalid resume data" });
+  }
+  res.status(500).json({ success: false, error: fallback });
+};
 
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Server Error saving resume.' });
-    }
+// @route   POST /api/resumes  — create a resume
+router.post("/", protect, async (req, res) => {
+  try {
+    const data = pickEditable(req.body);
+    if (data.isMaster) await Resume.updateMany({ user: req.userId }, { isMaster: false });
+    const resume = await Resume.create({ ...data, user: req.userId });
+    res.status(201).json({ success: true, data: resume });
+  } catch (err) {
+    handleError(res, err, "Server error while saving the resume.");
+  }
 });
 
-// @route   GET /api/resumes
-// @desc    Get all resumes for the logged-in user
-// @access  Private
-router.get('/', protect, async (req, res) => {
-    try {
-        // Find resumes belonging to this user, sorted by newest first
-        const resumes = await Resume.find({ user: req.userId }).sort({ updatedAt: -1 });
-
-        res.status(200).json({
-            success: true,
-            count: resumes.length,
-            data: resumes
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Server Error fetching resumes.' });
-    }
+// @route   GET /api/resumes  — list the user's resumes (photos left out to keep it light)
+router.get("/", protect, async (req, res) => {
+  try {
+    const data = await Resume.find({ user: req.userId }).select("-personal.profilePic").sort({ updatedAt: -1 }).lean();
+    res.status(200).json({ success: true, count: data.length, data });
+  } catch (err) {
+    handleError(res, err, "Server error while fetching resumes.");
+  }
 });
 
 // @route   GET /api/resumes/:id
-// @desc    Get a single resume by ID
-// @access  Private
-router.get('/:id', protect, async (req, res) => {
-    try {
-        const resume = await Resume.findById(req.params.id);
-
-        if (!resume) {
-            return res.status(404).json({ success: false, error: 'Resume not found' });
-        }
-
-        // Ensure the resume belongs to the requesting user
-        if (resume.user.toString() !== req.userId) {
-            return res.status(401).json({ success: false, error: 'Not authorized' });
-        }
-
-        res.status(200).json({ success: true, data: resume });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Server Error' });
-    }
+router.get("/:id", protect, async (req, res) => {
+  try {
+    const resume = await findOwned(req, res);
+    if (resume) res.status(200).json({ success: true, data: resume });
+  } catch (err) {
+    handleError(res, err, "Server error");
+  }
 });
 
-// @route   PUT /api/resumes/:id
-// @desc    Update a resume
-// @access  Private
-router.put('/:id', protect, async (req, res) => {
-    try {
-        let resume = await Resume.findById(req.params.id);
+// @route   PUT /api/resumes/:id  — update (partial updates allowed)
+router.put("/:id", protect, async (req, res) => {
+  try {
+    const resume = await findOwned(req, res);
+    if (!resume) return;
+    const data = pickEditable(req.body);
+    if (data.isMaster) await Resume.updateMany({ user: req.userId, _id: { $ne: resume._id } }, { isMaster: false });
+    resume.set(data);
+    await resume.save();
+    res.status(200).json({ success: true, data: resume });
+  } catch (err) {
+    handleError(res, err, "Server error while updating the resume.");
+  }
+});
 
-        if (!resume) {
-            return res.status(404).json({ success: false, error: 'Resume not found' });
-        }
-
-        // Ensure user owns this resume
-        if (resume.user.toString() !== req.userId) {
-            return res.status(401).json({ success: false, error: 'Not authorized' });
-        }
-
-        // If setting as master, unset others
-        if (req.body.isMaster) {
-            await Resume.updateMany({ user: req.userId }, { isMaster: false });
-        }
-
-        resume = await Resume.findByIdAndUpdate(req.params.id, req.body, {
-            new: true, // Return the updated object
-            runValidators: true
-        });
-
-        res.status(200).json({ success: true, data: resume });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Server Error updating resume' });
-    }
+// @route   POST /api/resumes/:id/duplicate
+router.post("/:id/duplicate", protect, async (req, res) => {
+  try {
+    const resume = await findOwned(req, res);
+    if (!resume) return;
+    const copy = pickEditable(resume.toObject());
+    const created = await Resume.create({ ...copy, nickname: `${resume.nickname} (copy)`.slice(0, 120), isMaster: false, isPublic: false, user: req.userId });
+    res.status(201).json({ success: true, data: created });
+  } catch (err) {
+    handleError(res, err, "Server error while duplicating the resume.");
+  }
 });
 
 // @route   DELETE /api/resumes/:id
-// @desc    Delete a resume
-// @access  Private
-router.delete('/:id', protect, async (req, res) => {
-    try {
-        const resume = await Resume.findById(req.params.id);
-
-        if (!resume) {
-            return res.status(404).json({ success: false, error: 'Resume not found' });
-        }
-
-        if (resume.user.toString() !== req.userId) {
-            return res.status(401).json({ success: false, error: 'Not authorized' });
-        }
-
-        await resume.deleteOne();
-
-        res.status(200).json({ success: true, data: {} });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Server Error deleting resume' });
-    }
+router.delete("/:id", protect, async (req, res) => {
+  try {
+    const resume = await findOwned(req, res);
+    if (!resume) return;
+    await resume.deleteOne();
+    res.status(200).json({ success: true, data: {} });
+  } catch (err) {
+    handleError(res, err, "Server error while deleting the resume.");
+  }
 });
 
 module.exports = router;

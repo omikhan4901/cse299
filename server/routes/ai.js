@@ -1,268 +1,288 @@
 const express = require('express');
-const router = express.Router(); 
-const pdf = require('pdf-parse'); 
-const mammoth = require('mammoth'); 
-const { protect } = require('./auth'); 
-const fetch = global.fetch;
+const multer = require('multer');
+const pdf = require('pdf-parse/lib/pdf-parse.js');
+const mammoth = require('mammoth');
+const { protect } = require('./auth');
+
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 /**
- * AI Service Route
- * Handles interactions with the LLM API for text refinement, chat, and parsing.
+ * AI routes (Gemini). Switched off unless GEMINI_API_KEY is set, and can be
+ * forced off with AI_ENABLED=false while the provider is being fixed.
+ * GEMINI_MODEL picks the model (preview models get retired, so it's configurable).
  */
 const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025'; // Selected for optimal context window and latency
+const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
-// --- API UTILITIES ---
-const callGeminiApi = async (url, options, maxRetries = 3) => {
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            const response = await fetch(url, options);
-            if (response.ok || (response.status < 500 && response.status !== 429)) return response;
-            const delay = Math.pow(2, attempt) * 1000;
-            if (attempt < maxRetries - 1) await new Promise(resolve => setTimeout(resolve, delay));
-            else throw new Error(`API call failed with status: ${response.status}`);
-        } catch (error) {
-            if (attempt === maxRetries - 1) throw error;
-        }
-    }
-};
- 
-const getGeminiResponse = async (systemInstruction, contents, res, generationConfig = {}) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ success: false, error: 'GEMINI_API_KEY missing.' });
+const aiEnabled = () => process.env.AI_ENABLED !== 'false' && !!process.env.GEMINI_API_KEY;
 
-    const payload = {
-        contents: contents,
-        systemInstruction: { parts: [{ text: systemInstruction }] }, 
-        ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
-    };
-
-    try {
-        const response = await callGeminiApi(
-            `${API_BASE_URL}/${MODEL_NAME}:generateContent?key=${apiKey}`, 
-            { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }
-        );
-        const result = await response.json();
-        const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (!generatedText) return res.status(500).json({ success: false, error: 'AI generation failed.' });
-        return generatedText.trim();
-    } catch (err) {
-        console.error('Gemini API Error:', err.message);
-        res.status(500).json({ success: false, error: 'Internal AI error.' });
-        return null; 
+class AiError extends Error {
+    constructor(message, status = 502) {
+        super(message);
+        this.status = status;
     }
 }
 
-// --- 1. Context-Aware Refinement ---
+router.use((req, res, next) => {
+    if (!aiEnabled()) {
+        return res.status(503).json({ success: false, error: 'AI features are temporarily unavailable.' });
+    }
+    next();
+});
+
+// Retries server errors and rate limits with exponential backoff.
+const fetchWithRetry = async (url, options, maxRetries = 3) => {
+    let lastError;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(url, options);
+            if (response.status < 500 && response.status !== 429) return response;
+            lastError = new AiError(`AI provider returned ${response.status}`);
+        } catch (err) {
+            lastError = err;
+        }
+        if (attempt < maxRetries - 1) await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
+    }
+    throw lastError;
+};
+
+/** Calls Gemini and returns the generated text. Throws AiError on failure (never touches `res`). */
+const generate = async (systemInstruction, contents, generationConfig) => {
+    const payload = {
+        contents,
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        ...(generationConfig ? { generationConfig } : {}),
+    };
+    const response = await fetchWithRetry(`${API_BASE_URL}/${MODEL_NAME}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+        body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        console.error('Gemini API error:', response.status, result?.error?.message);
+        throw new AiError('The AI service is unavailable right now. Please try again later.');
+    }
+    const text = result.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim();
+    if (!text) throw new AiError('The AI could not generate a response. Try rephrasing.');
+    return text;
+};
+
+const sendError = (res, err) => {
+    console.error('AI route error:', err.message);
+    res.status(err.status || 500).json({ success: false, error: err instanceof AiError ? err.message : 'AI request failed.' });
+};
+
+// Keep prompts small: never send photos or database fields to the model.
+const cleanResume = (resume = {}) => {
+    const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, ...rest } = resume;
+    return { ...rest, personal: { ...(rest.personal || {}), profilePic: undefined } };
+};
+
+const clip = (text, max) => String(text || '').slice(0, max);
+
+// --- 1. Context-aware refinement ---
 router.post('/refine', protect, async (req, res) => {
-    const { resumeText, fullResume, sectionType } = req.body; // Get sectionType
+    const { resumeText, fullResume, sectionType } = req.body;
+    if (!resumeText || !String(resumeText).trim()) return res.status(400).json({ success: false, error: 'No text provided.' });
 
-    if (!resumeText) return res.status(400).json({ success: false, error: 'No text provided.' });
-    
-    // Build Context (Same as before)
-    let contextStr = "";
-    if (fullResume) {
-        contextStr = `
-        CONTEXT FROM USER'S RESUME:
-        - Job Title: ${fullResume.personal?.title || 'N/A'}
-        - Skills: ${fullResume.skills || 'N/A'}
-        - Experience Keywords: ${fullResume.experience?.map(e => e.title).join(', ') || ''}
-        `;
-    }
+    const context = fullResume
+        ? `CONTEXT FROM USER'S RESUME:
+- Job title: ${fullResume.personal?.title || 'N/A'}
+- Skills: ${fullResume.skills || 'N/A'}
+- Previous roles: ${(fullResume.experience || []).map((e) => e.title).filter(Boolean).join(', ') || 'N/A'}`
+        : '';
 
-    // --- NEW: DYNAMIC PROMPT LOGIC ---
-    let specificInstruction = "";
+    const task = sectionType === 'summary'
+        ? `This is the "About me" section. Rewrite it as one short first-person paragraph (3-5 sentences) that sounds human, personal and professional.`
+        : `This is a work experience entry. Rewrite it as concise, action-oriented achievements, one per line, with no bullet symbols. Keep numbers the user gave.`;
 
-    if (sectionType === 'summary') {
-        // PROMPT FOR "ABOUT ME" (First Person, Narrative)
-        specificInstruction = `
-        This is an "About Me" section.
-        Refine the text to be a first-person narrative (using "I", "my", "I am").
-        Keep it Short. 4-5 sentences at most. Must be one concise paragraph. It should sound personal, but also professional.
-        Use the data you get about the person, to write a personalized section(about me).
-        Make it as human-like as you can.
-        `;
-    } else {
-        // PROMPT FOR "EXPERIENCE" (Action Verbs, No "I")
-        specificInstruction = `
-        This is a "Work Experience" section.
-        Refine the text to be action-oriented, impactful, and concise. 
-        Each sentence should be a new line, a lot like bullet points without the bullet.
-        Keep it Short.
-        `;
-    }
+    const systemInstruction = `You are a professional resume editor.
+${context}
 
-    const systemInstruction = `You are a professional resume editor. 
-    ${contextStr}
-    
-    YOUR INSTRUCTIONS:
-    ${specificInstruction}
-    
-    CRITICAL RULES:
-    1. Do NOT invent new qualifications, degrees, or job titles not present in the input text.
-    2. STRICTLY adhere to the facts provided. Do not hallucinate.
-    3. Do not merge conflicting career paths (e.g. Do not mix Medical context with Engineering context) unless the user explicitly mentions both in the text found in the "CONTEXT FROM USER'S RESUME" section.
-    4. If the input text contradicts the "CONTEXT", prioritize the input text I am asking you to refine.
-    
-    Use the context provided (Skills/Job Title) ONLY to enhance the tone, not to fabricate facts.`;
-    
-    const contents = [{ parts: [{ text: `Refine this text: "${resumeText}"` }] }];
+TASK: ${task}
 
-    const refinedText = await getGeminiResponse(systemInstruction, contents, res);
-    if (refinedText) res.status(200).json({ success: true, refinedText });
-});
-
-// --- 2. Context-Aware Chat ---
-router.post('/chat', protect, async (req, res) => {
-    // NOW ACCEPTING fullResume
-    const { conversation, fullResume } = req.body;
-
-    if (!conversation) return res.status(400).json({ success: false, error: 'No conversation history.' });
-
-    const chatHistoryParts = conversation.map(msg => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-    }));
-
-    // Inject the full resume as the "System Context" for the user
-    const resumeContext = fullResume ? JSON.stringify(fullResume, null, 2) : "No resume data available.";
-
-    const systemInstruction = `You are an expert resume consultant named "ResumeX Assistant".
-    
-    CURRENT RESUME DATA (JSON):
-    ${resumeContext}
-
-    INSTRUCTIONS:
-    1. Use the JSON data above to answer specific questions (e.g., "What skills am I missing for a React job?").  
-    2. Be encouraging but professional.
-    `;
-    
-    // We don't need to inject context in the message history anymore, the system instruction handles it.
-    const responseText = await getGeminiResponse(systemInstruction, chatHistoryParts, res);
-
-    if (responseText) res.status(200).json({ success: true, response: responseText });
-});
-
-// --- 3. Parsing (Unchanged) ---
-router.post('/parse', protect, async (req, res) => {
-    // ... (Keep your existing parsing logic exactly as is) ...
-    //
-    if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
-    const file = req.file;
-    let resumeText = '';
+RULES:
+1. Never invent qualifications, employers, numbers, degrees or job titles that are not in the text.
+2. Use the context only to match tone and keywords, not to add facts.
+3. If the text contradicts the context, trust the text.
+4. Reply with the rewritten text only — no quotes, labels, markdown or commentary.`;
 
     try {
-        if (file.mimetype === 'application/pdf') {
-            const data = await pdf(file.buffer);
-            resumeText = data.text;
-        } else if (file.originalname.endsWith('.docx')) {
-            const data = await mammoth.extractRawText({ buffer: file.buffer });
-            resumeText = data.value;
-        } else {
-            return res.status(400).json({ success: false, error: 'Unsupported file type.' });
-        }
-        
-        const RESUME_SCHEMA = {
-            type: "OBJECT",
-            properties: {
-                personal: {
-                    type: "OBJECT",
-                    properties: {
-                        name: { type: "STRING" },
-                        title: { type: "STRING" },
-                        phone: { type: "STRING" },
-                        email: { type: "STRING" },
-                        linkedin: { type: "STRING" },
-                        city: { type: "STRING" }
-                    }
-                },
-                summary: { type: "STRING" },
-                experience: {
-                    type: "ARRAY",
-                    items: {
-                        type: "OBJECT",
-                        properties: {
-                            company: { type: "STRING" },
-                            title: { type: "STRING" },
-                            startDate: { type: "STRING" },
-                            endDate: { type: "STRING" },
-                            description: { type: "STRING" }
-                        }
-                    }
-                },
-                education: {
-                    type: "ARRAY",
-                    items: {
-                        type: "OBJECT",
-                        properties: {
-                            institution: { type: "STRING" },
-                            degree: { type: "STRING" },
-                            startYear: { type: "STRING" },
-                            endYear: { type: "STRING" }
-                        }
-                    }
-                },
-                skills: { type: "STRING" }
-            }
-        };
-
-        const generationConfig = { responseMimeType: "application/json", responseSchema: RESUME_SCHEMA };
-        const systemInstruction = "Extract resume data from the text below into strict JSON.";
-        const contents = [{ parts: [{ text: resumeText }] }];
-        const jsonString = await getGeminiResponse(systemInstruction, contents, res, generationConfig);
-
-        if (jsonString) {
-            res.status(200).json({ success: true, extractedData: JSON.parse(jsonString) });
-        }
+        const refinedText = await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, 4000) }] }]);
+        res.status(200).json({ success: true, refinedText: refinedText.replace(/^["']|["']$/g, '') });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Parse failed' });
+        sendError(res, err);
     }
 });
 
-// --- 4. Cover Letter Generation ---
+// --- 2. Context-aware chat ---
+router.post('/chat', protect, async (req, res) => {
+    const { conversation, fullResume } = req.body;
+    if (!Array.isArray(conversation) || conversation.length === 0) {
+        return res.status(400).json({ success: false, error: 'No conversation history.' });
+    }
+    const contents = conversation.slice(-20).map((msg) => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: clip(msg.content, 4000) }],
+    }));
+    // Gemini requires the conversation to start with a user turn.
+    while (contents.length && contents[0].role !== 'user') contents.shift();
+    if (!contents.length) return res.status(400).json({ success: false, error: 'No question provided.' });
+
+    const systemInstruction = `You are "ResumeX Assistant", an expert, encouraging resume consultant.
+Use the user's resume (JSON below) to give specific, practical answers. Keep replies short and use plain text (no markdown).
+When asked to write resume text, return only the text they can paste.
+
+RESUME:
+${JSON.stringify(cleanResume(fullResume))}`;
+
+    try {
+        const response = await generate(systemInstruction, contents);
+        res.status(200).json({ success: true, response });
+    } catch (err) {
+        sendError(res, err);
+    }
+});
+
+// --- 3. ATS audit (structured JSON) ---
+router.post('/audit', protect, async (req, res) => {
+    const { resumeData, jobDescription } = req.body;
+    if (!resumeData) return res.status(400).json({ success: false, error: 'Missing resume.' });
+    const targeted = !!String(jobDescription || '').trim();
+
+    const schema = {
+        type: 'OBJECT',
+        properties: {
+            score: { type: 'INTEGER' },
+            summary: { type: 'STRING' },
+            strengths: { type: 'ARRAY', items: { type: 'STRING' } },
+            improvements: { type: 'ARRAY', items: { type: 'STRING' } },
+            missingKeywords: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
+        required: ['score', 'summary', 'strengths', 'improvements', 'missingKeywords'],
+    };
+    const systemInstruction = `Act as an applicant tracking system and career coach.
+${targeted ? `Score 0-100 how well the resume matches this job description:\n"""${clip(jobDescription, 6000)}"""` : 'Score 0-100 the resume against general best practices for its target role.'}
+Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 10 missing keywords${targeted ? ' from the job description' : ''}.`;
+
+    try {
+        const text = await generate(systemInstruction, [{ role: 'user', parts: [{ text: JSON.stringify(cleanResume(resumeData)) }] }], {
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+        });
+        const analysis = JSON.parse(text);
+        analysis.score = Math.max(0, Math.min(100, Math.round(Number(analysis.score) || 0)));
+        res.status(200).json({ success: true, analysis });
+    } catch (err) {
+        sendError(res, err instanceof SyntaxError ? new AiError('The AI returned an unexpected answer. Please try again.') : err);
+    }
+});
+
+// --- 4. Import an existing resume (PDF / DOCX) ---
+const RESUME_SCHEMA = {
+    type: 'OBJECT',
+    properties: {
+        personal: {
+            type: 'OBJECT',
+            properties: {
+                name: { type: 'STRING' }, title: { type: 'STRING' }, phone: { type: 'STRING' }, email: { type: 'STRING' },
+                linkedin: { type: 'STRING' }, website: { type: 'STRING' }, city: { type: 'STRING' },
+            },
+        },
+        summary: { type: 'STRING' },
+        experience: {
+            type: 'ARRAY',
+            items: {
+                type: 'OBJECT',
+                properties: {
+                    company: { type: 'STRING' }, title: { type: 'STRING' }, location: { type: 'STRING' },
+                    startDate: { type: 'STRING' }, endDate: { type: 'STRING' },
+                    description: { type: 'STRING', description: 'Achievements, one per line, no bullet symbols' },
+                },
+            },
+        },
+        education: {
+            type: 'ARRAY',
+            items: {
+                type: 'OBJECT',
+                properties: {
+                    institution: { type: 'STRING' }, degree: { type: 'STRING' }, startYear: { type: 'STRING' },
+                    endYear: { type: 'STRING' }, details: { type: 'STRING' },
+                },
+            },
+        },
+        projects: {
+            type: 'ARRAY',
+            items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, link: { type: 'STRING' }, description: { type: 'STRING' } } },
+        },
+        certifications: {
+            type: 'ARRAY',
+            items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, issuer: { type: 'STRING' }, date: { type: 'STRING' } } },
+        },
+        skills: { type: 'STRING', description: 'Comma-separated' },
+        languages: { type: 'STRING', description: 'Comma-separated' },
+    },
+};
+
+router.post('/parse', protect, upload.single('resumeFile'), async (req, res) => {
+    const file = req.file;
+    if (!file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
+
+    try {
+        let resumeText = '';
+        if (file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname)) {
+            resumeText = (await pdf(file.buffer)).text;
+        } else if (/\.docx$/i.test(file.originalname)) {
+            resumeText = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+        } else {
+            return res.status(400).json({ success: false, error: 'Please upload a PDF or DOCX file.' });
+        }
+        if (!resumeText.trim()) {
+            return res.status(400).json({ success: false, error: "We couldn't find any text in that file. Scanned images aren't supported." });
+        }
+
+        const json = await generate(
+            'Extract the resume below into the JSON schema. Copy facts exactly; leave fields empty when unknown.',
+            [{ role: 'user', parts: [{ text: clip(resumeText, 30000) }] }],
+            { responseMimeType: 'application/json', responseSchema: RESUME_SCHEMA }
+        );
+        res.status(200).json({ success: true, extractedData: JSON.parse(json) });
+    } catch (err) {
+        sendError(res, err instanceof SyntaxError ? new AiError('Could not read that resume. Please try another file.') : err);
+    }
+});
+
+// --- 5. Cover letter ---
 router.post('/cover-letter', protect, async (req, res) => {
     const { resumeData, jobDescription } = req.body;
-
-    if (!resumeData || !jobDescription) {
-        return res.status(400).json({ success: false, error: 'Missing data.' });
+    if (!resumeData || !String(jobDescription || '').trim()) {
+        return res.status(400).json({ success: false, error: 'Missing resume or job description.' });
     }
 
-    const systemInstruction = `
-        You are an expert career coach and professional copywriter.
-        
-        TASK:
-        Write a highly tailored, professional Cover Letter based on the candidate's Resume and the target Job Description.
-        
-        CANDIDATE CONTEXT:
-        Name: ${resumeData.personal?.name}
-        Title: ${resumeData.personal?.title}
-        Skills: ${resumeData.skills}
-        Experience: ${JSON.stringify(resumeData.experience?.map(e => ({ title: e.title, company: e.company })))}
+    const systemInstruction = `You are an expert career coach and copywriter.
+Write a tailored, professional cover letter for the candidate below and the target job.
 
-        JOB DESCRIPTION:
-        "${jobDescription.substring(0, 2000)}" (truncated for brevity)
+CANDIDATE RESUME (JSON):
+${JSON.stringify(cleanResume(resumeData))}
 
-        GUIDELINES:
-        1. Structure: Professional Header -> Hook (Intro) -> The "Why Me" (Match skills to JD) -> The "Why You" (Company fit) -> Call to Action.
-        2. Tone: Confident, professional, yet human. Avoid generic fluff like "I am writing to apply...". Start strong.
-        3. Formatting: Use standard business letter formatting.
-        4. Output: Return ONLY the cover letter text. No markdown block wrapper.\
-        5. The response must not contain any markdown, citation markers, tags, or text in square brackets. Provide the output as plain text.
-        6. Add bulletpoints if you think they are necessary.
-    `;
+JOB DESCRIPTION:
+"""${clip(jobDescription, 6000)}"""
 
-    const contents = [{ parts: [{ text: "Generate my cover letter." }] }];
+GUIDELINES:
+1. Structure: greeting, strong opening hook, why the candidate fits (match real skills to the job), why this company, call to action, sign-off with the candidate's name.
+2. Confident, human tone. Avoid clichés such as "I am writing to apply".
+3. Only use facts from the resume. Never invent experience.
+4. Plain text only: no markdown, no square-bracket placeholders.`;
 
-    const coverLetter = await getGeminiResponse(systemInstruction, contents, res);
-    
-    if (coverLetter) {
+    try {
+        const coverLetter = await generate(systemInstruction, [{ role: 'user', parts: [{ text: 'Write my cover letter.' }] }]);
         res.status(200).json({ success: true, coverLetter });
+    } catch (err) {
+        sendError(res, err);
     }
 });
 
-
-
-
+router.aiEnabled = aiEnabled;
 module.exports = router;

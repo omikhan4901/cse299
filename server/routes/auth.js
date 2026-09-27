@@ -33,6 +33,11 @@ const protect = (req, res, next) => {
 };
 
 
+// Matches an email case-insensitively, so accounts created before emails were
+// lowercased can still log in.
+const emailQuery = (email) =>
+    new RegExp(`^${String(email).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
 // --- Helper function to generate JWT ---
 const getSignedJwtToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -51,10 +56,13 @@ router.post('/register', async (req, res) => {
     if (!name || !email || !password) {
         return res.status(400).json({ success: false, error: 'Please enter all fields.' });
     }
+    if (String(password).length < 6) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 6 characters.' });
+    }
 
     try {
-        // Check if user already exists
-        let user = await User.findOne({ email });
+        // Check if user already exists (emails are case-insensitive)
+        let user = await User.findOne({ email: emailQuery(email) });
         if (user) {
             return res.status(400).json({ success: false, error: 'User already exists.' });
         }
@@ -84,6 +92,12 @@ router.post('/register', async (req, res) => {
         });
 
     } catch (err) {
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ success: false, error: Object.values(err.errors)[0].message });
+        }
+        if (err.code === 11000) {
+            return res.status(400).json({ success: false, error: 'User already exists.' });
+        }
         console.error(err);
         res.status(500).json({ success: false, error: 'Server Error during registration.' });
     }
@@ -103,7 +117,7 @@ router.post('/login', async (req, res) => {
 
     try {
         // Find user by email, explicitly select the password field
-        const user = await User.findOne({ email }).select('+password');
+        const user = await User.findOne({ email: emailQuery(email) }).select('+password');
 
         if (!user) {
             return res.status(401).json({ success: false, error: 'Invalid credentials.' });
