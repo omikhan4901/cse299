@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button, Dropdown } from "antd";
+import { motion } from "motion/react";
 import { Menu, X, LayoutDashboard, LogOut, FilePlus2 } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "./AuthProvider";
@@ -39,10 +40,13 @@ export default function Navbar({ compact = false }) {
             <Link
               key={l.href}
               href={l.href}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                pathname === l.href ? "bg-brand-50 text-brand" : "text-slate-600 hover:bg-slate-50 hover:text-ink"
+              className={`relative rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                pathname === l.href ? "text-brand" : "text-slate-600 hover:bg-slate-50 hover:text-ink"
               }`}
             >
+              {pathname === l.href ? (
+                <motion.span layoutId="nav-pill" className="absolute inset-0 -z-10 rounded-lg bg-brand-50" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
+              ) : null}
               {l.label}
             </Link>
           ))}
@@ -80,7 +84,7 @@ export default function Navbar({ compact = false }) {
       </nav>
 
       {open ? (
-        <div className="border-t border-slate-200 bg-white px-5 py-4 md:hidden">
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden border-t border-slate-200 bg-white px-5 py-4 md:hidden">
           <div className="flex flex-col gap-1">
             {links.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
@@ -109,7 +113,7 @@ export default function Navbar({ compact = false }) {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       ) : null}
     </header>
   );

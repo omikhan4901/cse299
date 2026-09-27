@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Dropdown, App, Result, Skeleton, Tooltip } from "antd";
+import { AnimatePresence, motion } from "motion/react";
 import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import { normalizeResume } from "@/lib/resume";
@@ -143,7 +144,8 @@ export default function Dashboard() {
             </span>
             <span className="mt-3 font-medium">Create a new resume</span>
           </Link>
-          {sorted.map((r) => {
+          <AnimatePresence>
+          {sorted.map((r, index) => {
             const tpl = templateById(r.template);
             const menu = {
               items: [
@@ -156,7 +158,15 @@ export default function Dashboard() {
               ],
             };
             return (
-              <div key={r._id} className={`group relative overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-0.5 hover:shadow-lg ${r.isMaster ? "border-amber-300" : "border-slate-200"}`}>
+              <motion.div
+                key={r._id}
+                layout
+                initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                transition={{ type: "spring", stiffness: 260, damping: 26, delay: Math.min(index, 8) * 0.06 }}
+                className={`group relative overflow-hidden rounded-2xl border bg-white transition-shadow duration-300 hover:shadow-xl ${r.isMaster ? "border-amber-300" : "border-slate-200"}`}
+              >
                 <Link href={`/builder?id=${r._id}`} className="block">
                   <div className="relative h-60 overflow-hidden border-b border-slate-100 bg-slate-100">
                     <ResumeThumbnail resume={normalizeResume(r)} fallback={`/templates/${tpl.id}.jpg`} />
@@ -182,9 +192,10 @@ export default function Dashboard() {
                     </Tooltip>
                   ) : null}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
       )}
     </div>

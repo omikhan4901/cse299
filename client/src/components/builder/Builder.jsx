@@ -22,6 +22,8 @@ import SaveModal from "./SaveModal";
 import ShareModal from "./ShareModal";
 import { ChatModal, AuditModal, CoverLetterModal, aiResume } from "./AiModals";
 import { AI_LOCKED_MESSAGE } from "./ai";
+import ActionDock from "./ActionDock";
+import { celebrate } from "../celebrate";
 
 const DRAFT_KEY = "resumex:draft";
 
@@ -227,10 +229,12 @@ function Editor({ initial, example, onSaved }) {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (event) => {
+    const origin = event?.currentTarget;
     setDownloading(true);
     try {
       await downloadPdf(resume);
+      celebrate(origin);
     } catch (err) {
       console.error(err);
       message.error("Could not create the PDF. Please try again.");
@@ -318,7 +322,7 @@ function Editor({ initial, example, onSaved }) {
     try {
       const { extractedData } = await api("/ai/parse", { token, method: "POST", body: form, timeout: 120000 });
       const x = normalizeResume(extractedData);
-      setResume((r) => ({ ...r, personal: { ...x.personal, profilePic: r.personal.profilePic }, summary: x.summary, experience: x.experience, education: x.education, projects: x.projects, certifications: x.certifications, skills: x.skills, languages: x.languages }));
+      setResume((r) => ({ ...r, personal: { ...x.personal, profilePic: r.personal.profilePic, profilePicSource: r.personal.profilePicSource, photoCrop: r.personal.photoCrop }, summary: x.summary, experience: x.experience, education: x.education, projects: x.projects, certifications: x.certifications, skills: x.skills, languages: x.languages }));
       setShowExample(false);
       message.success("Imported! Check each section and fix anything we missed.");
     } catch (err) {
@@ -328,21 +332,30 @@ function Editor({ initial, example, onSaved }) {
     }
   };
 
+  const openAi = (key) => {
+    if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
+    if (!requireAccount()) return;
+    if (key === "import") document.getElementById("resume-import")?.click();
+    else setAiModal(key);
+  };
+
+  const saveState = saving ? "saving" : dirty ? "dirty" : resume._id && isAuthenticated ? "saved" : "new";
+
   const aiItem = (key, icon, label, onClick) => ({
     key,
     icon,
     label: AI_ENABLED ? label : <Tooltip title={AI_LOCKED_MESSAGE} placement="left">{label} <Lock size={11} className="ml-1 inline" /></Tooltip>,
     disabled: !AI_ENABLED,
-    onClick: () => requireAccount() && onClick(),
+    onClick,
   });
 
   const moreMenu = {
     items: [
       { type: "group", label: "AI tools", children: [
-        aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => setAiModal("chat")),
-        aiItem("audit", <ScanSearch size={15} />, "ATS check", () => setAiModal("audit")),
-        aiItem("cover", <Mail size={15} />, "Cover letter", () => setAiModal("cover")),
-        aiItem("import", <Upload size={15} />, "Import PDF / DOCX", () => document.getElementById("resume-import")?.click()),
+        aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
+        aiItem("audit", <ScanSearch size={15} />, "ATS check", () => openAi("audit")),
+        aiItem("cover", <Mail size={15} />, "Cover letter", () => openAi("cover")),
+        aiItem("import", <Upload size={15} />, "Import PDF / DOCX", () => openAi("import")),
       ] },
       { type: "divider" },
       ...(isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
@@ -393,18 +406,20 @@ function Editor({ initial, example, onSaved }) {
             {status.icon} {status.text}
           </p>
         </div>
-        <Tooltip title="Save (Ctrl+S)">
-          <Button icon={<Save size={15} />} onClick={handleSave} className={resume._id && !dirty ? "!hidden sm:!inline-flex" : ""}>
-            <span className="hidden sm:inline">{resume._id ? "Save" : "Save"}</span>
+        <div className="flex items-center gap-2 lg:hidden">
+          <Tooltip title="Save (Ctrl+S)">
+            <Button icon={<Save size={15} />} onClick={handleSave} className={resume._id && !dirty ? "!hidden sm:!inline-flex" : ""}>
+              <span className="hidden sm:inline">Save</span>
+            </Button>
+          </Tooltip>
+          <Button icon={<Share2 size={15} />} onClick={handleShare} className="!hidden sm:!inline-flex">
+            Share
           </Button>
-        </Tooltip>
-        <Button icon={<Share2 size={15} />} onClick={handleShare} className="!hidden sm:!inline-flex">
-          Share
-        </Button>
+        </div>
         <Dropdown menu={moreMenu} trigger={["click"]} placement="bottomRight">
           <Button icon={<MoreHorizontal size={16} />} aria-label="More actions" />
         </Dropdown>
-        <Button type="primary" icon={<Download size={15} />} loading={downloading} onClick={handleDownload}>
+        <Button type="primary" icon={<Download size={15} />} loading={downloading} onClick={handleDownload} className="lg:!hidden">
           <span className="hidden sm:inline">Download PDF</span>
           <span className="sm:hidden">PDF</span>
         </Button>
@@ -451,13 +466,13 @@ function Editor({ initial, example, onSaved }) {
         </aside>
 
         {/* Preview */}
-        <section className={`thin-scroll min-w-0 flex-1 overflow-y-auto bg-slate-200/60 lg:block ${mobileView === "preview" ? "block" : "hidden"}`} aria-label="Resume preview">
+        <section className={`thin-scroll min-w-0 flex-1 overflow-y-auto bg-slate-200/60 lg:block lg:pr-24 ${mobileView === "preview" ? "block" : "hidden"}`} aria-label="Resume preview">
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200/70 bg-slate-100/90 px-4 py-2 text-xs text-slate-500 backdrop-blur">
             <span>
               <b className="font-medium text-slate-700">{tpl.name}</b> · {resume.theme.pageSize === "LETTER" ? "US Letter" : "A4"} · {pages} page{pages === 1 ? "" : "s"}
               {pages > 2 ? <span className="ml-2 text-amber-600">Most resumes should fit on 1–2 pages</span> : null}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 lg:hidden">
               <Button size="small" type="text" icon={<ZoomOut size={14} />} onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(1)))} aria-label="Zoom out" />
               <button type="button" className="w-11 text-center tabular-nums hover:text-ink" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
               <Button size="small" type="text" icon={<ZoomIn size={14} />} onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(1)))} aria-label="Zoom in" />
@@ -468,6 +483,23 @@ function Editor({ initial, example, onSaved }) {
           </div>
         </section>
       </div>
+
+      <ActionDock
+        tab={tab}
+        onTab={(t) => {
+          setTab(t);
+          setMobileView("edit");
+        }}
+        zoom={zoom}
+        onZoom={setZoom}
+        aiEnabled={AI_ENABLED}
+        onAi={openAi}
+        saveState={saveState}
+        onSave={handleSave}
+        onShare={handleShare}
+        onDownload={handleDownload}
+        downloading={downloading}
+      />
 
       <SaveModal open={saveOpen} onCancel={() => setSaveOpen(false)} onSave={createResume} loading={saving} resume={resume} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />

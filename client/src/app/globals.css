@@ -52,3 +52,66 @@ body {
     color: inherit;
   }
 }
+
+@keyframes dock-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 123, 123, 0.45); }
+  50% { box-shadow: 0 0 0 10px rgba(0, 123, 123, 0); }
+}
+
+/* ---------- Motion ---------- */
+@keyframes float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -12px; }
+}
+@keyframes blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -30px) scale(1.08); }
+  66% { transform: translate(-30px, 20px) scale(0.95); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes shine {
+  from { transform: translateX(-120%) skewX(-20deg); }
+  to { transform: translateX(220%) skewX(-20deg); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-blob { animation: blob 16s ease-in-out infinite; }
+.animate-marquee { animation: marquee 45s linear infinite; }
+.animate-marquee-reverse { animation: marquee 50s linear infinite reverse; }
+.marquee:hover .animate-marquee,
+.marquee:hover .animate-marquee-reverse { animation-play-state: paused; }
+
+.text-gradient-animated {
+  background-image: linear-gradient(90deg, #007b7b, #14b8a6, #0ea5e9, #007b7b);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s ease-in-out infinite;
+}
+
+/* A light sweep across call-to-action buttons on hover. */
+.btn-shine { position: relative; overflow: hidden; isolation: isolate; }
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+}
+.btn-shine:hover::after { animation: shine 0.9s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float, .animate-blob, .animate-marquee, .animate-marquee-reverse, .text-gradient-animated, .btn-shine::after {
+    animation: none !important;
+  }
+}

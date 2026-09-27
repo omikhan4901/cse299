@@ -22,7 +22,9 @@ export const blankResume = () => ({
   nickname: "",
   template: "Classic",
   theme: { ...DEFAULT_THEME },
-  personal: { name: "", title: "", email: "", phone: "", city: "", linkedin: "", website: "", profilePic: "" },
+  // profilePic is the cropped photo used in the PDF; profilePicSource and photoCrop
+  // keep the original and the crop settings so the photo can be re-adjusted.
+  personal: { name: "", title: "", email: "", phone: "", city: "", linkedin: "", website: "", profilePic: "", profilePicSource: "", photoCrop: null },
   summary: "",
   experience: [],
   education: [],
@@ -100,6 +102,8 @@ export function normalizeResume(input) {
     languages: str(data.languages),
   };
   for (const key of Object.keys(base.personal)) out.personal[key] = str(data.personal?.[key]);
+  const crop = data.personal?.photoCrop;
+  out.personal.photoCrop = crop && typeof crop === "object" ? crop : null;
   for (const section of LIST_SECTIONS) {
     const list = Array.isArray(data[section]) ? data[section] : [];
     out[section] = list.map((item) => {

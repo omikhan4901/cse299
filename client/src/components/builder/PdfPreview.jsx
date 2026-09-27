@@ -71,6 +71,9 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
         }
         task.destroy();
         if (version !== versionRef.current || !pagesRef.current) return;
+        if (!pagesRef.current.childElementCount) {
+          canvases.forEach((c, i) => c.animate?.([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: 450, delay: i * 80, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" }));
+        }
         pagesRef.current.replaceChildren(...canvases);
         onPageCount?.(canvases.length);
         setError(null);

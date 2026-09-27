@@ -10,7 +10,7 @@ const { TextArea } = Input;
 /** Resume data for the AI: no photo (large and private) and no database fields. */
 export function aiResume(resume) {
   const { _id, shortId, isPublic, isMaster, updatedAt, nickname, theme, template, ...rest } = resume;
-  return { ...rest, personal: { ...rest.personal, profilePic: undefined } };
+  return { ...rest, personal: { ...rest.personal, profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 }
 
 export function ChatModal({ open, onClose, resume, token, onUseAsSummary }) {

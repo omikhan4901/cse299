@@ -1,10 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowRight, Eye, Download, Share2, Crown, Palette, ScanSearch, Sparkles, FileText, MousePointerClick, CheckCircle2, Star,
 } from "lucide-react";
 import { TEMPLATES } from "@/pdf/registry";
 import TemplateCard from "@/components/TemplateCard";
+import HeroVisual from "@/components/HeroVisual";
+import TemplateMarquee from "@/components/TemplateMarquee";
+import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { AI_ENABLED, SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/config";
 
 export const metadata = { alternates: { canonical: "/" } };
@@ -41,7 +43,6 @@ export default function HomePage() {
     operatingSystem: "Web",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   };
-  const hero = ["Modern", "Classic", "CoolBlue"].map((id) => TEMPLATES.find((t) => t.id === id));
 
   return (
     <>
@@ -50,78 +51,75 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-white to-white">
         <div className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
-        <div className="container-x relative grid items-center gap-12 pt-14 pb-20 lg:grid-cols-[1.05fr_1fr] lg:pt-20 lg:pb-28">
-          <div>
+        <div aria-hidden className="animate-blob absolute -top-24 -left-24 h-80 w-80 rounded-full bg-teal-200/50 blur-3xl" />
+        <div aria-hidden className="animate-blob absolute top-40 right-0 h-96 w-96 rounded-full bg-sky-200/40 blur-3xl" style={{ animationDelay: "-6s" }} />
+        <div className="container-x relative grid items-center gap-12 pt-14 pb-16 lg:grid-cols-[1.05fr_1fr] lg:pt-20 lg:pb-20">
+          <Stagger immediate gap={0.1} delay={0.05}>
+            <StaggerItem>
             <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-medium text-brand shadow-sm">
               <Sparkles size={13} /> Free · No sign-up needed to start
             </span>
-            <h1 className="mt-5 font-display text-4xl leading-[1.08] font-extrabold tracking-tight text-ink sm:text-5xl lg:text-6xl">
-              Build the resume that <span className="bg-gradient-to-r from-brand to-teal-500 bg-clip-text text-transparent">lands the job</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
+            </StaggerItem>
+            <StaggerItem as="h1" className="mt-5 font-display text-4xl leading-[1.08] font-extrabold tracking-tight text-ink sm:text-5xl lg:text-6xl">
+              Build the resume that <span className="text-gradient-animated">lands the job</span>
+            </StaggerItem>
+            <StaggerItem as="p" className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
               Pick a designer template, fill in your story and watch a real PDF update as you type. Download it in one click — no watermarks, no paywalls.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/builder" className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 transition hover:bg-brand-dark">
-                Build my resume <ArrowRight size={18} />
+            </StaggerItem>
+            <StaggerItem className="mt-8 flex flex-wrap gap-3">
+              <Link href="/builder" className="btn-shine group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-xl hover:shadow-brand/30">
+                Build my resume <ArrowRight size={18} className="transition group-hover:translate-x-1" />
               </Link>
-              <Link href="/templates" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-ink transition hover:border-brand-200 hover:text-brand">
+              <Link href="/templates" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-ink transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand hover:shadow-md">
                 Browse templates
               </Link>
-            </div>
-            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
+            </StaggerItem>
+            <StaggerItem as="ul" className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
               {["10 professional templates", "Pixel-perfect PDF", "A4 & US Letter"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <CheckCircle2 size={16} className="text-brand" /> {t}
                 </li>
               ))}
-            </ul>
-          </div>
+            </StaggerItem>
+          </Stagger>
 
-          <div className="relative mx-auto h-[420px] w-full max-w-[520px] sm:h-[520px]">
-            {hero.map((t, i) => (
-              <div
-                key={t.id}
-                className="absolute top-1/2 left-1/2 w-[58%] overflow-hidden rounded-lg bg-white shadow-2xl ring-1 ring-slate-900/10"
-                style={{ transform: `translate(-50%, -50%) translateX(${(i - 1) * 34}%) rotate(${(i - 1) * 7}deg) scale(${i === 1 ? 1 : 0.9})`, zIndex: i === 1 ? 3 : 1 }}
-              >
-                <Image src={`/templates/${t.id}.jpg`} alt={`${t.name} resume template`} width={827} height={1170} priority className="h-auto w-full" />
-              </div>
-            ))}
-            <div className="absolute top-10 -left-2 z-10 hidden items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium text-ink shadow-lg ring-1 ring-slate-900/5 sm:flex">
-              <Eye size={16} className="text-brand" /> Live preview
-            </div>
-            <div className="absolute right-0 bottom-12 z-10 hidden items-center gap-2 rounded-xl bg-ink px-3 py-2 text-sm font-medium text-white shadow-lg sm:flex">
-              <Download size={16} className="text-teal-300" /> Resume.pdf ready
-            </div>
-          </div>
+          <HeroVisual />
         </div>
+      </section>
+
+      {/* Template strip */}
+      <section className="border-y border-slate-100 bg-white py-10">
+        <Reveal className="container-x mb-6 flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold tracking-wider text-brand uppercase">{TEMPLATES.length} templates · any colour · any font</p>
+          <p className="text-sm text-slate-500">Hover to pause, click to start with one</p>
+        </Reveal>
+        <TemplateMarquee />
       </section>
 
       {/* How it works */}
       <section className="container-x py-20">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold tracking-wider text-brand uppercase">How it works</p>
           <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Three steps to a standout resume</h2>
-        </div>
-        <ol className="mt-12 grid gap-6 md:grid-cols-3">
+        </Reveal>
+        <Stagger as="ol" className="mt-12 grid gap-6 md:grid-cols-3" gap={0.12}>
           {STEPS.map((s, i) => (
-            <li key={s.title} className="relative rounded-2xl border border-slate-200 bg-white p-7">
-              <span className="absolute top-6 right-6 font-display text-5xl font-extrabold text-slate-100">{i + 1}</span>
-              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand">
+            <StaggerItem as="li" key={s.title} className="group relative rounded-2xl border border-slate-200 bg-white p-7 transition duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg">
+              <span className="absolute top-6 right-6 font-display text-5xl font-extrabold text-slate-100 transition group-hover:text-brand-100">{i + 1}</span>
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand transition duration-300 group-hover:scale-110 group-hover:-rotate-6 group-hover:bg-brand group-hover:text-white">
                 <s.icon size={22} />
               </span>
               <h3 className="mt-5 text-lg font-semibold text-ink">{s.title}</h3>
               <p className="mt-2 text-slate-600">{s.text}</p>
-            </li>
+            </StaggerItem>
           ))}
-        </ol>
+        </Stagger>
       </section>
 
       {/* Templates */}
       <section className="bg-slate-50 py-20">
         <div className="container-x">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <Reveal className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-sm font-semibold tracking-wider text-brand uppercase">Templates</p>
               <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Designs recruiters remember</h2>
@@ -130,48 +128,52 @@ export default function HomePage() {
             <Link href="/templates" className="inline-flex items-center gap-1.5 font-semibold text-brand hover:underline">
               See all {TEMPLATES.length} templates <ArrowRight size={16} />
             </Link>
-          </div>
-          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          </Reveal>
+          <Stagger className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {TEMPLATES.slice(0, 4).map((t) => (
-              <TemplateCard key={t.id} template={t} />
+              <StaggerItem key={t.id}>
+                <TemplateCard template={t} />
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </div>
       </section>
 
       {/* Features */}
       <section className="container-x py-20">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold tracking-wider text-brand uppercase">Why ResumeX</p>
           <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Everything you need, nothing you don&apos;t</h2>
-        </div>
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        </Reveal>
+        <Stagger className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3" gap={0.07}>
           {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-slate-200 p-6 transition hover:border-brand-200 hover:shadow-md">
-              <f.icon size={22} className="text-brand" />
+            <StaggerItem key={f.title} className="group rounded-2xl border border-slate-200 p-6 transition duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand transition duration-300 group-hover:scale-110 group-hover:rotate-6">
+                <f.icon size={21} />
+              </span>
               <h3 className="mt-4 font-semibold text-ink">{f.title}</h3>
               <p className="mt-1.5 text-[15px] leading-relaxed text-slate-600">{f.text}</p>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
-        <div className="mt-6 flex flex-col items-start gap-4 rounded-2xl bg-gradient-to-r from-navy to-brand p-7 text-white sm:flex-row sm:items-center">
-          <Sparkles size={28} className="shrink-0 text-teal-200" />
+        </Stagger>
+        <Reveal className="mt-6 flex flex-col items-start gap-4 rounded-2xl bg-gradient-to-r from-navy to-brand p-7 text-white sm:flex-row sm:items-center bg-[length:200%_100%] animate-[gradient-pan_10s_ease-in-out_infinite]">
+          <Sparkles size={28} className="shrink-0 animate-pulse text-teal-200" />
           <div className="flex-1">
             <h3 className="text-lg font-semibold">
               AI writing assistant {AI_ENABLED ? null : <span className="ml-2 rounded-full bg-white/15 px-2 py-0.5 align-middle text-xs font-medium">Coming back soon</span>}
             </h3>
             <p className="mt-1 text-white/75">Polish bullet points, check your resume against a job description and draft cover letters — powered by Google Gemini.</p>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* Reviews */}
       <section className="bg-slate-50 py-20">
         <div className="container-x">
-          <h2 className="text-center font-display text-3xl font-bold text-ink sm:text-4xl">Loved by students</h2>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
+          <Reveal as="h2" className="text-center font-display text-3xl font-bold text-ink sm:text-4xl">Loved by students</Reveal>
+          <Stagger className="mt-12 grid gap-6 md:grid-cols-3" gap={0.12}>
             {REVIEWS.map((r) => (
-              <figure key={r.name} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
+              <StaggerItem as="figure" key={r.name} className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5 transition duration-300 hover:-translate-y-1 hover:shadow-lg">
                 <div className="flex gap-0.5 text-amber-400">
                   {[0, 1, 2, 3, 4].map((i) => (
                     <Star key={i} size={16} className="fill-current" />
@@ -185,22 +187,24 @@ export default function HomePage() {
                     <span className="block text-xs text-slate-500">{r.role}</span>
                   </span>
                 </figcaption>
-              </figure>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </div>
       </section>
 
       {/* CTA */}
       <section className="container-x py-20">
-        <div className="relative overflow-hidden rounded-3xl bg-navy px-6 py-16 text-center sm:px-16">
+        <Reveal className="relative overflow-hidden rounded-3xl bg-navy px-6 py-16 text-center sm:px-16">
           <div className="bg-grid absolute inset-0 opacity-20" />
+          <div aria-hidden className="animate-blob absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-brand/40 blur-3xl" />
+          <div aria-hidden className="animate-blob absolute -top-24 right-0 h-72 w-72 rounded-full bg-teal-400/25 blur-3xl" style={{ animationDelay: "-8s" }} />
           <h2 className="relative font-display text-3xl font-bold text-white sm:text-4xl">Ready to build your resume?</h2>
           <p className="relative mx-auto mt-3 max-w-xl text-white/70">It takes about ten minutes. Start now — you can create an account later to save your work.</p>
-          <Link href="/builder" className="relative mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-navy shadow-lg transition hover:bg-brand-50">
-            Create my resume <ArrowRight size={18} />
+          <Link href="/builder" className="btn-shine group relative mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-navy shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-2xl">
+            Create my resume <ArrowRight size={18} className="transition group-hover:translate-x-1" />
           </Link>
-        </div>
+        </Reveal>
       </section>
     </>
   );

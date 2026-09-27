@@ -8,8 +8,10 @@ const Resume = require("../models/Resume");
 router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    let resume = await Resume.findOne({ shortId: id }).select("-user -__v").lean();
-    if (!resume && mongoose.isValidObjectId(id)) resume = await Resume.findById(id).select("-user -__v").lean();
+    // Never expose the owner, or the uncropped original photo.
+    const hidden = "-user -__v -personal.profilePicSource -personal.photoCrop";
+    let resume = await Resume.findOne({ shortId: id }).select(hidden).lean();
+    if (!resume && mongoose.isValidObjectId(id)) resume = await Resume.findById(id).select(hidden).lean();
 
     if (!resume || !resume.isPublic) {
       // Same answer for missing and private resumes so ids can't be probed.

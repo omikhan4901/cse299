@@ -1,6 +1,7 @@
 "use client";
 
 import { ConfigProvider, App } from "antd";
+import { MotionConfig } from "motion/react";
 import { AuthProvider } from "./AuthProvider";
 import AuthModal from "./AuthModal";
 
@@ -19,6 +20,7 @@ const theme = {
 
 export default function Providers({ children }) {
   return (
+    <MotionConfig reducedMotion="user">
     <ConfigProvider theme={theme}>
       <App>
         <AuthProvider>
@@ -27,5 +29,6 @@ export default function Providers({ children }) {
         </AuthProvider>
       </App>
     </ConfigProvider>
+    </MotionConfig>
   );
 }

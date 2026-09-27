@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { Input, Button, Select, Checkbox, Tooltip, Popconfirm, App } from "antd";
+import { AnimatePresence, motion } from "motion/react";
 import {
   User, FileText, Briefcase, GraduationCap, FolderGit2, Award, Wrench, Languages,
-  ChevronDown, ChevronUp, ArrowUp, ArrowDown, Copy, Trash2, Plus, Camera, X,
+  ChevronDown, ArrowUp, ArrowDown, Copy, Trash2, Plus, Camera, X, Crop,
 } from "lucide-react";
 import { dateRange, splitList } from "@/lib/resume";
-import { processPhoto } from "./photo";
+import { readPhoto } from "./photo";
+import PhotoCropModal from "./PhotoCropModal";
 import { AiButton } from "./ai";
 
 const { TextArea } = Input;
@@ -24,33 +26,64 @@ function Field({ label, hint, children, className = "" }) {
 
 function SectionCard({ icon: Icon, title, meta, open, onToggle, children }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,31,42,0.04)]">
+    <section className={`rounded-2xl border bg-white transition-shadow duration-300 ${open ? "border-brand-200 shadow-md" : "border-slate-200 shadow-[0_1px_2px_rgba(15,31,42,0.04)] hover:shadow-md"}`}>
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3.5 text-left" aria-expanded={open}>
-        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${open ? "bg-brand text-white" : "bg-brand-50 text-brand"}`}>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 ${open ? "scale-105 bg-brand text-white shadow-md shadow-brand/30" : "bg-brand-50 text-brand"}`}>
           <Icon size={17} />
         </span>
         <span className="flex-1">
           <span className="block text-[15px] font-semibold text-ink">{title}</span>
           {meta ? <span className="block text-xs text-slate-400">{meta}</span> : null}
         </span>
-        {open ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
+        <ChevronDown size={18} className={`text-slate-400 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open ? <div className="border-t border-slate-100 px-4 pt-4 pb-5">{children}</div> : null}
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-slate-100 px-4 pt-4 pb-5">{children}</div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </section>
   );
 }
 
 function PersonalForm({ personal, setPersonal }) {
   const { message } = App.useApp();
+  // { src, initial } while the crop dialog is open.
+  const [cropping, setCropping] = useState(null);
+
   const onPhoto = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     try {
-      setPersonal("profilePic", await processPhoto(file));
+      setCropping({ src: await readPhoto(file), initial: null });
     } catch (err) {
       message.error(err.message);
     }
+  };
+
+  const adjust = () => setCropping({ src: personal.profilePicSource || personal.profilePic, initial: personal.profilePicSource ? personal.photoCrop : null });
+
+  const saveCrop = ({ image, settings }) => {
+    setPersonal("profilePic", image);
+    setPersonal("profilePicSource", cropping.src);
+    setPersonal("photoCrop", settings);
+    setCropping(null);
+  };
+
+  const removePhoto = () => {
+    setPersonal("profilePic", "");
+    setPersonal("profilePicSource", "");
+    setPersonal("photoCrop", null);
   };
   const input = (field, props = {}) => (
     <Input value={personal[field]} onChange={(e) => setPersonal(field, e.target.value)} {...props} />
@@ -68,19 +101,27 @@ function PersonalForm({ personal, setPersonal }) {
             </div>
           )}
           {personal.profilePic ? (
-            <button type="button" onClick={() => setPersonal("profilePic", "")} className="absolute -top-1 -right-1 rounded-full bg-white p-1 text-slate-500 shadow ring-1 ring-slate-200 hover:text-red-500" aria-label="Remove photo">
+            <button type="button" onClick={removePhoto} className="absolute -top-1 -right-1 rounded-full bg-white p-1 text-slate-500 shadow ring-1 ring-slate-200 hover:text-red-500" aria-label="Remove photo">
               <X size={12} />
             </button>
           ) : null}
         </div>
         <div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-brand hover:text-brand">
-            <Camera size={15} /> {personal.profilePic ? "Change photo" : "Upload photo"}
-            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onPhoto} />
-          </label>
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-brand hover:text-brand">
+              <Camera size={15} /> {personal.profilePic ? "Change" : "Upload photo"}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onPhoto} />
+            </label>
+            {personal.profilePic ? (
+              <button type="button" onClick={adjust} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-brand hover:text-brand">
+                <Crop size={15} /> Adjust
+              </button>
+            ) : null}
+          </div>
           <p className="mt-1.5 text-[11px] text-slate-400">Optional. Shown on templates with a photo area.</p>
         </div>
       </div>
+      <PhotoCropModal open={!!cropping} src={cropping?.src} initial={cropping?.initial} onCancel={() => setCropping(null)} onSave={saveCrop} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Full name" className="col-span-2 sm:col-span-1">{input("name", { placeholder: "Jane Doe", autoComplete: "name" })}</Field>
         <Field label="Job title" className="col-span-2 sm:col-span-1">{input("title", { placeholder: "Full Stack Developer" })}</Field>
@@ -157,10 +198,19 @@ function ListForm({ section, items, editor, onRefine, refiningId }) {
   return (
     <div className="space-y-2.5">
       {items.length === 0 ? <p className="text-sm text-slate-400">Nothing here yet — this section is hidden on your resume until you add something.</p> : null}
+      <AnimatePresence initial={false}>
       {items.map((item, index) => {
         const open = openId === item.id;
         return (
-          <div key={item.id} className={`rounded-xl border ${open ? "border-brand-200 bg-brand-50/30" : "border-slate-200"}`}>
+          <motion.div
+            key={item.id}
+            layout
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -30, transition: { duration: 0.2 } }}
+            transition={{ type: "spring", stiffness: 500, damping: 38 }}
+            className={`rounded-xl border transition-colors ${open ? "border-brand-200 bg-brand-50/30" : "border-slate-200 hover:border-slate-300"}`}
+          >
             <div className="flex items-center gap-1 py-1.5 pr-1.5 pl-3">
               <button type="button" className="min-w-0 flex-1 py-1 text-left" onClick={() => setOpenId(open ? null : item.id)}>
                 <span className="block truncate text-sm font-medium text-ink">{cfg.heading(item)}</span>
@@ -209,9 +259,10 @@ function ListForm({ section, items, editor, onRefine, refiningId }) {
                 })}
               </div>
             ) : null}
-          </div>
+          </motion.div>
         );
       })}
+      </AnimatePresence>
       <Button
         block
         type="dashed"

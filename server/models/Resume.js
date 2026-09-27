@@ -38,6 +38,9 @@ const ResumeSchema = new mongoose.Schema(
     nickname: { type: String, required: [true, "Please add a name for this resume"], trim: true, maxlength: 120 },
     personal: {
       profilePic: { type: String, default: "" },
+      // Original upload + crop settings, so the photo can be re-adjusted later.
+      profilePicSource: { type: String, default: "" },
+      photoCrop: { type: mongoose.Schema.Types.Mixed, default: null },
       name: { type: String, default: "" },
       title: { type: String, default: "" },
       phone: { type: String, default: "" },

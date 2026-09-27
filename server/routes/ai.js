@@ -97,7 +97,7 @@ const sendError = (res, err) => {
 // Keep prompts small: never send photos or database fields to the model.
 const cleanResume = (resume = {}) => {
     const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, ...rest } = resume;
-    return { ...rest, personal: { ...(rest.personal || {}), profilePic: undefined } };
+    return { ...rest, personal: { ...(rest.personal || {}), profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 };
 
 const clip = (text, max) => String(text || '').slice(0, max);

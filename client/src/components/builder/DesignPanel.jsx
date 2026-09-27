@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { ColorPicker, Select, Segmented, Tooltip } from "antd";
+import { motion } from "motion/react";
 import { Check, RotateCcw } from "lucide-react";
 import { TEMPLATES, ACCENT_SWATCHES, templateById } from "@/pdf/registry";
 import { FONT_OPTIONS } from "@/pdf/fonts";
@@ -61,14 +62,19 @@ export default function DesignPanel({ resume, onTemplate, setTheme }) {
                 key={t.id}
                 type="button"
                 onClick={() => onTemplate(t.id)}
-                className={`group overflow-hidden rounded-xl border bg-white text-left transition ${active ? "border-brand ring-2 ring-brand" : "border-slate-200 hover:border-brand-200 hover:shadow-md"}`}
+                className={`group overflow-hidden rounded-xl border bg-white text-left transition duration-300 ${active ? "border-brand ring-2 ring-brand" : "border-slate-200 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lg"}`}
               >
                 <div className="relative aspect-[1/1.414] overflow-hidden bg-slate-100">
                   <Image src={`/templates/${t.id}.jpg`} alt={`${t.name} resume template`} fill sizes="200px" className="object-cover object-top transition group-hover:scale-[1.02]" />
                   {active ? (
-                    <span className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow">
+                    <motion.span
+                      initial={{ scale: 0, rotate: -90 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                      className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow"
+                    >
                       <Check size={14} />
-                    </span>
+                    </motion.span>
                   ) : null}
                 </div>
                 <div className="px-3 py-2">

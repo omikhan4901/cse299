@@ -54,7 +54,7 @@ router.post("/", protect, async (req, res) => {
 // @route   GET /api/resumes  — list the user's resumes (photos left out to keep it light)
 router.get("/", protect, async (req, res) => {
   try {
-    const data = await Resume.find({ user: req.userId }).select("-personal.profilePic").sort({ updatedAt: -1 }).lean();
+    const data = await Resume.find({ user: req.userId }).select("-personal.profilePic -personal.profilePicSource").sort({ updatedAt: -1 }).lean();
     res.status(200).json({ success: true, count: data.length, data });
   } catch (err) {
     handleError(res, err, "Server error while fetching resumes.");
