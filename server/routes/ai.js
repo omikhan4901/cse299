@@ -14,6 +14,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
  */
 const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+// Used when the main model is overloaded or unavailable.
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-lite-latest';
 
 const aiEnabled = () => process.env.AI_ENABLED !== 'false' && !!process.env.GEMINI_API_KEY;
 
@@ -39,12 +41,29 @@ const fetchWithRetry = async (url, options, maxRetries = 3) => {
             const response = await fetch(url, options);
             if (response.status < 500 && response.status !== 429) return response;
             lastError = new AiError(`AI provider returned ${response.status}`);
+            lastError.response = response;
         } catch (err) {
             lastError = err;
         }
         if (attempt < maxRetries - 1) await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
     }
     throw lastError;
+};
+
+const BUSY_MESSAGE = 'The AI is very busy right now. Please try again in a minute.';
+
+// Calls one model; returns the HTTP response even when it's an error.
+const callModel = async (model, payload) => {
+    try {
+        return await fetchWithRetry(`${API_BASE_URL}/${model}:generateContent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+            body: JSON.stringify(payload),
+        });
+    } catch (err) {
+        if (err.response) return err.response; // still 5xx/429 after retries
+        throw new AiError(BUSY_MESSAGE);
+    }
 };
 
 /** Calls Gemini and returns the generated text. Throws AiError on failure (never touches `res`). */
@@ -54,15 +73,16 @@ const generate = async (systemInstruction, contents, generationConfig) => {
         systemInstruction: { parts: [{ text: systemInstruction }] },
         ...(generationConfig ? { generationConfig } : {}),
     };
-    const response = await fetchWithRetry(`${API_BASE_URL}/${MODEL_NAME}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify(payload),
-    });
+    let response = await callModel(MODEL_NAME, payload);
+    // Overloaded, rate-limited or retired model: try the lighter fallback model once.
+    if ([404, 429, 500, 503].includes(response.status) && FALLBACK_MODEL && FALLBACK_MODEL !== MODEL_NAME) {
+        console.warn(`Gemini ${MODEL_NAME} returned ${response.status}; trying ${FALLBACK_MODEL}`);
+        response = await callModel(FALLBACK_MODEL, payload);
+    }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
         console.error('Gemini API error:', response.status, result?.error?.message);
-        throw new AiError('The AI service is unavailable right now. Please try again later.');
+        throw new AiError(response.status === 429 || response.status >= 500 ? BUSY_MESSAGE : 'The AI service is unavailable right now. Please try again later.');
     }
     const text = result.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim();
     if (!text) throw new AiError('The AI could not generate a response. Try rephrasing.');
@@ -81,6 +101,14 @@ const cleanResume = (resume = {}) => {
 };
 
 const clip = (text, max) => String(text || '').slice(0, max);
+
+// The model sometimes writes line breaks as a literal "\\n"; turn them back into real ones.
+const fixNewlines = (value) => {
+    if (typeof value === 'string') return value.replace(/(\\r)?\\n/g, '\n');
+    if (Array.isArray(value)) return value.map(fixNewlines);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, fixNewlines(v)]));
+    return value;
+};
 
 // --- 1. Context-aware refinement ---
 router.post('/refine', protect, async (req, res) => {
@@ -248,7 +276,7 @@ router.post('/parse', protect, upload.single('resumeFile'), async (req, res) => 
             [{ role: 'user', parts: [{ text: clip(resumeText, 30000) }] }],
             { responseMimeType: 'application/json', responseSchema: RESUME_SCHEMA }
         );
-        res.status(200).json({ success: true, extractedData: JSON.parse(json) });
+        res.status(200).json({ success: true, extractedData: fixNewlines(JSON.parse(json)) });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError('Could not read that resume. Please try another file.') : err);
     }

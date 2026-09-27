@@ -28,8 +28,8 @@ ResumeX is a modern, full-stack web application designed to solve the nightmare 
 -   **Master Profile**: Keep all your experience in one resume and fill new, tailored resumes from it in one click.
 -   **Public links**: `/view/<id>` is a server-rendered web resume (with SEO metadata and structured data) plus a PDF download.
 
-### 🧠 4. AI (currently paused)
-AI refine, chat assistant, ATS check, cover letter and PDF/DOCX import are powered by Google Gemini. They are locked in the UI until `NEXT_PUBLIC_AI_ENABLED=true` (client) and `GEMINI_API_KEY` (server) are set.
+### 🧠 4. AI
+AI refine, chat assistant, ATS check, cover letter and PDF/DOCX import are powered by Google Gemini. Set `GEMINI_API_KEY` on the server and `NEXT_PUBLIC_AI_ENABLED=true` on the client; without them the AI buttons show as locked. When the main model is overloaded the server retries and then falls back to a lighter model.
 
 ---
 
