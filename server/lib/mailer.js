@@ -20,7 +20,7 @@ async function sendMail({ to, subject, text, html }) {
         throw new Error('Email is not configured (SMTP_URL).');
     }
     if (!transport) transport = nodemailer.createTransport(process.env.SMTP_URL);
-    await transport.sendMail({ from: process.env.MAIL_FROM || 'ResumeX <no-reply@localhost>', to, subject, text, html });
+    await transport.sendMail({ from: process.env.MAIL_FROM || 'ResumeX <support@resumex.cc>', to, subject, text, html });
 }
 
 module.exports = { sendMail, mailEnabled, canSendMail: () => mailEnabled() || devFallback() };
