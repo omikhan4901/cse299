@@ -19,6 +19,8 @@ export default function Footer() {
             <li><Link className="hover:text-white" href="/builder">Resume builder</Link></li>
             <li><Link className="hover:text-white" href="/templates">Resume templates</Link></li>
             <li><Link className="hover:text-white" href="/about">About &amp; FAQ</Link></li>
+            <li><Link className="hover:text-white" href="/privacy">Privacy policy</Link></li>
+            <li><Link className="hover:text-white" href="/terms">Terms of service</Link></li>
           </ul>
         </div>
         <div>

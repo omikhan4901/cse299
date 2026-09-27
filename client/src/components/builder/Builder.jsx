@@ -254,6 +254,8 @@ function Editor({ initial, example, onSaved }) {
       handleSave();
       return;
     }
+    // Save pending edits first, so the shared page shows the current template and colours.
+    if (dirty) saveNow();
     setShareOpen(true);
   };
 

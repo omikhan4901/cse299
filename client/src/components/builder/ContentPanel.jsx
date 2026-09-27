@@ -492,7 +492,15 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
           <Checkbox className="!mb-3" checked={resume.referencesOnRequest} onChange={(e) => setField("referencesOnRequest", e.target.checked)}>
             Just show “Available on request”
           </Checkbox>
-          {resume.referencesOnRequest && !resume.references.length ? null : <ListForm section="references" items={resume.references} editor={editor} />}
+          {resume.referencesOnRequest && !resume.references.length ? null : (
+            <>
+              <Checkbox className="!mb-3 !ml-0 flex" checked={resume.referenceSignatures} onChange={(e) => setField("referenceSignatures", e.target.checked)}>
+                Add a signature line for each referee
+                <span className="block text-xs text-slate-400">Print the resume and have your referees sign and date it as proof.</span>
+              </Checkbox>
+              <ListForm section="references" items={resume.references} editor={editor} />
+            </>
+          )}
         </>
       );
     }

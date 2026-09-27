@@ -76,6 +76,8 @@ const ResumeSchema = new mongoose.Schema(
     courses: [courseSchema],
     references: [referenceSchema],
     referencesOnRequest: { type: Boolean, default: false },
+    // Adds a signature and date line under each referee, for printed copies they sign.
+    referenceSignatures: { type: Boolean, default: false },
     links: [linkSchema],
     customSections: [customSectionSchema],
     skills: { type: String, default: "" },

@@ -63,6 +63,16 @@ export function AuthProvider({ children }) {
     [router, afterAuth]
   );
 
+  // Swap in a new token/user without navigating (e.g. after a password change).
+  const updateSession = useCallback(({ token: newToken, user: newUser }) => {
+    if (newToken) {
+      localStorage.setItem(TOKEN_KEY, newToken);
+      setToken(newToken);
+    }
+    if (newUser) setUser(newUser);
+  }, []);
+
+  // Forget the session locally (e.g. after deleting the account) and go home.
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
@@ -71,8 +81,8 @@ export function AuthProvider({ children }) {
   }, [router]);
 
   const value = useMemo(
-    () => ({ token, user, loading, isAuthenticated: !!user, login, logout, authModal, setAuthModal, openAuth }),
-    [token, user, loading, login, logout, authModal, openAuth]
+    () => ({ token, user, loading, isAuthenticated: !!user, login, logout, updateSession, authModal, setAuthModal, openAuth }),
+    [token, user, loading, login, logout, updateSession, authModal, openAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

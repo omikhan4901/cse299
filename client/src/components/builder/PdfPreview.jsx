@@ -44,7 +44,8 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
   }, []);
 
   const json = JSON.stringify(resume);
-  const pageWidth = Math.floor(Math.min(width || MAX_PAGE_WIDTH, MAX_PAGE_WIDTH) * zoom);
+  // 0 until the container has been measured (the first render waits for it).
+  const pageWidth = width ? Math.floor(Math.min(width, MAX_PAGE_WIDTH) * zoom) : 0;
 
   // Instant zoom: resize the pages already on screen while the sharp render catches up.
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
   const updating = status !== "loading" && renderedKey !== renderKey;
 
   useEffect(() => {
-    if (!width) return;
+    if (!pageWidth) return;
     const version = ++versionRef.current;
     const timer = setTimeout(async () => {
       try {

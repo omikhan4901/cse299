@@ -17,7 +17,7 @@ router.get("/:id", async (req, res) => {
       // Same answer for missing and private resumes so ids can't be probed.
       return res.status(404).json({ success: false, error: "This resume doesn't exist or is private." });
     }
-    res.set("Cache-Control", "public, max-age=60");
+    res.set("Cache-Control", "no-cache");
     res.status(200).json({ success: true, data: resume });
   } catch (err) {
     console.error("Public fetch error:", err.message);

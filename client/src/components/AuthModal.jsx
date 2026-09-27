@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Modal, Form, Input, Button, Alert, Segmented } from "antd";
-import { Mail, Lock, User } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, MailCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 import Logo from "./Logo";
@@ -17,11 +18,63 @@ export default function AuthModal() {
   );
 }
 
+function ForgotForm({ onBack }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [sent, setSent] = useState(null);
+
+  const submit = async ({ email }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api("/auth/forgot-password", { method: "POST", body: { email } });
+      setSent(data.message || "Check your inbox for a reset link.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex flex-col items-center pt-2 pb-5 text-center">
+        <Logo />
+        <h2 className="mt-4 text-xl font-semibold text-ink">Reset your password</h2>
+        <p className="mt-1 text-sm text-slate-500">We&apos;ll email you a link to choose a new one.</p>
+      </div>
+      {sent ? (
+        <div className="flex flex-col items-center rounded-xl bg-brand-50 p-5 text-center">
+          <MailCheck size={28} className="text-brand" />
+          <p className="mt-2 text-sm text-ink">{sent}</p>
+          <p className="mt-1 text-xs text-slate-500">The link works for one hour. Check your spam folder if it doesn&apos;t arrive.</p>
+        </div>
+      ) : (
+        <>
+          {error ? <Alert type="error" showIcon title={error} className="mb-4" /> : null}
+          <Form layout="vertical" onFinish={submit} requiredMark={false}>
+            <Form.Item name="email" rules={[{ required: true, type: "email", message: "Please enter a valid email" }]}>
+              <Input size="large" prefix={<Mail size={16} className="text-slate-400" />} placeholder="Email" autoComplete="email" autoFocus />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+              Send reset link
+            </Button>
+          </Form>
+        </>
+      )}
+      <button type="button" onClick={onBack} className="mx-auto mt-4 flex items-center gap-1 text-sm text-slate-500 hover:text-brand">
+        <ArrowLeft size={14} /> Back to log in
+      </button>
+    </>
+  );
+}
+
 function AuthForm({ mode, onModeChange }) {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const isRegister = mode === "register";
+  if (mode === "forgot") return <ForgotForm onBack={() => onModeChange("login")} />;
 
   const submit = async (values) => {
     setLoading(true);
@@ -64,9 +117,16 @@ function AuthForm({ mode, onModeChange }) {
         <Form.Item name="email" rules={[{ required: true, type: "email", message: "Please enter a valid email" }]}>
           <Input size="large" prefix={<Mail size={16} className="text-slate-400" />} placeholder="Email" autoComplete="email" />
         </Form.Item>
-        <Form.Item name="password" rules={[{ required: true, min: isRegister ? 6 : 1, message: isRegister ? "At least 6 characters" : "Please enter your password" }]}>
+        <Form.Item name="password" className={isRegister ? undefined : "!mb-2"} rules={[{ required: true, min: isRegister ? 8 : 1, message: isRegister ? "At least 8 characters" : "Please enter your password" }]}>
           <Input.Password size="large" prefix={<Lock size={16} className="text-slate-400" />} placeholder="Password" autoComplete={isRegister ? "new-password" : "current-password"} />
         </Form.Item>
+        {!isRegister ? (
+          <div className="mb-5 text-right">
+            <button type="button" onClick={() => onModeChange("forgot")} className="text-xs font-medium text-slate-500 hover:text-brand">
+              Forgot password?
+            </button>
+          </div>
+        ) : null}
         {isRegister ? (
           <Form.Item
             name="confirm"
@@ -85,7 +145,14 @@ function AuthForm({ mode, onModeChange }) {
           {isRegister ? "Create account" : "Log in"}
         </Button>
       </Form>
-      <p className="mt-4 text-center text-xs text-slate-400">The first request can take up to a minute while our free server wakes up.</p>
+      {isRegister ? (
+        <p className="mt-4 text-center text-xs text-slate-500">
+          By creating an account you agree to our{" "}
+          <Link href="/terms" target="_blank" className="text-brand hover:underline">Terms</Link> and{" "}
+          <Link href="/privacy" target="_blank" className="text-brand hover:underline">Privacy Policy</Link>.
+        </p>
+      ) : null}
+      <p className="mt-2 text-center text-xs text-slate-400">The first request can take up to a minute while our free server wakes up.</p>
     </>
   );
 }

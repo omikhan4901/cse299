@@ -50,6 +50,7 @@ export const blankResume = () => ({
   courses: [],
   references: [],
   referencesOnRequest: false,
+  referenceSignatures: false,
   links: [],
   skills: "",
   languages: "",
@@ -126,6 +127,7 @@ export function normalizeResume(input) {
     languages: str(data.languages),
     interests: str(data.interests),
     referencesOnRequest: !!data.referencesOnRequest,
+    referenceSignatures: !!data.referenceSignatures,
   };
   for (const key of Object.keys(base.personal)) out.personal[key] = str(data.personal?.[key]);
   const crop = data.personal?.photoCrop;
@@ -150,7 +152,7 @@ export function normalizeResume(input) {
 /** Everything that is resume content (as opposed to name, design or sharing settings). */
 export const CONTENT_KEYS = [
   "personal", "summary", "experience", "education", "projects", "certifications", "volunteering", "awards",
-  "publications", "courses", "references", "referencesOnRequest", "links", "skills", "languages", "interests", "customSections",
+  "publications", "courses", "references", "referencesOnRequest", "referenceSignatures", "links", "skills", "languages", "interests", "customSections",
 ];
 
 /** Copies the content of `source` into `target`, keeping target's design, name and ids. */

@@ -22,6 +22,14 @@ const UserSchema = new mongoose.Schema({
         minlength: 6,  
         select: false  
     },
+    // Billing plan. "pro" raises limits (e.g. the daily AI allowance) until planExpiresAt.
+    plan: { type: String, enum: ['free', 'pro'], default: 'free' },
+    planExpiresAt: { type: Date },
+    // Bumped on password change/reset; tokens carrying an older version stop working.
+    sessionVersion: { type: Number, default: 0 },
+    passwordChangedAt: { type: Date },
+    resetTokenHash: { type: String, select: false },
+    resetTokenExpires: { type: Date, select: false },
     createdAt: {
         type: Date,
         default: Date.now

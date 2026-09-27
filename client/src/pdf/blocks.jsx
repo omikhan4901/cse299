@@ -253,16 +253,35 @@ export function CourseList({ items, k }) {
   ));
 }
 
-export function ReferenceList({ items, k }) {
+/** Blank signature and date lines a referee can sign on a printed copy. */
+function SignatureLines({ k }) {
+  const line = k.muted || "#9ca3af";
+  const label = { fontSize: k.size - 1.5, color: k.muted, marginTop: 2 };
+  return (
+    <View style={{ flexDirection: "row", marginTop: 20 }}>
+      <View style={{ flex: 1, marginRight: 10 }}>
+        <View style={{ borderBottomWidth: 0.8, borderBottomColor: line }} />
+        <Text style={label}>Signature</Text>
+      </View>
+      <View style={{ width: "34%" }}>
+        <View style={{ borderBottomWidth: 0.8, borderBottomColor: line }} />
+        <Text style={label}>Date</Text>
+      </View>
+    </View>
+  );
+}
+
+export function ReferenceList({ items, k, signatures = false }) {
   if (!items.length) return <Text style={{ fontSize: k.size, color: k.text, fontStyle: "italic" }}>Available on request.</Text>;
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
       {items.map((item) => (
-        <View key={item.id} wrap={false} style={{ width: "50%", paddingRight: 10, marginBottom: 8 }}>
+        <View key={item.id} wrap={false} style={{ width: "50%", paddingRight: signatures ? 16 : 10, marginBottom: signatures ? 12 : 8 }}>
           <Text style={{ fontSize: k.size, fontWeight: 700, color: k.heading }}>{item.name || "Reference"}</Text>
           {item.position || item.company ? <Text style={{ fontSize: k.size - 0.5, color: k.muted }}>{[item.position, item.company].filter(Boolean).join(", ")}</Text> : null}
           {item.email ? <MaybeLink href={`mailto:${item.email}`} style={{ fontSize: k.size - 0.5, color: k.text }}>{item.email}</MaybeLink> : null}
           {item.phone ? <Text style={{ fontSize: k.size - 0.5, color: k.text }}>{item.phone}</Text> : null}
+          {signatures ? <SignatureLines k={k} /> : null}
         </View>
       ))}
     </View>
@@ -293,7 +312,7 @@ export function extraSections(data, k, render, { timeline, titles = {}, skip = [
   for (const sec of data.customSections || []) {
     if (sec.items?.length) out.push(render(`custom-${sec.id}`, sec.title || "Other", <CustomItems items={sec.items} k={k} />));
   }
-  if (data.references?.length || data.referencesOnRequest) out.push(render("references", t("references", "References"), <ReferenceList items={data.references || []} k={k} />));
+  if (data.references?.length || data.referencesOnRequest) out.push(render("references", t("references", "References"), <ReferenceList items={data.references || []} k={k} signatures={!!data.referenceSignatures} />));
   if (splitList(data.interests).length) out.push(render("interests", t("interests", "Interests"), <SkillList text={data.interests} k={k} variant="inline" />));
   return out;
 }

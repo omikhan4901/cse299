@@ -14,3 +14,7 @@ export const AI_ENABLED = process.env.NEXT_PUBLIC_AI_ENABLED === "true";
 export const SITE_NAME = "ResumeX";
 export const SITE_DESCRIPTION =
   "Build a professional, ATS-friendly resume in minutes. Pick from 50 designer templates, see a live preview and download a pixel-perfect PDF for free.";
+
+/** Shown on the privacy and terms pages. Set NEXT_PUBLIC_CONTACT_EMAIL before launch. */
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "";
+export const LEGAL_UPDATED = "27 September 2026";

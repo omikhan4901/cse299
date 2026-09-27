@@ -11,7 +11,8 @@ export const getPublicResume = cache(async (id) => {
   if (!/^[\w-]{4,40}$/.test(id)) return { notFound: true };
   try {
     const res = await fetch(`${API_URL}/public/${encodeURIComponent(id)}`, {
-      next: { revalidate: 60 },
+      // Always fetch the latest save, so a changed template or colour shows up straight away.
+      cache: "no-store",
       signal: AbortSignal.timeout(25000),
     });
     if (res.status === 404 || res.status === 403) return { notFound: true };

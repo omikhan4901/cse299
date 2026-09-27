@@ -3,6 +3,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import WebResume from "@/components/public/WebResume";
 import PublicActions from "@/components/public/PublicActions";
+import SharedResumeView from "@/components/public/SharedResumeView";
 import { getPublicResume } from "@/lib/publicResume";
 import { splitList, toHref } from "@/lib/resume";
 import { SITE_NAME } from "@/lib/config";
@@ -63,7 +64,9 @@ export default async function PublicResumePage({ params }) {
       <main className="min-h-screen bg-slate-100 pb-20">
         <PublicActions resume={resume} />
         <div className="container-x">
-          <WebResume resume={resume} />
+          <SharedResumeView resume={resume}>
+            <WebResume resume={resume} />
+          </SharedResumeView>
           <p className="mt-8 text-center text-sm text-slate-500">
             Made with{" "}
             <Link href="/" className="font-medium text-brand hover:underline">

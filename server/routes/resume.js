@@ -3,12 +3,22 @@ const router = express.Router();
 const mongoose = require("mongoose");
 const Resume = require("../models/Resume");
 const { protect } = require("./auth");
+const { limit } = require("../lib/rateLimit");
+
+// Autosave sends a request a couple of seconds after typing stops, so this is generous.
+const perAccount = limit({ name: "resumes", windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: "Too many requests." });
+const MAX_RESUMES = Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
+const underResumeCap = async (req, res) => {
+  if ((await Resume.countDocuments({ user: req.userId })) < MAX_RESUMES) return true;
+  res.status(400).json({ success: false, error: `You can keep up to ${MAX_RESUMES} resumes. Delete one to make room.` });
+  return false;
+};
 
 // Only these fields can be written by the client. Everything else (owner,
 // shortId, timestamps) is controlled by the server.
 const EDITABLE = [
   "nickname", "personal", "summary", "experience", "education", "projects", "certifications",
-  "volunteering", "awards", "publications", "courses", "references", "referencesOnRequest", "links",
+  "volunteering", "awards", "publications", "courses", "references", "referencesOnRequest", "referenceSignatures", "links",
   "customSections", "skills", "languages", "interests", "template", "theme", "isMaster", "isPublic",
 ];
 
@@ -41,8 +51,9 @@ const handleError = (res, err, fallback) => {
 };
 
 // @route   POST /api/resumes  — create a resume
-router.post("/", protect, async (req, res) => {
+router.post("/", protect, perAccount, async (req, res) => {
   try {
+    if (!(await underResumeCap(req, res))) return;
     const data = pickEditable(req.body);
     if (data.isMaster) await Resume.updateMany({ user: req.userId }, { isMaster: false });
     const resume = await Resume.create({ ...data, user: req.userId });
@@ -53,7 +64,7 @@ router.post("/", protect, async (req, res) => {
 });
 
 // @route   GET /api/resumes  — list the user's resumes (photos left out to keep it light)
-router.get("/", protect, async (req, res) => {
+router.get("/", protect, perAccount, async (req, res) => {
   try {
     const data = await Resume.find({ user: req.userId }).select("-personal.profilePic -personal.profilePicSource").sort({ updatedAt: -1 }).lean();
     res.status(200).json({ success: true, count: data.length, data });
@@ -63,7 +74,7 @@ router.get("/", protect, async (req, res) => {
 });
 
 // @route   GET /api/resumes/:id
-router.get("/:id", protect, async (req, res) => {
+router.get("/:id", protect, perAccount, async (req, res) => {
   try {
     const resume = await findOwned(req, res);
     if (resume) res.status(200).json({ success: true, data: resume });
@@ -73,7 +84,7 @@ router.get("/:id", protect, async (req, res) => {
 });
 
 // @route   PUT /api/resumes/:id  — update (partial updates allowed)
-router.put("/:id", protect, async (req, res) => {
+router.put("/:id", protect, perAccount, async (req, res) => {
   try {
     const resume = await findOwned(req, res);
     if (!resume) return;
@@ -88,10 +99,11 @@ router.put("/:id", protect, async (req, res) => {
 });
 
 // @route   POST /api/resumes/:id/duplicate
-router.post("/:id/duplicate", protect, async (req, res) => {
+router.post("/:id/duplicate", protect, perAccount, async (req, res) => {
   try {
     const resume = await findOwned(req, res);
     if (!resume) return;
+    if (!(await underResumeCap(req, res))) return;
     const copy = pickEditable(resume.toObject());
     const created = await Resume.create({ ...copy, nickname: `${resume.nickname} (copy)`.slice(0, 120), isMaster: false, isPublic: false, user: req.userId });
     res.status(201).json({ success: true, data: created });
@@ -101,7 +113,7 @@ router.post("/:id/duplicate", protect, async (req, res) => {
 });
 
 // @route   DELETE /api/resumes/:id
-router.delete("/:id", protect, async (req, res) => {
+router.delete("/:id", protect, perAccount, async (req, res) => {
   try {
     const resume = await findOwned(req, res);
     if (!resume) return;

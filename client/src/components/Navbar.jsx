@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button, Dropdown } from "antd";
 import { motion } from "motion/react";
-import { Menu, X, LayoutDashboard, LogOut, FilePlus2 } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings } from "lucide-react";
 import Logo from "./Logo";
 import { useAuth } from "./AuthProvider";
 
@@ -20,11 +20,13 @@ export default function Navbar({ compact = false }) {
   const [open, setOpen] = useState(false);
 
   const links = isAuthenticated ? [...LINKS, { href: "/dashboard", label: "My Resumes" }] : LINKS;
+  const mobileLinks = isAuthenticated ? [...links, { href: "/account", label: "Account settings" }] : links;
 
   const userMenu = {
     items: [
       { key: "dash", icon: <LayoutDashboard size={15} />, label: <Link href="/dashboard">My resumes</Link> },
       { key: "new", icon: <FilePlus2 size={15} />, label: <Link href="/builder?new=1">New resume</Link> },
+      { key: "account", icon: <Settings size={15} />, label: <Link href="/account">Account settings</Link> },
       { type: "divider" },
       { key: "logout", icon: <LogOut size={15} />, label: "Log out", danger: true, onClick: logout },
     ],
@@ -86,7 +88,7 @@ export default function Navbar({ compact = false }) {
       {open ? (
         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden border-t border-slate-200 bg-white px-5 py-4 md:hidden">
           <div className="flex flex-col gap-1">
-            {links.map((l) => (
+            {mobileLinks.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
                 {l.label}
               </Link>
