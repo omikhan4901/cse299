@@ -110,7 +110,8 @@ All server settings are documented in `server/.env.example`. The important ones 
 
 ### Deploying
 -   **Client → Vercel**: root directory `client`. `vercel.json` sets the framework to Next.js (the project used to be Vite, so double-check *Settings → Build & Development* if the first build fails).
--   **Server → Render**: unchanged (`npm start`). Set the variables from `server/.env.example`.
+-   **Server → Google Cloud Run** (recommended): built from the root `Dockerfile`. Step-by-step guide: [`docs/deploy-cloud-run.md`](docs/deploy-cloud-run.md).
+-   **Server → Render** also still works (`npm start`, root directory `server`). Set the variables from `server/.env.example`.
 
 ### Updating template previews
 The images in `client/public/templates/*.jpg` are renders of each template with the sample resume from `client/src/lib/resume.js`. Re-render them after changing a template's design.

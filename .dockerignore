@@ -1,0 +1,7 @@
+# Only the API goes in the image.
+client
+**/node_modules
+**/.env
+.git
+*.md
+!shared/*.md
