@@ -1,8 +1,8 @@
 const express = require('express');
 const multer = require('multer');
-const pdf = require('pdf-parse/lib/pdf-parse.js');
 const mammoth = require('mammoth');
 const { protect } = require('./auth');
+const { toResume, TRANSCRIPT_SCHEMA, TRANSCRIBE_INSTRUCTION } = require('../lib/resumeImport');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -209,74 +209,29 @@ Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 
 });
 
 // --- 4. Import an existing resume (PDF / DOCX) ---
-const RESUME_SCHEMA = {
-    type: 'OBJECT',
-    properties: {
-        personal: {
-            type: 'OBJECT',
-            properties: {
-                name: { type: 'STRING' }, title: { type: 'STRING' }, phone: { type: 'STRING' }, email: { type: 'STRING' },
-                linkedin: { type: 'STRING' }, website: { type: 'STRING' }, city: { type: 'STRING' },
-            },
-        },
-        summary: { type: 'STRING' },
-        experience: {
-            type: 'ARRAY',
-            items: {
-                type: 'OBJECT',
-                properties: {
-                    company: { type: 'STRING' }, title: { type: 'STRING' }, location: { type: 'STRING' },
-                    startDate: { type: 'STRING' }, endDate: { type: 'STRING' },
-                    description: { type: 'STRING', description: 'Achievements, one per line, no bullet symbols' },
-                },
-            },
-        },
-        education: {
-            type: 'ARRAY',
-            items: {
-                type: 'OBJECT',
-                properties: {
-                    institution: { type: 'STRING' }, degree: { type: 'STRING' }, startYear: { type: 'STRING' },
-                    endYear: { type: 'STRING' }, details: { type: 'STRING' },
-                },
-            },
-        },
-        projects: {
-            type: 'ARRAY',
-            items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, link: { type: 'STRING' }, description: { type: 'STRING' } } },
-        },
-        certifications: {
-            type: 'ARRAY',
-            items: { type: 'OBJECT', properties: { name: { type: 'STRING' }, issuer: { type: 'STRING' }, date: { type: 'STRING' } } },
-        },
-        skills: { type: 'STRING', description: 'Comma-separated' },
-        languages: { type: 'STRING', description: 'Comma-separated' },
-    },
-};
-
+// Step 1: the model makes an exact JSON transcription (PDFs are sent as-is so
+// Gemini can read the real layout). Step 2: lib/resumeImport maps it to our format.
 router.post('/parse', protect, upload.single('resumeFile'), async (req, res) => {
     const file = req.file;
     if (!file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
 
     try {
-        let resumeText = '';
+        let part;
         if (file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname)) {
-            resumeText = (await pdf(file.buffer)).text;
+            part = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } };
         } else if (/\.docx$/i.test(file.originalname)) {
-            resumeText = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+            const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+            if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
+            part = { text: clip(text, 30000) };
         } else {
             return res.status(400).json({ success: false, error: 'Please upload a PDF or DOCX file.' });
         }
-        if (!resumeText.trim()) {
-            return res.status(400).json({ success: false, error: "We couldn't find any text in that file. Scanned images aren't supported." });
-        }
 
-        const json = await generate(
-            'Extract the resume below into the JSON schema. Copy facts exactly; leave fields empty when unknown.',
-            [{ role: 'user', parts: [{ text: clip(resumeText, 30000) }] }],
-            { responseMimeType: 'application/json', responseSchema: RESUME_SCHEMA }
-        );
-        res.status(200).json({ success: true, extractedData: fixNewlines(JSON.parse(json)) });
+        const json = await generate(TRANSCRIBE_INSTRUCTION, [{ role: 'user', parts: [part, { text: 'Transcribe this resume.' }] }], {
+            responseMimeType: 'application/json',
+            responseSchema: TRANSCRIPT_SCHEMA,
+        });
+        res.status(200).json({ success: true, extractedData: toResume(fixNewlines(JSON.parse(json))) });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError('Could not read that resume. Please try another file.') : err);
     }

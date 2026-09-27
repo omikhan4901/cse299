@@ -45,7 +45,7 @@ AI refine, chat assistant, ATS check, cover letter and PDF/DOCX import are power
 -   **Runtime**: Node.js + Express
 -   **Database**: MongoDB (Mongoose)
 -   **Authentication**: JWT + bcrypt
--   **AI**: Google Gemini REST API; `pdf-parse` and `mammoth` for imports
+-   **AI**: Google Gemini REST API. Imports send the PDF itself to Gemini for an exact JSON transcription, then `server/lib/resumeImport.js` maps it to the ResumeX format (`mammoth` reads DOCX files)
 
 ---
 

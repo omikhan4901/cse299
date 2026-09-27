@@ -38,6 +38,13 @@ export function registerFonts(base = "/fonts") {
     fonts.push({ src: `${base}/${files.italic}.woff`, fontStyle: "italic", fontWeight: 700 });
     Font.register({ family, fonts });
   }
-  // Word hyphenation looks broken on a resume, so keep words whole.
-  Font.registerHyphenationCallback((word) => [word]);
+  // Word hyphenation looks broken on a resume, so keep words whole. Long unbroken
+  // strings (URLs, emails) may break after "/", ".", "_" or "@" so they wrap
+  // instead of running into the next column. (Not after "-": react-pdf adds its
+  // own hyphen at a break, which would print "--".)
+  Font.registerHyphenationCallback((word) => {
+    if (word.length <= 24) return [word];
+    const parts = word.match(/[^/._@]+[/._@]*|[/._@]+/g) || [word];
+    return parts.flatMap((part) => part.match(/.{1,24}/g));
+  });
 }
