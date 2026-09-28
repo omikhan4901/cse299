@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Dropdown, Segmented, Tooltip, App, Input, Result, Spin } from "antd";
+import { AnimatePresence } from "motion/react";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, Eraser,
-  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen,
+  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen, FileWarning, LogIn,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
@@ -18,7 +19,8 @@ import { useResumeEditor } from "./useResumeEditor";
 import ContentPanel from "./ContentPanel";
 import DesignPanel from "./DesignPanel";
 import PdfPreview from "./PdfPreview";
-import SaveModal from "./SaveModal";
+import { StartPrivateModal, LeavePrivateModal, PrivateBanner } from "./PrivateSession";
+import { readDraft, writeDraft, clearDraft, isWorthKeeping, isUntouchedSample, hasRealContent, defaultNickname, draftLabel } from "./drafts";
 import ShareModal from "./ShareModal";
 import { ChatModal, CoverLetterModal, aiResume } from "./AiModals";
 import AtsModal from "./AtsModal";
@@ -31,17 +33,6 @@ import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
 import { celebrate } from "../celebrate";
 
-const DRAFT_KEY = "resumex:draft";
-
-const readDraft = () => {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    return raw ? normalizeResume(JSON.parse(raw)) : null;
-  } catch {
-    return null;
-  }
-};
-
 /** Loads the resume to edit (saved, new or local draft) and then mounts the editor. */
 export default function Builder() {
   const params = useSearchParams();
@@ -52,6 +43,8 @@ export default function Builder() {
   const template = params.get("template");
   const priv = params.get("private");
   const [state, setState] = useState({ status: "loading" });
+  // Set when the person has decided what to do with an unsaved draft before starting a new resume.
+  const [newConfirmed, setNewConfirmed] = useState(false);
   const openId = useRef(null);
   const markSaved = useCallback((newId) => {
     openId.current = newId;
@@ -63,25 +56,32 @@ export default function Builder() {
     /* eslint-disable react-hooks/set-state-in-effect -- the editor's content follows the URL */
     const withTemplate = (r) => (template && TEMPLATES.some((t) => t.id === template) ? { ...r, template } : r);
     if (priv) {
-      // Private session: starts empty, and nothing is stored anywhere.
-      localStorage.removeItem(DRAFT_KEY);
+      // Private session: starts empty and stores nothing. A draft already in this browser is left alone.
+      if (state.status === "ready" && state.private) return; // e.g. logging in mid-session must not wipe it
       openId.current = null;
       setState({ status: "ready", resume: withTemplate(normalizeResume(blankResume())), key: `private-${Date.now()}`, private: true });
       return;
     }
     if (isNew || template) {
-      const draft = isNew ? null : readDraft();
-      if (isNew) localStorage.removeItem(DRAFT_KEY);
-      const fresh = draft || normalizeResume(isNew === "blank" ? blankResume() : sampleResume());
+      const draft = readDraft();
+      // Never replace unsaved work without asking.
+      if (isNew && !newConfirmed && isWorthKeeping(draft)) {
+        setState({ status: "confirm-new", draft });
+        return;
+      }
+      const keep = isNew ? null : draft;
+      if (isNew) clearDraft();
+      const fresh = keep || normalizeResume(isNew === "blank" ? blankResume() : sampleResume());
       openId.current = null;
-      setState({ status: "ready", resume: withTemplate(fresh), key: `new-${Date.now()}`, example: !draft && isNew !== "blank" });
+      setState({ status: "ready", resume: withTemplate(fresh), key: `new-${Date.now()}`, example: !keep && isNew !== "blank" });
+      setNewConfirmed(false);
       router.replace("/builder");
       return;
     }
     if (!id) {
       if (state.status === "ready" && !state.resume?._id) return;
       const draft = readDraft();
-      setState({ status: "ready", resume: draft || normalizeResume(sampleResume()), key: "draft", example: !draft });
+      setState({ status: "ready", resume: draft || normalizeResume(sampleResume()), key: "draft", example: !draft || isUntouchedSample(draft) });
       return;
     }
     if (authLoading) return;
@@ -98,8 +98,26 @@ export default function Builder() {
       .catch((err) => setState({ status: "error", error: err.message }));
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isNew, template, token, authLoading, priv]);
+  }, [id, isNew, template, token, authLoading, priv, newConfirmed]);
 
+  if (state.status === "confirm-new") {
+    return (
+      <Result
+        icon={<FileWarning size={48} className="mx-auto text-amber-500" />}
+        title="You have an unsaved resume in this browser"
+        subTitle={
+          token
+            ? `${draftLabel(state.draft)} isn't in your account yet. Open it and it will be saved to My resumes automatically, or start a new one and discard it.`
+            : `${draftLabel(state.draft)} is only stored in this browser. Starting a new resume will replace it.`
+        }
+        extra={[
+          <Button key="keep" type="primary" onClick={() => router.replace("/builder")}>{token ? "Open and save it" : "Keep editing it"}</Button>,
+          <Button key="file" icon={<FileDown size={15} />} onClick={() => saveToFile(state.draft)}>Save it to a file</Button>,
+          <Button key="new" danger onClick={() => setNewConfirmed(true)}>Discard it and start new</Button>,
+        ]}
+      />
+    );
+  }
   if (state.status === "login") {
     return (
       <Result
@@ -158,7 +176,6 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const [pages, setPages] = useState(1);
   const [showExample, setShowExample] = useState(!!example);
   const [downloading, setDownloading] = useState(false);
-  const [saveOpen, setSaveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [aiModal, setAiModal] = useState(null);
   const [gallery, setGallery] = useState(null);
@@ -166,6 +183,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const [tourOpen, setTourOpen] = useState(false);
   // Private session: no autosave, no browser draft, no sharing. Only for resumes that aren't saved to an account.
   const [privateMode, setPrivateMode] = useState(startPrivate);
+  // { type: "start", hasStoredDraft } or { type: "leave", replaces, other }
+  const [privateDialog, setPrivateDialog] = useState(null);
 
   // The builder fills the window and its panels scroll on their own, so the page itself never needs to.
   useEffect(() => {
@@ -188,23 +207,33 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const [refiningId, setRefiningId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  // The account session ended (e.g. it expired): saving waits until the person logs in again.
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
+  const creating = useRef(false);
 
   const payloadJson = useMemo(() => JSON.stringify(toPayload(resume)), [resume]);
+  const [initialJson] = useState(payloadJson);
+  const edited = payloadJson !== initialJson;
   const [savedJson, setSavedJson] = useState(resume._id ? payloadJson : null);
   const dirty = !!resume._id && savedJson !== payloadJson;
 
-  // Unsaved (guest or new) resumes live in localStorage so nothing is lost on refresh.
+  const onSaveFailed = useCallback((err) => {
+    setSaveError(err.message);
+    if (err.status === 401) setSessionExpired(true);
+  }, []);
+  const onSaveSucceeded = useCallback(() => {
+    setSaveError(null);
+    setSessionExpired(false);
+  }, []);
+
+  // Resumes that aren't in an account live in this browser so nothing is lost on refresh.
+  // (The untouched example isn't stored, and private sessions store nothing.)
   useEffect(() => {
-    if (resume._id || privateMode) return;
-    const t = setTimeout(() => {
-      try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(resume));
-      } catch {
-        /* storage full (large photo) or disabled — the editor still works */
-      }
-    }, 400);
+    if (resume._id || privateMode || (showExample && !edited)) return;
+    const t = setTimeout(() => writeDraft(resume), 400);
     return () => clearTimeout(t);
-  }, [resume, privateMode]);
+  }, [resume, privateMode, showExample, edited]);
 
   const saveNow = useCallback(async () => {
     if (!resume._id || !token) return;
@@ -213,20 +242,67 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     try {
       await api(`/resumes/${resume._id}`, { token, method: "PUT", body: JSON.parse(body) });
       setSavedJson(body);
-      setSaveError(null);
+      onSaveSucceeded();
     } catch (err) {
-      setSaveError(err.message);
+      onSaveFailed(err);
     } finally {
       setSaving(false);
     }
-  }, [resume._id, token, payloadJson]);
+  }, [resume._id, token, payloadJson, onSaveFailed, onSaveSucceeded]);
+
+  /** Adds this resume to the account. Edits made while the request is in flight are kept and saved next. */
+  const createResume = useCallback(
+    async ({ nickname, isMaster = false }, { auto = false } = {}) => {
+      if (creating.current || !token) return;
+      creating.current = true;
+      const snapshot = resume;
+      setSaving(true);
+      try {
+        const { data } = await api("/resumes", { token, method: "POST", body: { ...toPayload(snapshot), nickname, isMaster } });
+        const ids = { _id: data._id, shortId: data.shortId, nickname, isMaster, isPublic: data.isPublic };
+        setSavedJson(JSON.stringify(toPayload({ ...snapshot, ...ids })));
+        setResume((r) => ({ ...r, ...ids }));
+        clearDraft();
+        onSaved(data._id);
+        window.history.replaceState(null, "", `/builder?id=${data._id}`);
+        onSaveSucceeded();
+        message.success(auto ? "Saved to My resumes. Every change now saves automatically." : "Saved to My resumes.");
+      } catch (err) {
+        onSaveFailed(err);
+        if (!auto) message.error(err.message);
+      } finally {
+        creating.current = false;
+        setSaving(false);
+      }
+    },
+    [resume, token, setResume, onSaved, message, onSaveFailed, onSaveSucceeded]
+  );
 
   // Saved resumes autosave shortly after you stop typing.
   useEffect(() => {
-    if (!dirty || !token) return;
+    if (!dirty || !token || sessionExpired) return;
     const t = setTimeout(saveNow, 1500);
     return () => clearTimeout(t);
-  }, [dirty, token, saveNow]);
+  }, [dirty, token, saveNow, sessionExpired, retryTick]);
+
+  // Signed in: a new resume goes into the account as soon as it has content, so it can't get lost.
+  const wantsAccountCopy = isAuthenticated && !!token && !resume._id && !privateMode && !sessionExpired && hasRealContent(resume) && (!showExample || edited);
+  useEffect(() => {
+    if (!wantsAccountCopy) return;
+    const t = setTimeout(() => createResume({ nickname: defaultNickname(resume) }, { auto: true }), 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-armed by content changes and retries
+  }, [wantsAccountCopy, payloadJson, retryTick]);
+
+  // A failed save really does retry (until the session has expired, which needs a new login).
+  useEffect(() => {
+    if (!saveError || sessionExpired) return;
+    const t = setTimeout(() => setRetryTick((n) => n + 1), 8000);
+    return () => clearTimeout(t);
+  }, [saveError, sessionExpired, retryTick]);
+
+  const needsLogin = sessionExpired || (!!resume._id && !token);
+  const logInAgain = () => openAuth("login", `${window.location.pathname}${window.location.search}`);
 
   useEffect(() => {
     const warn = (e) => {
@@ -239,18 +315,30 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, privateMode]);
 
-  const startPrivateSession = () => {
-    try {
-      localStorage.removeItem(DRAFT_KEY);
-    } catch {
-      /* storage unavailable */
-    }
+  const startPrivateSession = () => setPrivateDialog({ type: "start", hasStoredDraft: !resume._id && isWorthKeeping(readDraft()) });
+  const confirmStartPrivate = ({ deleteDraft }) => {
+    if (deleteDraft) clearDraft();
     setPrivateMode(true);
-    message.success("Private session on. Nothing is saved to our servers or this browser.");
+    setPrivateDialog(null);
+    message.success(deleteDraft ? "Private session on, and the copy in this browser is deleted." : "Private session on. Nothing is being saved.");
   };
   const endPrivateSession = () => {
+    const other = readDraft();
+    // Warn only when a *different* resume would be overwritten in this browser.
+    const replaces = isWorthKeeping(other) && (other.personal.name || "") !== (resume.personal.name || "") ? draftLabel(other) : null;
+    setPrivateDialog({ type: "leave", replaces, other });
+  };
+  const confirmLeavePrivate = () => {
     setPrivateMode(false);
-    message.info("Private session off. Your draft is kept in this browser again.");
+    setPrivateDialog(null);
+    window.history.replaceState(null, "", "/builder");
+    if (isAuthenticated) {
+      if (hasRealContent(resume)) createResume({ nickname: defaultNickname(resume) });
+      else message.info("Private session ended. Your resume will save to your account once you add something.");
+    } else {
+      writeDraft(resume);
+      message.success("Private session ended. Your resume is kept in this browser.");
+    }
   };
   const openFromFile = async (e) => {
     const file = e.target.files?.[0];
@@ -270,7 +358,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   const handleSave = useCallback(() => {
     if (privateMode) {
-      message.info("This is a private session, so nothing is saved to our servers. Use “Save to file” to keep a copy on your device.");
+      message.info("This is a private session, so nothing is saved. Use “Save to file” to keep a copy on your device, or leave private mode.");
       return;
     }
     if (!isAuthenticated) {
@@ -278,9 +366,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       openAuth("register", "/builder");
       return;
     }
+    if (needsLogin) return logInAgain();
     if (resume._id) saveNow();
-    else setSaveOpen(true);
-  }, [isAuthenticated, resume._id, saveNow, openAuth, message, privateMode]);
+    else createResume({ nickname: defaultNickname(resume) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, resume, saveNow, createResume, openAuth, message, privateMode, needsLogin]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -292,25 +382,6 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [handleSave]);
-
-  const createResume = async ({ nickname, isMaster }) => {
-    setSaving(true);
-    try {
-      const { data } = await api("/resumes", { token, method: "POST", body: { ...toPayload(resume), nickname, isMaster } });
-      const saved = { ...resume, _id: data._id, shortId: data.shortId, nickname, isMaster, isPublic: data.isPublic };
-      setSavedJson(JSON.stringify(toPayload(saved)));
-      setResume(saved);
-      localStorage.removeItem(DRAFT_KEY);
-      onSaved(data._id);
-      window.history.replaceState(null, "", `/builder?id=${data._id}`);
-      setSaveOpen(false);
-      message.success("Saved to your account. Changes now save automatically.");
-    } catch (err) {
-      message.error(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDownload = async (event) => {
     const origin = event?.currentTarget;
@@ -502,7 +573,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       { key: "ats", icon: <ScanSearch size={15} />, label: "ATS check", onClick: () => openAi("audit") },
       { key: "file-save", icon: <FileDown size={15} />, label: "Save to file", onClick: () => saveToFile(resume) },
       { key: "file-open", icon: <FolderOpen size={15} />, label: "Open file", onClick: () => document.getElementById("resume-open-file")?.click() },
-      ...(!resume._id ? [{ key: "private", icon: <EyeOff size={15} />, label: privateMode ? "End private session" : "Private session", onClick: privateMode ? endPrivateSession : startPrivateSession }] : []),
+      ...(!resume._id ? [{ key: "private", icon: <EyeOff size={15} />, label: privateMode ? "Leave private session" : "Private session", onClick: privateMode ? endPrivateSession : startPrivateSession }] : []),
       { key: "guide", icon: <BookOpen size={15} />, label: "How to write a good resume", onClick: () => setGuideOpen(true) },
       { type: "group", label: "AI tools", children: [
         aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
@@ -523,18 +594,20 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   const tpl = templateById(resume.template);
   const status = privateMode
-    ? { icon: <EyeOff size={13} />, text: "Private session — nothing is saved", tone: "text-violet-600" }
+    ? { icon: <EyeOff size={13} />, text: "Private session · nothing is saved", tone: "text-violet-600" }
     : !isAuthenticated
-    ? { icon: <CloudOff size={13} />, text: "Not saved to an account", tone: "text-slate-400" }
-    : !resume._id
-      ? { icon: <CloudOff size={13} />, text: "Draft — not saved yet", tone: "text-slate-400" }
-      : saving
-        ? { icon: <Loader2 size={13} className="animate-spin" />, text: "Saving…", tone: "text-slate-500" }
-        : saveError
-          ? { icon: <CloudOff size={13} />, text: "Save failed — retrying", tone: "text-red-500" }
-          : dirty
-            ? { icon: <PenLine size={13} />, text: "Unsaved changes", tone: "text-amber-600" }
-            : { icon: <Check size={13} />, text: "All changes saved", tone: "text-emerald-600" };
+      ? { icon: <CloudOff size={13} />, text: "Saved in this browser only", tone: "text-slate-400" }
+      : needsLogin
+        ? { icon: <LogIn size={13} />, text: "Signed out · log in to keep saving", tone: "text-red-500", action: "login" }
+        : saving
+          ? { icon: <Loader2 size={13} className="animate-spin" />, text: resume._id ? "Saving…" : "Saving to your account…", tone: "text-slate-500" }
+          : saveError
+            ? { icon: <CloudOff size={13} />, text: "Couldn't save · retrying", tone: "text-red-500", action: "retry" }
+            : !resume._id
+              ? { icon: <CloudOff size={13} />, text: "Saves to your account once you start editing", tone: "text-slate-400" }
+              : dirty
+                ? { icon: <PenLine size={13} />, text: "Unsaved changes", tone: "text-amber-600" }
+                : { icon: <Check size={13} />, text: "All changes saved", tone: "text-emerald-600" };
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
@@ -556,8 +629,13 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
           ) : (
             <p className="truncate px-1 text-[15px] font-semibold text-ink">{resume.personal.name ? `${resume.personal.name}'s resume` : "Untitled resume"}</p>
           )}
-          <p className={`flex items-center gap-1 px-1 text-xs ${status.tone}`}>
+          <p className={`inline-flex items-center gap-1 px-1 text-xs ${status.tone}`} data-tour="status">
             {status.icon} {status.text}
+            {status.action ? (
+              <button type="button" onClick={() => (status.action === "login" ? logInAgain() : handleSave())} className="ml-1 font-semibold underline underline-offset-2">
+                {status.action === "login" ? "Log in" : "Try now"}
+              </button>
+            ) : null}
           </p>
         </div>
         <div className="flex items-center gap-2 lg:hidden">
@@ -601,14 +679,14 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
             </Tooltip>
           ) : null}
           {privateMode ? (
-            <Tooltip title="Download this resume as a file you can open again later">
-              <Button icon={<FileDown size={15} />} onClick={() => saveToFile(resume)}>
-                <span className="hidden xl:inline">Save to file</span>
+            <Tooltip title="Private session is on. Click to leave it and keep your resume.">
+              <Button data-tour="private" icon={<EyeOff size={15} />} onClick={endPrivateSession} className="!border-violet-300 !bg-violet-50 !text-violet-700 hover:!border-violet-400">
+                <span className="hidden xl:inline">Private: on</span>
               </Button>
             </Tooltip>
           ) : !resume._id ? (
-            <Tooltip title="Work without saving anything to our servers or this browser">
-              <Button icon={<EyeOff size={15} />} onClick={startPrivateSession}>
+            <Tooltip title="Work without saving anything to your account, our servers or this browser">
+              <Button data-tour="private" icon={<EyeOff size={15} />} onClick={startPrivateSession}>
                 <span className="hidden xl:inline">Private</span>
               </Button>
             </Tooltip>
@@ -627,6 +705,17 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
           <span className="sm:hidden">PDF</span>
         </Button>
       </div>
+
+      <AnimatePresence initial={false}>
+        {privateMode ? (
+          <PrivateBanner
+            key="private"
+            onSaveFile={() => saveToFile(resume)}
+            onOpenFile={() => document.getElementById("resume-open-file")?.click()}
+            onLeave={endPrivateSession}
+          />
+        ) : null}
+      </AnimatePresence>
 
       <div className="border-b border-slate-200 bg-white px-3 py-2 lg:hidden">
         <Segmented block value={mobileView} onChange={setMobileView} options={[{ label: "Edit", value: "edit" }, { label: "Preview", value: "preview" }]} />
@@ -648,18 +737,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
           </div>
           <div className="px-4 pb-10">
             {privateMode ? (
-              <div className="mb-3 rounded-2xl border border-violet-200 bg-violet-50 p-3.5 text-sm">
-                <p className="flex items-center gap-2 font-semibold text-violet-900"><EyeOff size={16} /> Private session</p>
-                <p className="mt-1 text-violet-900/80">
-                  Nothing is stored on our servers or in this browser. When you close this tab, it&apos;s gone. Download your PDF, or save a file to continue later.
-                  AI features send your text to our AI provider only to answer; it isn&apos;t kept.
-                </p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <Button size="small" icon={<FileDown size={13} />} onClick={() => saveToFile(resume)}>Save to file</Button>
-                  <Button size="small" icon={<FolderOpen size={13} />} onClick={() => document.getElementById("resume-open-file")?.click()}>Open file</Button>
-                  <Button size="small" type="text" onClick={endPrivateSession}>End private session</Button>
-                </div>
-              </div>
+              <p className="mb-3 flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900/80">
+                <EyeOff size={14} className="mt-0.5 shrink-0 text-violet-600" />
+                AI features send your text to our AI provider only to answer; it isn&apos;t kept. Everything else stays on this page.
+              </p>
             ) : null}
             {showExample && tab === "content" ? (
               <div className="mb-3 flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-3.5">
@@ -720,7 +801,15 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       </div>
 
 
-      <SaveModal open={saveOpen} onCancel={() => setSaveOpen(false)} onSave={createResume} loading={saving} resume={resume} />
+      <StartPrivateModal open={privateDialog?.type === "start"} hasStoredDraft={privateDialog?.hasStoredDraft} onCancel={() => setPrivateDialog(null)} onConfirm={confirmStartPrivate} />
+      <LeavePrivateModal
+        open={privateDialog?.type === "leave"}
+        isAuthenticated={isAuthenticated}
+        replacesDraft={privateDialog?.replaces}
+        onSaveOtherDraft={() => saveToFile(privateDialog.other)}
+        onCancel={() => setPrivateDialog(null)}
+        onLeave={confirmLeavePrivate}
+      />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />
       <TemplateGallery
         open={!!gallery}
@@ -733,7 +822,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         }}
       />
       <ResumeGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
-      <BuilderTour open={tourOpen} onClose={() => setTourOpen(false)} />
+      <BuilderTour open={tourOpen} onClose={() => setTourOpen(false)} signedIn={isAuthenticated} />
       <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
       {AI_ENABLED ? (
         <>

@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Dropdown, App, Result, Skeleton, Tooltip } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText, HardDrive, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { normalizeResume } from "@/lib/resume";
 import { templateById } from "@/pdf/registry";
 import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "./AuthProvider";
 import ResumeThumbnail from "./ResumeThumbnail";
+import { readDraft, isWorthKeeping, draftLabel } from "./builder/drafts";
 
 const timeAgo = (date) => {
   const s = (Date.now() - new Date(date).getTime()) / 1000;
@@ -30,6 +31,14 @@ export default function Dashboard() {
   const [resumes, setResumes] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null);
+  // A resume started in this browser that never made it into the account.
+  const [localDraft, setLocalDraft] = useState(null);
+  useEffect(() => {
+    const draft = readDraft();
+    // localStorage is only readable after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isWorthKeeping(draft)) setLocalDraft(draft);
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -124,6 +133,18 @@ export default function Dashboard() {
           <Button type="primary" size="large" icon={<Plus size={17} />}>New resume</Button>
         </Link>
       </div>
+
+      {localDraft && token ? (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><HardDrive size={17} /></span>
+          <p className="min-w-0 flex-1 text-sm text-amber-900">
+            <b>{draftLabel(localDraft)}</b> is only saved in this browser, not in your account yet.
+          </p>
+          <Link href="/builder">
+            <Button type="primary" icon={<ArrowRight size={15} />} iconPlacement="end">Open and save it</Button>
+          </Link>
+        </div>
+      ) : null}
 
       {error ? (
         <Result status="warning" title="We couldn't load your resumes" subTitle={error} extra={<Button onClick={load}>Try again</Button>} />
