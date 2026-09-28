@@ -206,6 +206,12 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const revRef = useRef(initial.rev ?? 0);
   // The server's newer copy, when a save found one.
   const [conflict, setConflict] = useState(null);
+  // One save at a time: a second save sent while the first is on its way would carry the
+  // same revision and be refused as if another tab had saved (edits made meanwhile are
+  // saved as soon as the first one finishes).
+  const inFlight = useRef(false);
+  // A save whose answer never came (timeout, dropped connection): it may have been saved.
+  const unconfirmed = useRef(null);
 
   const payloadJson = useMemo(() => JSON.stringify(toPayload(resume)), [resume]);
   const [initialJson] = useState(payloadJson);
@@ -240,26 +246,43 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   }, [resume, privateMode, showExample, edited]);
 
   const saveNow = useCallback(async () => {
-    if (!resume._id || !token || conflict) return;
+    if (!resume._id || !token || conflict || inFlight.current) return;
     const body = payloadJson;
+    inFlight.current = true;
     setSaving(true);
     try {
       const { data } = await api(`/resumes/${resume._id}`, { token, method: "PUT", body: { ...JSON.parse(body), baseRev: revRef.current } });
       revRef.current = data.rev ?? revRef.current + 1;
+      unconfirmed.current = null;
       setSavedJson(body);
       onSaveSucceeded();
     } catch (err) {
       if (err.code === "conflict" && err.data) {
-        setConflict(err.data);
-        setSaveError(null);
+        // Not a real conflict if the "other version" is this tab's own save, e.g. one whose
+        // answer was lost: take its revision and carry on without asking.
+        const theirs = JSON.stringify(toPayload(normalizeResume(err.data)));
+        if (theirs === body || theirs === unconfirmed.current) {
+          revRef.current = err.data.rev ?? revRef.current;
+          unconfirmed.current = null;
+          if (theirs === body) setSavedJson(body);
+          else setRetryTick((n) => n + 1); // save the newer edits on top
+          setSaveError(null);
+        } else {
+          setConflict(err.data);
+          setSaveError(null);
+        }
       }
       // The plan doesn't include the chosen template (e.g. the rules changed): go back to the
       // saved design, which the upgrade dialog explains, instead of retrying forever.
       else if (err.code === "upgrade") {
         const savedTemplate = savedJson ? JSON.parse(savedJson).template : "Classic";
         setResume((r) => ({ ...r, template: savedTemplate || "Classic" }));
-      } else onSaveFailed(err);
+      } else {
+        if (!err.status) unconfirmed.current = body; // no answer: it may have reached the server
+        onSaveFailed(err);
+      }
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   }, [resume._id, token, conflict, payloadJson, savedJson, setResume, onSaveFailed, onSaveSucceeded]);
@@ -342,10 +365,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   // Saved resumes autosave shortly after you stop typing.
   useEffect(() => {
-    if (!dirty || !token || sessionExpired || suspended || conflict) return;
+    if (!dirty || !token || sessionExpired || suspended || conflict || saving) return;
     const t = setTimeout(saveNow, 1500);
     return () => clearTimeout(t);
-  }, [dirty, token, saveNow, sessionExpired, suspended, conflict, retryTick]);
+  }, [dirty, token, saveNow, sessionExpired, suspended, conflict, saving, retryTick]);
 
   // Signed in: a new resume goes into the account as soon as it has content, so it can't get lost.
   const wantsAccountCopy = isAuthenticated && !!token && !resume._id && !privateMode && !sessionExpired && !suspended && hasRealContent(resume) && (!showExample || edited);
