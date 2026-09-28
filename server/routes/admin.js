@@ -10,7 +10,8 @@ const AdminLog = require('../models/AdminLog');
 const { audit } = require('../lib/audit');
 const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email');
 const { limit, describeLimits } = require('../lib/rateLimit');
-const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
+const { deleteUserData } = require('../lib/userData');
+const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 const { refundCheck } = require('../lib/refunds');
 
@@ -26,7 +27,7 @@ const bad = (res, error, status = 400) => res.status(status).json({ success: fal
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
-const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod creditLimitExpiresAt role banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
+const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
 
 /** Adds role, current plan, credit usage and resume counts to a page of users. */
 async function describeUsers(users) {
@@ -192,6 +193,7 @@ async function applyUserFields(user, body, req) {
         if (next !== user.creditLimit) user.creditLimitExpiresAt = undefined;
         user.creditLimit = next;
     }
+    if (body.v2Preview !== undefined) user.v2Preview = body.v2Preview === true;
     if (body.creditPeriod !== undefined) user.creditPeriod = ['day', 'month'].includes(body.creditPeriod) ? body.creditPeriod : null;
     if (body.password) {
         if (passwordProblem(body.password)) fail(passwordProblem(body.password));
@@ -289,7 +291,7 @@ router.delete('/users/:id', wrap(async (req, res) => {
     if (!user) return bad(res, 'User not found.', 404);
     if (String(user._id) === req.userId || isSuperadmin(user)) return bad(res, "You can't delete yourself or a super admin.");
     if (roleOf(user) === 'admin' && req.role !== 'superadmin') return bad(res, 'Only super admins can delete admin accounts.', 403);
-    await Promise.all([Resume.deleteMany({ user: user._id }), Usage.deleteMany({ user: user._id }), AiEvent.deleteMany({ user: user._id })]);
+    await deleteUserData(user._id);
     await user.deleteOne();
     await audit(req, 'user.delete', user.email);
     res.json({ success: true });
@@ -310,7 +312,7 @@ router.get('/audit', wrap(async (req, res) => {
 
 // ---------- Settings (plans, prices, credit costs, free mode) ----------
 
-const settingsPayload = async () => ({ ...(await readSettings()), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, rateLimits: describeLimits() });
+const settingsPayload = async () => ({ ...(await readSettings()), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, planLimits: PLAN_LIMITS, rateLimits: describeLimits() });
 
 router.get('/settings', wrap(async (req, res) => {
     res.json({ success: true, data: await settingsPayload() });

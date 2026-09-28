@@ -7,7 +7,7 @@ import { Button, Dropdown, Segmented, Tooltip, App, Input, Modal, Result, Spin }
 import { AnimatePresence } from "motion/react";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, Eraser,
-  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen, FileWarning, LogIn,
+  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen, FileWarning, LogIn, UserRound,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { setBuilderSession } from "@/lib/builderSession";
@@ -34,6 +34,7 @@ import ResumeGuideModal from "./ResumeGuideModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
 import { celebrate } from "../celebrate";
+import { useProfileSync } from "../profile/useProfileSync";
 
 /** Loads the resume to edit (saved, new or local draft) and then mounts the editor. */
 export default function Builder() {
@@ -625,6 +626,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   };
 
   const billing = useBilling();
+  // V2: the Career Profile replaces the "master resume" for accounts that have V2.
+  const profileSync = useProfileSync({ token, resume, setResume, enabled: isAuthenticated && !!billing?.v2 });
   // Plan locks (only when free mode is off in the admin settings). Locked controls carry a
   // plan tag, and using one explains the upgrade instead of failing.
   const FEATURE_OF = { audit: "atsCheck", chat: "chat", cover: "coverLetter", import: "parse" };
@@ -682,7 +685,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         aiItem("import", <Upload size={15} />, "Import PDF / DOCX", () => openAi("import")),
       ] },
       { type: "divider" },
-      ...(isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
+      ...(profileSync.items.length ? profileSync.items : isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
       {
         key: "clear",
         icon: <Eraser size={15} />,
@@ -777,7 +780,13 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         </Tooltip>
         {/* On desktop everything else lives in the dock, so these sit in the toolbar and the "more" menu is mobile-only. */}
         <div className="hidden items-center gap-2 lg:flex">
-          {isAuthenticated ? (
+          {profileSync.items.length ? (
+            <Dropdown menu={{ items: profileSync.items }} trigger={["click"]}>
+              <Button icon={<UserRound size={15} />}>
+                <span className="hidden xl:inline">Profile</span>
+              </Button>
+            </Dropdown>
+          ) : isAuthenticated ? (
             <Tooltip title="Fill this resume from your master profile">
               <Button icon={<Crown size={15} />} onClick={fillFromMaster}>
                 <span className="hidden xl:inline">Fill from master</span>
@@ -918,6 +927,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         onCancel={() => setPrivateDialog(null)}
         onLeave={confirmLeavePrivate}
       />
+      {profileSync.dialog}
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />
       <TemplateGallery
         open={!!gallery}

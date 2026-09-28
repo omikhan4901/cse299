@@ -407,10 +407,10 @@ Reminder (derived; stored only for email sending state)
 - **Scheduler:** Cloud Scheduler → `POST /api/internal/reminders` (authenticated with
   `INTERNAL_API_KEY`) for email digests.
 
-**Two formats, one converter.** The profile stores bullets and skills as items with ids;
-resumes keep today's format (bullets as lines, skills as a comma list), so the builder,
-templates and PDF engine are untouched. The generator converts; each resume item keeps its
-`profileItemId`, and bullets are matched by text when syncing.
+**One content format.** The profile has the same content shape as a resume (points as
+lines, skills as a list), so the builder's editors, templates, ATS checks and PDF engine work
+on it untouched. Each resume item made from it keeps its `profileItemId`; points are matched
+by wording when syncing (see `client/src/lib/profile.js`).
 
 **Shipping in pieces.** Every push to `main` deploys, so V2 screens sit behind an admin
 setting, **V2 preview** (admins and listed accounts only), until V2 is switched on.

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button, Dropdown } from "antd";
 import { motion } from "motion/react";
-import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings, ShieldCheck } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { useBilling } from "./BillingProvider";
 import Logo from "./Logo";
 import { useAuth } from "./AuthProvider";
@@ -26,11 +26,14 @@ export default function Navbar({ compact = false }) {
   const billing = useBilling();
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const base = billing?.config?.showPricing ? [...LINKS, { href: "/pricing", label: "Pricing" }] : LINKS;
-  const links = isAuthenticated ? [...base, { href: "/dashboard", label: "My Resumes" }] : base;
+  // V2: the Career Profile sits next to the resumes made from it.
+  const mine = billing?.v2 ? [{ href: "/career", label: "Profile" }, { href: "/dashboard", label: "My Resumes" }] : [{ href: "/dashboard", label: "My Resumes" }];
+  const links = isAuthenticated ? [...base, ...mine] : base;
   const mobileLinks = isAuthenticated ? [...links, { href: "/account", label: "Account settings" }, ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])] : links;
 
   const userMenu = {
     items: [
+      ...(billing?.v2 ? [{ key: "profile", icon: <UserRound size={15} />, label: <Link href="/career">Career Profile</Link> }] : []),
       { key: "dash", icon: <LayoutDashboard size={15} />, label: <Link href="/dashboard">My resumes</Link> },
       { key: "new", icon: <FilePlus2 size={15} />, label: <Link href="/builder?new=1">New resume</Link> },
       { key: "account", icon: <Settings size={15} />, label: <Link href="/account">Account settings</Link> },

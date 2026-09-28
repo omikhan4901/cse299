@@ -16,6 +16,7 @@ export default function PrivacyPage() {
         <ul>
           <li><b>Account details:</b> your name, email address and a securely hashed password (we never see or store the password itself).</li>
           <li><b>Resume content:</b> everything you enter in the builder, including contact details, work history, references and an optional photo.</li>
+          <li><b>Career Profile:</b> if you set one up, the career details you keep in it (the same kind of content as a resume). We don&apos;t ask for or keep sensitive identity details such as national ID numbers.</li>
           <li><b>Usage counters:</b> how many AI requests your account makes each day, so we can apply fair-use limits. These are deleted after a few days.</li>
           <li><b>Technical data:</b> our hosting providers keep standard server logs (such as IP address and browser type) for security and troubleshooting.</li>
         </ul>
@@ -64,8 +65,8 @@ export default function PrivacyPage() {
         <h2>Your rights and choices</h2>
         <ul>
           <li><b>Access and portability:</b> download all your data from <Link className="text-brand hover:underline" href="/account">Account settings</Link>.</li>
-          <li><b>Correction:</b> edit your resumes and name at any time.</li>
-          <li><b>Deletion:</b> delete individual resumes, or your whole account from Account settings.</li>
+          <li><b>Correction:</b> edit your resumes, Career Profile and name at any time.</li>
+          <li><b>Deletion:</b> delete individual resumes, or your whole account (with your Career Profile) from Account settings.</li>
           <li>Depending on where you live (for example the EU/UK under the GDPR), you may have further rights, such as objecting to processing or complaining to a data protection authority.</li>
         </ul>
       </section>

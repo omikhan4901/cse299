@@ -27,7 +27,9 @@ export function useResumeEditor(initial) {
         const index = r[section].findIndex((it) => it.id === id);
         if (index < 0) return r;
         const list = [...r[section]];
-        list.splice(index + 1, 0, { ...list[index], id: newId() });
+        // A copy is a new item: it no longer stands for the profile item the original came from.
+        const { profileItemId, ...copy } = list[index];
+        list.splice(index + 1, 0, { ...copy, id: newId() });
         return { ...r, [section]: list };
       }),
     []

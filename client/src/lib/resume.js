@@ -135,6 +135,8 @@ export function normalizeResume(input) {
   out.personal.photoCrop = crop && typeof crop === "object" ? crop : null;
   const cleanItem = (item, shape) => {
     const clean = { id: item?.id ?? newId() };
+    // The Career Profile item it came from (V2), kept so "Pull updates" can find it again.
+    if (Number.isFinite(item?.profileItemId)) clean.profileItemId = item.profileItemId;
     for (const field of Object.keys(shape)) clean[field] = str(item?.[field]);
     return clean;
   };

@@ -7,9 +7,10 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { canUse, allowanceFor } = require('../lib/credits');
+const { canUse, allowanceFor, planLimit } = require('../lib/credits');
+const { hasV2 } = require('../lib/v2');
 const { templateAllowed } = require('../lib/templates');
-const { DEFAULTS, AI_FEATURES, APP_FEATURES, PLAN_IDS } = require('../lib/settings');
+const { DEFAULTS, AI_FEATURES, APP_FEATURES, PLAN_IDS, PLAN_LIMITS } = require('../lib/settings');
 const CATEGORY_OF = require('../../shared/templates.json');
 
 const clientAccess = () => import(path.join(__dirname, '../../client/src/lib/access.js'));
@@ -27,12 +28,29 @@ function randomSettings(r) {
     settings.freeMode.enabled = r() < 0.3;
     for (const plan of settings.plans) for (const f of features) plan.features[f] = r() < 0.5;
     for (const c of Object.keys(settings.templates.categories)) settings.templates.categories[c] = pick(r, PLAN_IDS);
+    for (const plan of settings.plans) for (const { key } of PLAN_LIMITS) plan.limits[key] = r() < 0.3 ? null : Math.floor(r() * 20);
+    settings.v2 = { enabled: r() < 0.3 };
     settings.templates.overrides = {};
     for (const id of Object.keys(CATEGORY_OF)) if (r() < 0.2) settings.templates.overrides[id] = pick(r, PLAN_IDS);
     return settings;
 }
 
 describe('browser and server agree on access', () => {
+    it('plan limits and V2 access: same answer over 1,000 random settings', async () => {
+        const { planLimit: browserLimit, canUseV2 } = await clientAccess();
+        const r = rng(99);
+        for (let i = 0; i < 1000; i++) {
+            const settings = randomSettings(r);
+            for (const plan of PLAN_IDS) {
+                for (const { key } of PLAN_LIMITS) assert.equal(browserLimit(settings, plan, key), planLimit({ plan }, settings, key), `${key} on ${plan}`);
+            }
+            const user = { email: 'a@b.c', role: pick(r, ['user', 'admin']), v2Preview: r() < 0.3 };
+            // The browser sees the role the API reports (publicUser), not the stored one.
+            assert.equal(canUseV2(settings, { ...user, role: user.role }), hasV2(user, settings));
+        }
+        assert.equal(canUseV2({ v2: { enabled: true } }, null), false, 'signed out never sees V2');
+    });
+
     it('features: same answer for every plan and feature over 2,000 random settings', async () => {
         const { canUseFeature } = await clientAccess();
         const r = rng(42);

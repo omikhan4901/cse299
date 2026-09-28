@@ -39,6 +39,8 @@ const UserSchema = new mongoose.Schema({
     // When the custom allowance ends (campaign allowances last `durationDays`); empty = no end.
     creditLimitExpiresAt: { type: Date },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    // Sees V2 (Career Profile, applications) before it's switched on for everyone.
+    v2Preview: { type: Boolean, default: false },
     banned: { type: Boolean, default: false },
     bannedReason: { type: String, default: '' },
     campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },

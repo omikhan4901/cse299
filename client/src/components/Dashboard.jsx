@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Dropdown, App, Result, Skeleton, Tooltip } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText, HardDrive, ArrowRight } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText, HardDrive, ArrowRight, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { normalizeResume } from "@/lib/resume";
 import { templateById } from "@/pdf/registry";
 import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "./AuthProvider";
+import { useBilling } from "./BillingProvider";
 import ResumeThumbnail from "./ResumeThumbnail";
 import { readDraft, isWorthKeeping, draftLabel } from "./builder/drafts";
 import { timeAgo } from "@/lib/time";
@@ -23,6 +24,15 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(null);
   // A resume started in this browser that never made it into the account.
   const [localDraft, setLocalDraft] = useState(null);
+  // V2: the Career Profile replaces the master resume. null = not set up yet.
+  const v2 = !!useBilling()?.v2;
+  const [hasProfile, setHasProfile] = useState(undefined);
+  useEffect(() => {
+    if (!v2 || !token) return;
+    api("/profile", { token })
+      .then(({ data }) => setHasProfile(!!data))
+      .catch(() => {});
+  }, [v2, token]);
   useEffect(() => {
     const draft = readDraft();
     // localStorage is only readable after mount.
@@ -116,13 +126,25 @@ export default function Dashboard() {
         <div>
           <h1 className="font-display text-3xl font-bold text-ink">My resumes</h1>
           <p className="mt-1 text-slate-500">
-            {user ? `Hi ${user.name.split(" ")[0]}! ` : ""}Keep a version for every kind of job. Your <Crown size={14} className="inline text-amber-500" /> master profile can fill new resumes in one click.
+            {user ? `Hi ${user.name.split(" ")[0]}! ` : ""}Keep a version for every kind of job.{" "}
+            {v2 ? "Each one can start from your Career Profile." : <>Your <Crown size={14} className="inline text-amber-500" /> master profile can fill new resumes in one click.</>}
           </p>
         </div>
         <Link href="/builder?new=1">
           <Button type="primary" size="large" icon={<Plus size={17} />}>New resume</Button>
         </Link>
       </div>
+
+      {v2 && hasProfile === false ? (
+        <Link href="/career" className="group mb-6 flex items-center gap-3 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 to-white px-4 py-3 transition hover:border-brand">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-white"><UserRound size={17} /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-ink">Set up your Career Profile</span>
+            <span className="block text-sm text-slate-500">Everything about you in one place, so every new resume starts filled in.</span>
+          </span>
+          <ArrowRight size={16} className="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-brand" />
+        </Link>
+      ) : null}
 
       {localDraft && token ? (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
@@ -163,7 +185,7 @@ export default function Dashboard() {
                 { key: "edit", icon: <Pencil size={14} />, label: <Link href={`/builder?id=${r._id}`}>Edit</Link> },
                 { key: "dl", icon: <Download size={14} />, label: "Download PDF", onClick: () => download(r) },
                 { key: "dup", icon: <Copy size={14} />, label: "Duplicate", onClick: () => duplicate(r) },
-                { key: "master", icon: <Crown size={14} />, label: r.isMaster ? "Remove master profile" : "Set as master profile", onClick: () => makeMaster(r) },
+                ...(v2 ? [] : [{ key: "master", icon: <Crown size={14} />, label: r.isMaster ? "Remove master profile" : "Set as master profile", onClick: () => makeMaster(r) }]),
                 { type: "divider" },
                 { key: "del", icon: <Trash2 size={14} />, label: "Delete", danger: true, onClick: () => remove(r) },
               ],

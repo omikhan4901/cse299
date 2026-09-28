@@ -32,3 +32,17 @@ export function canUseTemplate(config, planId, template) {
   if (!config || config.freeMode?.enabled) return true;
   return planIncludes(planId, template, config.templates);
 }
+
+/** A numeric plan limit (applications, tailored, batch): null = no limit (also in free mode). */
+export function planLimit(config, planId, key) {
+  if (!config || config.freeMode?.enabled) return null;
+  const plan = config.plans?.find((p) => p.id === planId) || config.plans?.[0];
+  const v = plan?.limits?.[key];
+  return v === undefined ? null : v;
+}
+
+/** Whether an account sees V2 (Career Profile, applications): on for everyone, or admins and preview accounts. */
+export function canUseV2(config, user) {
+  if (!user) return false;
+  return !!config?.v2?.enabled || !!user.v2Preview || user.role === "admin" || user.role === "superadmin";
+}

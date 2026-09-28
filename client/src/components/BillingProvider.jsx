@@ -20,7 +20,7 @@ export const CREDITS_CHANGED = "resumex:credits-changed";
 export const notifyCreditsChanged = () => typeof window !== "undefined" && window.dispatchEvent(new Event(CREDITS_CHANGED));
 
 import { PLAN_ORDER, templateById, templateTier } from "@/pdf/registry";
-import { canUseFeature, canUseTemplate } from "@/lib/access";
+import { canUseFeature, canUseTemplate, canUseV2, planLimit } from "@/lib/access";
 
 export function BillingProvider({ children }) {
   const { token, user, openAuth } = useAuth();
@@ -221,13 +221,25 @@ export function BillingProvider({ children }) {
         return false;
       },
       planRank: (id) => PLAN_ORDER.indexOf(id),
+      /** V2 (Career Profile, applications) is visible to this account. */
+      v2: canUseV2(config, user),
+      /** A numeric plan limit (applications, tailored, batch); null = unlimited. */
+      limitOf: (key) => planLimit(config, planId, key),
+      /** True when one more is allowed (`count` already used); otherwise explains the upgrade. */
+      requireLimit: (key, count, what) => {
+        const max = planLimit(config, planId, key);
+        if (max === null || count < max) return true;
+        const better = config?.plans?.find((p) => PLAN_ORDER.indexOf(p.id) > PLAN_ORDER.indexOf(planId) && (p.limits?.[key] === null || p.limits?.[key] > max));
+        setUpgrade({ feature: key, what, plan: better, description: max === 0 ? "Your plan doesn't include this." : `Your plan includes ${max}. Upgrade for more.` });
+        return false;
+      },
       checkout,
       openPortal,
       /** True when paying goes through Paddle (otherwise upgrades are by email). */
       canCheckout: !!config?.paddle,
       subscription: usage?.subscription || null,
     };
-  }, [config, usage, refreshUsage, refreshConfig, checkout, openPortal]);
+  }, [config, usage, user, refreshUsage, refreshConfig, checkout, openPortal]);
 
   return (
     <BillingContext.Provider value={value}>

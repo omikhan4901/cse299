@@ -8,6 +8,7 @@ require('./lib/asyncErrors');
 const authRoutes = require('./routes/auth');
 const aiRoutes = require('./routes/ai');
 const resumeRoutes = require('./routes/resume');
+const profileRoutes = require('./routes/profile');
 const publicRoutes = require('./routes/public');
 const billingRoutes = require('./routes/billing');
 const adminRoutes = require('./routes/admin');
@@ -56,6 +57,7 @@ app.use('/api/paddle', paddleRoutes);
 // bodies; AI requests carry a resume without photos; everything else is small.
 // (Smaller limits mean a flood of huge bodies can't tie up memory.)
 app.use('/api/resumes', express.json({ limit: '10mb' }));
+app.use('/api/profile', express.json({ limit: '10mb' }));
 app.use('/api/ai', express.json({ limit: '2mb' }));
 app.use('/api/admin', express.json({ limit: '1mb' }));
 app.use(express.json({ limit: '100kb' }));
@@ -91,6 +93,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes.router);
 app.use('/api/public', publicRoutes);
 app.use('/api/resumes', resumeRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/admin', adminRoutes);

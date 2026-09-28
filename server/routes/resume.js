@@ -8,6 +8,7 @@ const User = require("../models/User");
 const { getSettings } = require("../lib/settings");
 const { canUse } = require("../lib/credits");
 const { templateAllowed, templateTier } = require("../lib/templates");
+const { CONTENT_KEYS, pick } = require("../lib/resumeInput");
 
 // Publishing a share link needs the "shareLinks" feature (only enforced when free mode is off).
 // Links that are already public keep working; making one public is what's checked.
@@ -42,27 +43,8 @@ const underResumeCap = async (req, res) => {
 
 // Only these fields can be written by the client. Everything else (owner,
 // shortId, timestamps) is controlled by the server.
-const EDITABLE = [
-  "nickname", "personal", "summary", "experience", "education", "projects", "certifications",
-  "volunteering", "awards", "publications", "courses", "references", "referencesOnRequest", "referenceSignatures", "links",
-  "customSections", "skills", "languages", "interests", "template", "theme", "isMaster", "isPublic",
-];
-
-// Photos are stored as data URLs: only allow real raster images of a sensible size.
-const PHOTO = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
-const MAX_PHOTO = 3 * 1024 * 1024;
-const validPhoto = (v) => !v || (typeof v === "string" && v.length <= MAX_PHOTO && PHOTO.test(v));
-
-const pickEditable = (body = {}) => {
-  const out = {};
-  for (const key of EDITABLE) if (body[key] !== undefined) out[key] = body[key];
-  if (out.personal && typeof out.personal === "object") {
-    for (const k of ["profilePic", "profilePicSource"]) {
-      if (!validPhoto(out.personal[k])) out.personal[k] = "";
-    }
-  }
-  return out;
-};
+const EDITABLE = ["nickname", ...CONTENT_KEYS, "template", "theme", "isMaster", "isPublic"];
+const pickEditable = (body) => pick(body, EDITABLE);
 
 // Finds a resume owned by the logged-in user, or sends the right error.
 async function findOwned(req, res) {

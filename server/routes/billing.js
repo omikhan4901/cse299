@@ -1,7 +1,7 @@
 const express = require('express');
 const Campaign = require('../models/Campaign');
 const { protect, campaignProblem } = require('./auth');
-const { getSettings, planById, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
+const { getSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { usageSummary } = require('../lib/credits');
 const { limit, clientIp } = require('../lib/rateLimit');
 const User = require('../models/User');
@@ -33,6 +33,7 @@ router.get('/plans', async (req, res, next) => {
                 registration: s.registration,
                 currency: charged?.currency || s.currency,
                 showPricing: s.showPricing,
+                v2: s.v2,
                 featureCosts: s.featureCosts,
                 templates: s.templates,
                 plans,
@@ -40,6 +41,7 @@ router.get('/plans', async (req, res, next) => {
                 paddle: cfg.enabled ? { environment: cfg.environment, clientToken: cfg.clientToken, prices: cfg.prices } : null,
                 aiFeatures: AI_FEATURES,
                 appFeatures: APP_FEATURES,
+                planLimits: PLAN_LIMITS,
             },
         });
     } catch (err) {

@@ -4,11 +4,13 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Modal, Skeleton } from "antd";
-import { AlertTriangle, ArrowRight, Crown, EyeOff, FileDown, FilePlus2, FolderOpen, History, LayoutTemplate, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowRight, Crown, EyeOff, FileDown, FilePlus2, FolderOpen, History, LayoutTemplate, UserPlus, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
 import { getBuilderSession } from "@/lib/builderSession";
 import { useAuth } from "./AuthProvider";
+import { useBilling } from "./BillingProvider";
+import { resumeFromProfile } from "@/lib/profile";
 import { readDraft, isWorthKeeping, draftLabel, clearDraft, saveToFile } from "./builder/drafts";
 
 const LauncherContext = createContext({ openBuilder: () => {} });
@@ -30,6 +32,7 @@ function findRisk() {
 export function BuilderLauncherProvider({ children }) {
   const router = useRouter();
   const { token, isAuthenticated, openAuth } = useAuth();
+  const v2 = !!useBilling()?.v2;
   // { risk, resumes } — resumes is null while loading
   const [dialog, setDialog] = useState(null);
 
@@ -45,8 +48,14 @@ export function BuilderLauncherProvider({ children }) {
       api("/resumes", { token })
         .then(({ data }) => setDialog((d) => d && { ...d, resumes: data }))
         .catch(() => setDialog((d) => d && { ...d, resumes: [] }));
+      // V2: the Career Profile takes the master resume's place here.
+      if (v2) {
+        api("/profile", { token })
+          .then(({ data }) => setDialog((d) => d && { ...d, profile: data }))
+          .catch(() => {});
+      }
     }
-  }, [isAuthenticated, token, router]);
+  }, [isAuthenticated, token, router, v2]);
 
   const value = useMemo(() => ({ openBuilder }), [openBuilder]);
   const close = () => setDialog(null);
@@ -57,7 +66,21 @@ export function BuilderLauncherProvider({ children }) {
 
   const risk = dialog?.risk;
   const resumes = dialog?.resumes;
-  const master = resumes?.find((r) => r.isMaster);
+  const master = v2 ? null : resumes?.find((r) => r.isMaster);
+  const profile = dialog?.profile;
+  const [making, setMaking] = useState(false);
+  const fromProfile = async () => {
+    setMaking(true);
+    try {
+      const first = profile.personal?.name?.trim().split(/\s+/)[0];
+      const { data } = await api("/resumes", { token, method: "POST", body: { ...resumeFromProfile(profile), nickname: first ? `${first}'s resume` : "My resume" } });
+      go(`/builder?id=${data._id}`);
+    } catch {
+      go("/career");
+    } finally {
+      setMaking(false);
+    }
+  };
   const latest = resumes?.find((r) => r._id !== master?._id);
   const startNew = () => {
     if (risk?.kind === "draft") clearDraft();
@@ -75,6 +98,9 @@ export function BuilderLauncherProvider({ children }) {
             <Skeleton active paragraph={{ rows: 2 }} title={false} />
           ) : (
             <>
+              {profile ? (
+                <Choice icon={<UserRound size={18} />} tone="brand" title={making ? "Making your resume…" : "New resume from my profile"} detail="Everything from your Career Profile, ready to trim for the job." onClick={making ? undefined : fromProfile} />
+              ) : null}
               {master ? (
                 <Choice icon={<Crown size={18} />} tone="amber" title="Work on my master resume" detail={`${master.nickname} · edited ${timeAgo(master.updatedAt)}`} onClick={() => go(`/builder?id=${master._id}`)} />
               ) : null}

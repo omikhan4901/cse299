@@ -252,7 +252,7 @@ function parsingChecks({ resume, pdfText, pageCount, template, upload }) {
 
 // ---------- 2. Content: what recruiters and ranking engines reward ----------
 
-function contentChecks({ resume }) {
+export function contentChecks({ resume }) {
   const checks = [];
   const p = resume.personal;
   const allBullets = [

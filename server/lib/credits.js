@@ -33,6 +33,13 @@ function allowanceFor(user, settings) {
 
 const canUse = (user, settings, feature) => settings.freeMode.enabled || !!planById(settings, effectivePlanId(user)).features[feature];
 
+/** A numeric plan limit (V2: applications, tailored, batch). null = no limit (also in free mode). */
+const planLimit = (user, settings, key) => {
+    if (settings.freeMode.enabled) return null;
+    const v = planById(settings, effectivePlanId(user)).limits?.[key];
+    return v === undefined ? null : v;
+};
+
 const periodKey = (period, d = new Date()) => (period === 'month' ? `m:${d.toISOString().slice(0, 7)}` : d.toISOString().slice(0, 10));
 const periodEnd = (period) => {
     const d = new Date();
@@ -171,4 +178,4 @@ function aiQuota(feature) {
     ];
 }
 
-module.exports = { aiQuota, usageSummary, effectivePlanId, allowanceFor, canUse, periodKey };
+module.exports = { aiQuota, usageSummary, effectivePlanId, allowanceFor, canUse, planLimit, periodKey };

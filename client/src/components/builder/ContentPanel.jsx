@@ -539,9 +539,11 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
         <TextArea value={resume.summary} onChange={(e) => setField("summary", e.target.value)} autoSize={{ minRows: 5, maxRows: 16 }} placeholder="Two to four sentences about who you are, what you're great at and what you want next." />
         <div className="mt-2 flex items-center justify-between gap-2">
           <span className="text-[11px] text-slate-400">Aim for 40–80 words.</span>
-          <AiButton loading={refiningId === "summary"} onClick={onRefineSummary}>
-            Improve with AI
-          </AiButton>
+          {onRefineSummary ? (
+            <AiButton loading={refiningId === "summary"} onClick={onRefineSummary}>
+              Improve with AI
+            </AiButton>
+          ) : null}
         </div>
       </SectionCard>
 

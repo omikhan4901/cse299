@@ -6,9 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/User');
-const Resume = require('../models/Resume');
-const Usage = require('../models/Usage');
-const AiEvent = require('../models/AiEvent');
+const { deleteUserData, exportUserData } = require('../lib/userData');
 const Campaign = require('../models/Campaign');
 const { limit, clientIp } = require('../lib/rateLimit');
 const { effectivePlanId } = require('../lib/credits');
@@ -96,6 +94,7 @@ const publicUser = (user) => ({
     plan: effectivePlanId(user),
     planExpiresAt: user.planExpiresAt || null,
     role: roleOf(user),
+    v2Preview: !!user.v2Preview,
     twoFactorEnabled: !!user.twoFactor?.enabled,
     emailVerified: !!user.emailVerifiedAt,
     createdAt: user.createdAt,
@@ -301,13 +300,10 @@ router.put('/password', protect, sensitiveByUser, async (req, res) => {
 // @desc    Download everything stored about you (account + resumes) as JSON.
 router.get('/export', protect, exportByUser, async (req, res) => {
     try {
-        const [user, resumes] = await Promise.all([
-            User.findById(req.userId).lean(),
-            Resume.find({ user: req.userId }).select('-__v -user').lean(),
-        ]);
+        const [user, data] = await Promise.all([User.findById(req.userId).lean(), exportUserData(req.userId)]);
         const { password, resetTokenHash, resetTokenExpires, sessionVersion, __v, ...account } = user;
         res.set('Content-Disposition', `attachment; filename="resumex-data-${new Date().toISOString().slice(0, 10)}.json"`);
-        res.json({ exportedAt: new Date().toISOString(), account, resumes });
+        res.json({ exportedAt: new Date().toISOString(), account, ...data });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, error: 'Server error' });
@@ -324,7 +320,7 @@ router.delete('/me', protect, sensitiveByUser, async (req, res) => {
         if (!(await bcrypt.compare(String(password), user.password))) {
             return res.status(400).json({ success: false, error: 'That password is incorrect.' });
         }
-        await Promise.all([Resume.deleteMany({ user: user._id }), Usage.deleteMany({ user: user._id }), AiEvent.deleteMany({ user: user._id })]);
+        await deleteUserData(user._id);
         await user.deleteOne();
         res.json({ success: true });
     } catch (err) {

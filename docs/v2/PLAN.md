@@ -26,11 +26,12 @@ updated to match.
    nid … }` inside the Career Profile, which contradicts the decision in §5.1 and §11. The
    profile keeps no biodata. Biodata mode asks for the fields when a biodata CV is made,
    keeps them in that one resume only, and never has an NID field.
-2. **Bullets and skills in two formats.** The profile stores bullets and skills as
-   separate items with ids (needed for tailoring). Resumes keep today's format (bullets as
-   lines of text, skills as a comma list), so the builder, 50 templates and PDF engine
-   don't change. The generator converts between the two; each resume item remembers its
-   `profileItemId`, and bullets are matched by text when syncing.
+2. **One content format.** The profile uses the same content shape as a resume (points as
+   lines, skills as a list), so the builder's editors, the ATS checks and the PDF engine work
+   on it unchanged. Resume items made from it keep `profileItemId`; points are matched by
+   wording when syncing ("Pull updates", "Save to profile"), and items made before the link
+   existed are matched by what they are (same employer, school, project). *(Changed while
+   building Phase 1: separate ids per point added complexity with no user-visible gain.)*
 3. **Order changed** from 0→1→2→3→4 to "every non-AI part first". Phase 0's review screen,
    token logging and economics dashboard are built now with a stubbed AI. The import
    evaluation passing is still required before import is switched on for users.

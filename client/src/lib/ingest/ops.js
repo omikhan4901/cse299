@@ -9,6 +9,10 @@
  *   { key, op: "update",     section, target: <item id>, item: { …fields } }
  *   { key, op: "set",        field: "personal.phone" | "summary", value }
  *   { key, op: "addValues",  field: "skills" | "languages" | "interests", values: [] }
+ *   { key, op: "replaceBullet", section, target, from: "old point", to: "new point" }
+ *
+ * "add" and "update" may carry `link`: the Career Profile item id to remember on the item
+ * (profileItemId), so later syncs find it again.
  *
  * Each may carry `evidence` (the phrase it came from) and `flags` (see server/lib/ingest.js).
  */
@@ -32,6 +36,7 @@ export function applyOperations(resume, operations) {
   for (const o of operations || []) {
     if (o.op === "add" && EMPTY_ITEMS[o.section]) {
       const item = { id: newId(), ...Object.fromEntries(Object.keys(EMPTY_ITEMS[o.section]).map((f) => [f, ""])), ...pickFields(o.section, o.item) };
+      if (Number.isFinite(o.link)) item.profileItemId = o.link;
       const points = POINTS_FIELD[o.section];
       if (points && o.bullets?.length) item[points] = joinPoints(item[points], o.bullets);
       next[o.section] = [...next[o.section], item];
@@ -39,9 +44,20 @@ export function applyOperations(resume, operations) {
       next[o.section] = next[o.section].map((it) => {
         if (String(it.id) !== String(o.target)) return it;
         const changed = { ...it, ...(o.op === "update" ? pickFields(o.section, o.item) : {}) };
+        if (Number.isFinite(o.link)) changed.profileItemId = o.link;
         const points = POINTS_FIELD[o.section];
         if (points && o.bullets?.length) changed[points] = joinPoints(changed[points], o.bullets);
         return changed;
+      });
+    } else if (o.op === "replaceBullet" && POINTS_FIELD[o.section]) {
+      const pf = POINTS_FIELD[o.section];
+      next[o.section] = next[o.section].map((it) => {
+        if (String(it.id) !== String(o.target)) return it;
+        const lines = splitBullets(it[pf]);
+        const at = lines.findIndex((l) => l === str(o.from));
+        if (at < 0 || !str(o.to)) return it;
+        lines[at] = str(o.to);
+        return { ...it, [pf]: lines.join("\n") };
       });
     } else if (o.op === "set") {
       if (o.field === "summary") next.summary = str(o.value);
@@ -96,6 +112,8 @@ export function describeOperation(o, resume) {
       const f = o.field === "summary" ? "summary" : o.field?.slice(9);
       return { title: `${FIELD_NAMES[f] || f}: ${f === "summary" ? "" : o.value}`.replace(/: $/, ""), detail: f === "summary" ? [o.value] : [] };
     }
+    case "replaceBullet":
+      return { title: `Reword a point in ${itemLabel(o.section, target)}`, detail: [o.to], before: o.from };
     case "addValues":
       return { title: `Add ${o.values.length} ${FIELD_NAMES[o.field]?.toLowerCase() || o.field}`, detail: [o.values.join(", ")] };
     default:

@@ -22,6 +22,13 @@ const APP_FEATURES = [
     { key: 'shareLinks', name: 'Share links', description: 'Publish a resume as a web page.' },
 ];
 
+// Numeric plan limits (V2). null = unlimited; 0 = not included.
+const PLAN_LIMITS = [
+    { key: 'applications', name: 'Active applications', description: 'Applications being tracked at once (archived and finished ones don\'t count).' },
+    { key: 'tailored', name: 'Tailored resumes', description: 'Resumes made for a specific job from the Career Profile.' },
+    { key: 'batch', name: 'Jobs per batch', description: 'Jobs that can be tailored for in one go.' },
+];
+
 // Which plan each template needs: a tier per category, and optional per-template overrides.
 // Plans stack (Premium includes Pro templates). A category not listed here needs Pro.
 const PLAN_IDS = ['free', 'pro', 'premium'];
@@ -37,6 +44,9 @@ const DEFAULTS = {
     registration: 'open', // open | campaign | closed
     currency: 'USD',
     showPricing: false,
+    // V2 (Career Profile, applications, tailoring): hidden from everyone but admins and
+    // accounts with v2Preview until switched on here.
+    v2: { enabled: false },
     featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2 },
     // Admin overrides for rate limits: { [name]: { max, windowMs } } (see lib/rateLimit.js).
     rateLimits: {},
@@ -49,18 +59,21 @@ const DEFAULTS = {
             id: 'free', name: 'Free', tagline: 'Everything you need for your first resume.',
             price: 0, yearlyPrice: 0, credits: 10, creditPeriod: 'day', highlight: false,
             features: { ...allOn, parse: false, coverLetter: false, audit: false },
+            limits: { applications: 5, tailored: 1, batch: 0 },
             perks: ['Live PDF builder', 'ATS-Optimized and Student templates', 'ATS check with keyword match', '10 AI credits a day'],
         },
         {
             id: 'pro', name: 'Pro', tagline: 'For an active job search.',
             price: 6.99, yearlyPrice: 75.49, credits: 300, creditPeriod: 'month', highlight: true,
             features: { ...allOn },
+            limits: { applications: null, tailored: null, batch: 5 },
             perks: ['All 50 templates', 'Import your old resume', 'Cover letters and AI rewrites', '300 AI credits a month'],
         },
         {
             id: 'premium', name: 'Premium', tagline: 'For power users and career switchers.',
             price: 12.99, yearlyPrice: 140.29, credits: 1000, creditPeriod: 'month', highlight: false,
             features: { ...allOn },
+            limits: { applications: null, tailored: null, batch: 15 },
             perks: ['Everything in Pro', '1,000 AI credits a month', 'Priority support'],
         },
     ],
@@ -101,6 +114,13 @@ function clean(input) {
             creditPeriod: p.creditPeriod === 'day' ? 'day' : 'month',
             highlight: !!p.highlight,
             features: Object.fromEntries(featureKeys.map((k) => [k, !isObj(p.features) || p.features[k] === undefined ? !!d.features[k] : !!p.features[k]])),
+            limits: Object.fromEntries(
+                PLAN_LIMITS.map(({ key }) => {
+                    const v = isObj(p.limits) && key in p.limits ? p.limits[key] : d.limits[key];
+                    const n = v === null || v === '' ? null : num(v, d.limits[key], { max: 100000 });
+                    return [key, n === null ? null : Math.round(n)];
+                })
+            ),
             perks: (Array.isArray(p.perks) ? p.perks : d.perks).map((x) => str(x, '', 120)).filter(Boolean).slice(0, 12),
         };
     });
@@ -129,6 +149,7 @@ function clean(input) {
         registration: ['open', 'campaign', 'closed'].includes(s.registration) ? s.registration : 'open',
         currency: str(s.currency, 'USD', 8).toUpperCase() || 'USD',
         showPricing: !!s.showPricing,
+        v2: { enabled: !!(isObj(s.v2) && s.v2.enabled) },
         featureCosts: costs,
         templates: { categories, overrides },
         rateLimits,
@@ -197,4 +218,4 @@ setInterval(() => getSettings().catch(() => {}), TTL + 1000).unref();
 
 const planById = (settings, id) => settings.plans.find((p) => p.id === id) || settings.plans[0];
 
-module.exports = { getSettings, readSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_IDS, DEFAULTS };
+module.exports = { getSettings, readSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS, PLAN_IDS, DEFAULTS };

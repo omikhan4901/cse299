@@ -45,6 +45,9 @@ export default function PlansTab() {
         <Field label="Show pricing page in the menu" hint="The /pricing page always works; this adds it to the top navigation.">
           <Switch checked={settings.showPricing} onChange={(v) => update((s) => ((s.showPricing = v), s))} />
         </Field>
+        <Field label="V2 workspace for everyone" hint="Career Profile, applications and tailoring. While off, only admins and accounts with V2 preview (Users) see it.">
+          <Switch checked={!!settings.v2?.enabled} onChange={(v) => update((s) => ((s.v2 = { ...s.v2, enabled: v }), s))} />
+        </Field>
       </div>
       {paddleOn ? (
         <Alert
@@ -89,6 +92,27 @@ export default function PlansTab() {
                   ))}
                 </ul>
               </div>
+              {meta.planLimits?.length ? (
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-slate-600">Workspace limits <span className="font-normal text-slate-400">(empty = unlimited)</span></p>
+                  <ul className="space-y-1.5 rounded-xl bg-slate-50 p-3">
+                    {meta.planLimits.map((l) => (
+                      <li key={l.key} className="flex items-center justify-between gap-2 text-sm">
+                        <Tooltip title={l.description}><span className="text-slate-700">{l.name}</span></Tooltip>
+                        <InputNumber
+                          size="small"
+                          min={0}
+                          max={100000}
+                          placeholder="∞"
+                          className="!w-20"
+                          value={p.limits?.[l.key] ?? null}
+                          onChange={(v) => setPlan(i, (x) => (x.limits = { ...x.limits, [l.key]: v ?? null }))}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {(() => {
                 // Credits only buy AI features, so point out plans where they can't be used.
                 const aiOn = meta.aiFeatures.filter((f) => p.features[f.key]);

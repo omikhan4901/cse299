@@ -116,6 +116,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
               creditLimit: u.creditLimit ?? u.credits.limit,
               creditPeriod: u.creditPeriod || u.credits.period,
               role: u.role === "admin" ? "admin" : "user",
+              v2Preview: !!u.v2Preview,
             }}
             onFinish={(v) =>
               save({
@@ -125,6 +126,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
                 planExpiresAt: v.planExpiresAt || null,
                 creditLimit: v.customCredits ? v.creditLimit : null,
                 creditPeriod: v.customCredits ? v.creditPeriod : null,
+                v2Preview: !!v.v2Preview,
                 ...(isSuper && u.role !== "superadmin" ? { role: v.role } : {}),
               })
             }
@@ -155,6 +157,13 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
                   )
                 }
               </Form.Item>
+            </div>
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 p-4">
+              <div>
+                <p className="font-medium text-ink">V2 preview</p>
+                <p className="text-xs text-slate-500">Career Profile and applications before they open to everyone. Admins always see them.</p>
+              </div>
+              <Form.Item name="v2Preview" valuePropName="checked" noStyle><Switch /></Form.Item>
             </div>
             {isSuper && u.role !== "superadmin" ? (
               <Form.Item name="role" label="Role" className="!mt-4" extra="Admins can open this console. Only super admins change roles.">

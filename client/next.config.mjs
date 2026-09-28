@@ -50,8 +50,8 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      // Routes from the old Vite app, kept so bookmarks keep working.
-      { source: "/profile", destination: "/dashboard", permanent: true },
+      // Routes from the old Vite app, kept so bookmarks keep working (/profile now means the Career Profile).
+      { source: "/profile", destination: "/career", permanent: false },
       { source: "/print", destination: "/builder", permanent: false },
     ];
   },
