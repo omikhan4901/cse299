@@ -5,6 +5,7 @@ import { MotionConfig } from "motion/react";
 import { AuthProvider } from "./AuthProvider";
 import AuthModal from "./AuthModal";
 import { BillingProvider } from "./BillingProvider";
+import { BuilderLauncherProvider } from "./BuilderLauncher";
 
 const theme = {
   token: {
@@ -26,8 +27,10 @@ export default function Providers({ children }) {
       <App>
         <AuthProvider>
           <BillingProvider>
-            {children}
-            <AuthModal />
+            <BuilderLauncherProvider>
+              {children}
+              <AuthModal />
+            </BuilderLauncherProvider>
           </BillingProvider>
         </AuthProvider>
       </App>

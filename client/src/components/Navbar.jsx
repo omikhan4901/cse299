@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BuilderLink } from "./BuilderLauncher";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button, Dropdown } from "antd";
@@ -66,9 +67,9 @@ export default function Navbar({ compact = false }) {
             <div className="h-9 w-40" />
           ) : isAuthenticated ? (
             <>
-              <Link href="/builder">
+              <BuilderLink>
                 <Button type="primary">Open builder</Button>
-              </Link>
+              </BuilderLink>
               <Dropdown menu={userMenu} placement="bottomRight" trigger={["click"]}>
                 <button className="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-sm font-semibold text-white" aria-label="Account menu">
                   {(user?.name || "?").trim().charAt(0).toUpperCase()}
@@ -103,11 +104,11 @@ export default function Navbar({ compact = false }) {
             <div className="mt-3 flex gap-2">
               {isAuthenticated ? (
                 <>
-                  <Link href="/builder" className="flex-1" onClick={() => setOpen(false)}>
+                  <BuilderLink className="flex-1" onClick={() => setOpen(false)}>
                     <Button type="primary" block>
                       Open builder
                     </Button>
-                  </Link>
+                  </BuilderLink>
                   <Button onClick={logout}>Log out</Button>
                 </>
               ) : (

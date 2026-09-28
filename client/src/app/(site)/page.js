@@ -10,6 +10,7 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { AI_ENABLED, SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/config";
 import { CATEGORY_PAGES, jsonLdHtml } from "@/lib/seo";
 import { GUIDES } from "@/content/guides";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 export const metadata = { alternates: { canonical: "/" } };
 
@@ -80,9 +81,9 @@ export default function HomePage() {
               Pick a designer template, fill in your story and watch a real PDF update as you type. Download it in one click — no watermarks, no paywalls.
             </StaggerItem>
             <StaggerItem className="mt-8 flex flex-wrap gap-3">
-              <Link href="/builder" className="btn-shine group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-xl hover:shadow-brand/30">
+              <BuilderLink className="btn-shine group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-xl hover:shadow-brand/30">
                 Build my resume <ArrowRight size={18} className="transition group-hover:translate-x-1" />
-              </Link>
+              </BuilderLink>
               <Link href="/templates" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-ink transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand hover:shadow-md">
                 Browse templates
               </Link>
@@ -247,9 +248,9 @@ export default function HomePage() {
           <div aria-hidden className="animate-blob absolute -top-24 right-0 h-72 w-72 rounded-full bg-teal-400/25 blur-3xl" style={{ animationDelay: "-8s" }} />
           <h2 className="relative font-display text-3xl font-bold text-white sm:text-4xl">Ready to build your resume?</h2>
           <p className="relative mx-auto mt-3 max-w-xl text-white/70">It takes about ten minutes. Start now — you can create an account later to save your work.</p>
-          <Link href="/builder" className="btn-shine group relative mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-navy shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-2xl">
+          <BuilderLink className="btn-shine group relative mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-navy shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-50 hover:shadow-2xl">
             Create my resume <ArrowRight size={18} className="transition group-hover:translate-x-1" />
-          </Link>
+          </BuilderLink>
         </Reveal>
       </section>
     </>

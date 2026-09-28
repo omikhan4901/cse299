@@ -5,6 +5,7 @@ import { GUIDES, guideBySlug } from "@/content/guides";
 import Markdown, { parseMarkdown, slugify } from "@/components/Markdown";
 import Breadcrumbs from "@/components/seo/Breadcrumbs";
 import { abs, jsonLdHtml } from "@/lib/seo";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 export const dynamicParams = false;
 export const generateStaticParams = () => GUIDES.map((g) => ({ slug: g.slug }));
@@ -59,9 +60,9 @@ export default async function GuidePage({ params }) {
                   <li key={s.text}><a href={`#${slugify(s.text)}`} className="block rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-brand">{s.text}</a></li>
                 ))}
               </ul>
-              <Link href="/builder" className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white">
+              <BuilderLink className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white">
                 Start my resume <ArrowRight size={16} />
-              </Link>
+              </BuilderLink>
             </nav>
           </aside>
           <article className="max-w-3xl text-[17px] leading-relaxed text-slate-700">
@@ -75,7 +76,7 @@ export default async function GuidePage({ params }) {
             <div className="mt-12 rounded-2xl bg-gradient-to-br from-brand to-navy p-8 text-white">
               <p className="font-display text-2xl font-bold">Build your resume in minutes</p>
               <p className="mt-2 text-white/80">50 free templates, a live PDF preview and a real ATS check. No sign-up needed to start.</p>
-              <Link href="/builder" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-navy">Build my resume <ArrowRight size={16} /></Link>
+              <BuilderLink className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-navy">Build my resume <ArrowRight size={16} /></BuilderLink>
             </div>
             <section className="mt-14">
               <h2 className="font-display text-xl font-bold text-ink">Keep reading</h2>

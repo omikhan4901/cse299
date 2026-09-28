@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BuilderLink } from "./BuilderLauncher";
 import { Heart } from "lucide-react";
 import { GithubIcon as Github } from "./BrandIcons";
 import Logo from "./Logo";
@@ -16,7 +17,7 @@ export default function Footer() {
         <div>
           <h3 className="text-sm font-semibold text-white">Product</h3>
           <ul className="mt-4 space-y-2.5 text-sm">
-            <li><Link className="hover:text-white" href="/builder">Resume builder</Link></li>
+            <li><BuilderLink className="hover:text-white">Resume builder</BuilderLink></li>
             <li><Link className="hover:text-white" href="/templates">Resume templates</Link></li>
             <li><Link className="hover:text-white" href="/ats-checker">ATS resume checker</Link></li>
             <li><Link className="hover:text-white" href="/about">About &amp; FAQ</Link></li>

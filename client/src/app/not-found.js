@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 export const metadata = { title: "Page not found", robots: { index: false } };
 
@@ -13,7 +14,7 @@ export default function NotFound() {
         <p className="mt-2 max-w-md text-slate-500">If you followed a shared resume link, its owner may have made it private.</p>
         <div className="mt-6 flex gap-3">
           <Link href="/" className="rounded-lg bg-brand px-4 py-2 font-medium text-white">Go home</Link>
-          <Link href="/builder" className="rounded-lg border border-slate-200 px-4 py-2 font-medium text-ink">Build a resume</Link>
+          <BuilderLink className="rounded-lg border border-slate-200 px-4 py-2 font-medium text-ink">Build a resume</BuilderLink>
         </div>
       </main>
     </>

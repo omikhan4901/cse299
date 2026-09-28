@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { Lightbulb, Layers, Hammer, Rocket, ArrowRight } from "lucide-react";
 import { GithubIcon as Github } from "@/components/BrandIcons";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 export const metadata = {
   title: "About ResumeX & FAQ",
@@ -103,9 +103,9 @@ export default function AboutPage() {
           ))}
         </Reveal>
         <div className="mt-12 text-center">
-          <Link href="/builder" className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 hover:bg-brand-dark">
+          <BuilderLink className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 hover:bg-brand-dark">
             Start building <ArrowRight size={18} />
-          </Link>
+          </BuilderLink>
         </div>
       </section>
     </>

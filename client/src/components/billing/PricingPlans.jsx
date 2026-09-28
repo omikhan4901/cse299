@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Segmented } from "antd";
 import { Check, Crown, Minus, Sparkles, Zap } from "lucide-react";
 import { formatPrice } from "../BillingProvider";
 import { CONTACT_EMAIL } from "@/lib/config";
 import { TEMPLATES, planIncludes } from "@/pdf/registry";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 /** The three plans from the admin settings, with a monthly / yearly switch. */
 export default function PricingPlans({ config }) {
@@ -66,9 +66,9 @@ export default function PricingPlans({ config }) {
                 ))}
               </ul>
               {!paid ? (
-                <Link href="/builder" className="mt-7 block rounded-xl border border-slate-300 py-2.5 text-center font-semibold text-ink transition hover:border-brand hover:text-brand">
+                <BuilderLink className="mt-7 block rounded-xl border border-slate-300 py-2.5 text-center font-semibold text-ink transition hover:border-brand hover:text-brand">
                   Start for free
-                </Link>
+                </BuilderLink>
               ) : freeMode.enabled ? (
                 <span className="mt-7 block rounded-xl bg-emerald-50 py-2.5 text-center font-semibold text-emerald-700">Free right now</span>
               ) : (

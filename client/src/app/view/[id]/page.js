@@ -7,6 +7,7 @@ import SharedResumeView from "@/components/public/SharedResumeView";
 import { getPublicResume } from "@/lib/publicResume";
 import { splitList, toHref } from "@/lib/resume";
 import { SITE_NAME } from "@/lib/config";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
@@ -75,9 +76,9 @@ export default async function PublicResumePage({ params }) {
               {SITE_NAME}
             </Link>{" "}
             — the free resume builder.{" "}
-            <Link href="/builder" className="font-medium text-brand hover:underline">
+            <BuilderLink className="font-medium text-brand hover:underline">
               Create yours →
-            </Link>
+            </BuilderLink>
           </p>
         </div>
       </main>

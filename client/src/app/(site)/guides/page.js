@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, Clock } from "lucide-react";
 import { GUIDES } from "@/content/guides";
 import Breadcrumbs from "@/components/seo/Breadcrumbs";
 import { abs, jsonLdHtml } from "@/lib/seo";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 const TITLE = "Resume & CV Writing Guides";
 const DESCRIPTION = "Free, practical guides to writing a resume that gets interviews: fresh graduate resumes, ATS-friendly formatting, internships, action verbs, CV vs resume and more.";
@@ -59,7 +60,7 @@ export default function GuidesPage() {
             <p className="font-display text-2xl font-bold">Ready to write yours?</p>
             <p className="mt-1 text-white/80">Pick one of 50 free templates and download a PDF in minutes.</p>
           </div>
-          <Link href="/builder" className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-navy">Build my resume <ArrowRight size={16} /></Link>
+          <BuilderLink className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-navy">Build my resume <ArrowRight size={16} /></BuilderLink>
         </div>
       </div>
     </div>

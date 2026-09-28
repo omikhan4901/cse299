@@ -12,18 +12,8 @@ import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "./AuthProvider";
 import ResumeThumbnail from "./ResumeThumbnail";
 import { readDraft, isWorthKeeping, draftLabel } from "./builder/drafts";
-
-const timeAgo = (date) => {
-  const s = (Date.now() - new Date(date).getTime()) / 1000;
-  if (s < 60) return "just now";
-  const units = [[60, "minute"], [24, "hour"], [30, "day"], [12, "month"], [Infinity, "year"]];
-  let v = s / 60;
-  for (const [n, name] of units) {
-    if (v < n) return `${Math.floor(v)} ${name}${Math.floor(v) === 1 ? "" : "s"} ago`;
-    v /= n;
-  }
-  return "";
-};
+import { timeAgo } from "@/lib/time";
+import { BuilderLink } from "@/components/BuilderLauncher";
 
 export default function Dashboard() {
   const { token, user, loading: authLoading, openAuth } = useAuth();
@@ -64,7 +54,7 @@ export default function Dashboard() {
         subTitle="Or jump straight in — you can build and download a resume without an account."
         extra={[
           <Button key="l" type="primary" onClick={() => openAuth("login", "/dashboard")}>Log in</Button>,
-          <Link key="b" href="/builder"><Button>Open the builder</Button></Link>,
+          <BuilderLink key="b"><Button>Open the builder</Button></BuilderLink>,
         ]}
       />
     );

@@ -10,6 +10,7 @@ import {
   ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen, FileWarning, LogIn,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { setBuilderSession } from "@/lib/builderSession";
 import { AI_ENABLED } from "@/lib/config";
 import { normalizeResume, sampleResume, blankResume, toPayload, withContentOf } from "@/lib/resume";
 import { templateById, TEMPLATES } from "@/pdf/registry";
@@ -20,7 +21,7 @@ import ContentPanel from "./ContentPanel";
 import DesignPanel from "./DesignPanel";
 import PdfPreview from "./PdfPreview";
 import { StartPrivateModal, LeavePrivateModal, PrivateBanner } from "./PrivateSession";
-import { readDraft, writeDraft, clearDraft, isWorthKeeping, isUntouchedSample, hasRealContent, defaultNickname, draftLabel } from "./drafts";
+import { readDraft, writeDraft, clearDraft, isWorthKeeping, isUntouchedSample, hasRealContent, defaultNickname, draftLabel, saveToFile } from "./drafts";
 import ShareModal from "./ShareModal";
 import { ChatModal, CoverLetterModal, aiResume } from "./AiModals";
 import AtsModal from "./AtsModal";
@@ -151,18 +152,6 @@ export default function Builder() {
     );
   }
   return <Editor key={state.key} initial={state.resume} example={state.example} onSaved={markSaved} startPrivate={!!state.private} />;
-}
-
-/** Downloads the resume as a .json file the user keeps (works in private sessions too). */
-function saveToFile(resume) {
-  const data = { app: "resumex", version: 1, savedAt: new Date().toISOString(), resume: toPayload(resume) };
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-  const a = document.createElement("a");
-  const name = (resume.personal.name || "resume").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") || "resume";
-  a.href = url;
-  a.download = `${name}.resumex.json`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function Editor({ initial, example, onSaved, startPrivate = false }) {
@@ -373,6 +362,18 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     const t = setTimeout(() => setRetryTick((n) => n + 1), 8000);
     return () => clearTimeout(t);
   }, [saveError, sessionExpired, suspended, retryTick]);
+
+  // Tells the "Open builder" dialog what's open here, so it can warn before unsaved work is lost.
+  useEffect(() => {
+    setBuilderSession({
+      id: resume._id || null,
+      label: resume._id ? resume.nickname || "this resume" : draftLabel(resume),
+      private: privateMode,
+      atRisk: privateMode ? isWorthKeeping(resume) : !!resume._id && (dirty || !!conflict || suspended || sessionExpired),
+      resume,
+    });
+    return () => setBuilderSession(null);
+  }, [resume, privateMode, dirty, conflict, suspended, sessionExpired]);
 
   const needsLogin = sessionExpired || (!!resume._id && !token);
   const logInAgain = () => openAuth("login", `${window.location.pathname}${window.location.search}`);

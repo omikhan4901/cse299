@@ -1,4 +1,4 @@
-import { LIST_SECTIONS, normalizeResume, sampleResume } from "@/lib/resume";
+import { LIST_SECTIONS, normalizeResume, sampleResume, toPayload } from "@/lib/resume";
 
 /** The one resume a browser keeps while it isn't saved to an account. */
 export const DRAFT_KEY = "resumex:draft";
@@ -56,3 +56,15 @@ export const defaultNickname = (r) => {
 };
 
 export const draftLabel = (r) => (r?.personal?.name ? `${r.personal.name}'s resume` : "an untitled resume");
+
+/** Downloads the resume as a .json file the user keeps (works in private sessions too). */
+export function saveToFile(resume) {
+  const data = { app: "resumex", version: 1, savedAt: new Date().toISOString(), resume: toPayload(resume) };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  const name = (resume.personal.name || "resume").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") || "resume";
+  a.href = url;
+  a.download = `${name}.resumex.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
