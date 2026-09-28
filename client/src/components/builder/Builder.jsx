@@ -276,6 +276,35 @@ function Editor({ initial, example, onSaved }) {
     setShowExample(false);
   };
 
+  // Clears straight away, with a few seconds to undo instead of an "are you sure?" dialog.
+  const clearAllContent = () => {
+    const snapshot = resume;
+    const hadExample = showExample;
+    clearExample();
+    const key = "clear-undo";
+    message.open({
+      key,
+      type: "info",
+      duration: 8,
+      content: (
+        <span className="inline-flex items-center gap-3">
+          All content cleared.
+          <Button
+            size="small"
+            type="primary"
+            onClick={() => {
+              setResume(snapshot);
+              setShowExample(hadExample);
+              message.destroy(key);
+            }}
+          >
+            Undo
+          </Button>
+        </span>
+      ),
+    });
+  };
+
   const fillFromMaster = async () => {
     try {
       const { data } = await api("/resumes", { token });
@@ -387,7 +416,7 @@ function Editor({ initial, example, onSaved }) {
         icon: <Eraser size={15} />,
         danger: true,
         label: "Clear all content",
-        onClick: () => modal.confirm({ title: "Clear all content?", content: "Every section will be emptied. Your design settings stay.", okText: "Clear", okButtonProps: { danger: true }, onOk: clearExample }),
+        onClick: clearAllContent,
       },
     ],
   };
@@ -456,8 +485,30 @@ function Editor({ initial, example, onSaved }) {
             <span className="hidden xl:inline">Take a tour</span>
           </Button>
         </Tooltip>
+        {/* On desktop everything else lives in the dock, so these sit in the toolbar and the "more" menu is mobile-only. */}
+        <div className="hidden items-center gap-2 lg:flex">
+          {isAuthenticated ? (
+            <Tooltip title="Fill this resume from your master profile">
+              <Button icon={<Crown size={15} />} onClick={fillFromMaster}>
+                <span className="hidden xl:inline">Fill from master</span>
+              </Button>
+            </Tooltip>
+          ) : null}
+          <Tooltip title="Start a new, blank resume">
+            <Link href="/builder?new=blank">
+              <Button icon={<FilePlus2 size={15} />}>
+                <span className="hidden xl:inline">New</span>
+              </Button>
+            </Link>
+          </Tooltip>
+          <Tooltip title="Empty every section (you can undo)">
+            <Button danger icon={<Eraser size={15} />} onClick={clearAllContent} aria-label="Clear all content">
+              <span className="hidden xl:inline">Clear</span>
+            </Button>
+          </Tooltip>
+        </div>
         <Dropdown menu={moreMenu} trigger={["click"]} placement="bottomRight">
-          <Button icon={<MoreHorizontal size={16} />} aria-label="More actions" />
+          <Button icon={<MoreHorizontal size={16} />} aria-label="More actions" className="lg:!hidden" />
         </Dropdown>
         <Button type="primary" icon={<Download size={15} />} loading={downloading} onClick={handleDownload} className="lg:!hidden">
           <span className="hidden sm:inline">Download PDF</span>
