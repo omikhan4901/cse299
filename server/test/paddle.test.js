@@ -6,7 +6,7 @@
 const crypto = require('node:crypto');
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, resetState, paddleApi } = require('./helpers');
+const { start, stop, api, register, resetState, paddleApi, superadmin } = require('./helpers');
 
 const SECRET = 'pdl_ntfset_test_secret';
 const PRICES = { pro: { month: 'pri_pro_m', year: 'pri_pro_y' }, premium: { month: 'pri_prem_m', year: 'pri_prem_y' } };
@@ -242,6 +242,90 @@ describe('refunds and chargebacks', () => {
         const u = await setup();
         await deliver(event('adjustment.created', adjustment({ action: 'chargeback', type: 'full', status: 'approved' })));
         assert.equal(await planOf(u.email), 'free');
+    });
+});
+
+describe('refund policy check', () => {
+    const txn = (userId, { total = '7549', billedAt = new Date(), id = `txn_${++seq}` } = {}) => ({
+        id, status: 'completed', customer_id: 'ctm_1', subscription_id: 'sub_1', custom_data: { userId }, origin: 'web', currency_code: 'USD',
+        collection_mode: 'automatic', billing_details: null, billing_period: null, address_id: null, business_id: null, discount_id: null, invoice_id: null,
+        invoice_number: null, available_payment_methods: [], items: [], payments: [], checkout: null, created_at: iso(billedAt), updated_at: iso(billedAt),
+        billed_at: iso(billedAt),
+        details: {
+            tax_rates_used: [], line_items: [], payout_totals: null, adjusted_totals: null,
+            totals: { subtotal: total, discount: '0', tax: '0', total, credit: '0', credit_to_balance: '0', balance: '0', grand_total: total, fee: null, earnings: null, currency_code: 'USD' },
+        },
+    });
+    const check = async (u) => {
+        const boss = await superadmin();
+        const id = (await User().findOne({ email: u.email }))._id;
+        return (await api('GET', `/admin/users/${id}`, { token: boss.token })).body.data.refundCheck;
+    };
+    const buy = async (u, when = new Date()) => {
+        await deliver(event('subscription.created', subscriptionData({ userId: u.user.id }), when));
+        await deliver(event('transaction.completed', txn(u.user.id, { billedAt: when }), when));
+    };
+
+    it('a fresh first payment with nothing used qualifies', async () => {
+        const u = await register();
+        assert.equal(await check(u), null, 'never paid: nothing to check');
+        await buy(u);
+        const r = await check(u);
+        assert.equal(r.eligible, true, JSON.stringify(r.reasons));
+        assert.equal(r.paidDownloads, 0);
+    });
+
+    it('a $0 transaction is not a payment', async () => {
+        const u = await register();
+        await deliver(event('transaction.completed', txn(u.user.id, { total: '0' })));
+        assert.equal(await check(u), null);
+    });
+
+    it('downloading a paid-template PDF after paying rules a refund out (free templates do not count)', async () => {
+        const u = await register();
+        await buy(u, new Date(Date.now() - 60000));
+        assert.equal((await api('POST', '/billing/download', { body: { template: 'Modern' } })).status, 401);
+        assert.equal((await api('POST', '/billing/download', { token: u.token, body: { template: 'Nope' } })).status, 400);
+        await api('POST', '/billing/download', { token: u.token, body: { template: 'Classic' } }); // an ATS template: free
+        assert.equal((await check(u)).eligible, true);
+        await api('POST', '/billing/download', { token: u.token, body: { template: 'Modern' } }); // two-column: paid
+        const r = await check(u);
+        assert.equal(r.eligible, false);
+        assert.equal(r.paidDownloads, 1);
+        assert.match(r.reasons.join(), /Downloaded 1 PDF with a paid template/);
+    });
+
+    it('more than 10 AI credits since paying rules a refund out', async () => {
+        const u = await register();
+        await buy(u, new Date(Date.now() - 60000));
+        const AiEvent = require('../models/AiEvent');
+        await AiEvent.create({ user: u.user.id, feature: 'coverLetter', credits: 11 });
+        const r = await check(u);
+        assert.equal(r.eligible, false);
+        assert.match(r.reasons.join(), /Used 11 AI credits/);
+    });
+
+    it('one refund per person: a refunded account never qualifies again (repeats counted once)', async () => {
+        const u = await register();
+        await buy(u, new Date(Date.now() - 60000));
+        paddleApi.handler = (url) => (url.endsWith('/cancel') ? { body: { data: subscriptionData({ userId: u.user.id, status: 'canceled' }) } } : null);
+        const refund = { id: 'adj_r1', action: 'refund', type: 'full', status: 'approved', transaction_id: 'txn_x', subscription_id: 'sub_1', customer_id: 'ctm_1', reason: 'x', credit_applied_to_balance: false, currency_code: 'USD', items: [], totals: { subtotal: '1', tax: '0', total: '1', fee: '0', earnings: '0', currency_code: 'USD' }, payout_totals: null, created_at: iso(Date.now()), updated_at: iso(Date.now()) };
+        await deliver(event('adjustment.created', refund));
+        await deliver(event('adjustment.updated', refund)); // the same refund again
+        const r = await check(u);
+        assert.equal(r.refunds, 1);
+        assert.equal(r.eligible, false);
+        assert.match(r.reasons.join(), /Already refunded/);
+    });
+
+    it('only the first payment, and only within 14 days', async () => {
+        const late = await register();
+        await buy(late, new Date(Date.now() - 20 * 864e5));
+        assert.match((await check(late)).reasons.join(), /More than 14 days/);
+        const renewed = await register();
+        await buy(renewed, new Date(Date.now() - 40 * 864e5));
+        await deliver(event('transaction.completed', txn(renewed.user.id, { billedAt: new Date() })));
+        assert.match((await check(renewed)).reasons.join(), /Only the first payment/);
     });
 });
 

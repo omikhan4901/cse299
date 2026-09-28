@@ -25,10 +25,18 @@ export default function RefundsPage() {
       <section>
         <h2>14-day refund on your first payment</h2>
         <p>
-          If you&apos;re not satisfied, you can ask for a full refund within <b>14 days of your first payment</b> for a plan, monthly or yearly, as long as you&apos;ve
-          used <b>less than 10% of the plan&apos;s AI credits</b> in that time. The limit is there because each AI credit costs us money to provide, and it stops
-          the refund being used to get paid features for free.
+          You can ask for a full refund within <b>14 days of your first payment</b> for a plan, monthly or yearly, as long as you haven&apos;t started using what the
+          plan adds. That means, since paying:
         </p>
+        <ul>
+          <li>you haven&apos;t downloaded a PDF made with a template that&apos;s only in a paid plan, and</li>
+          <li>you&apos;ve used no more than <b>10 AI credits</b>.</li>
+        </ul>
+        <p>
+          A resume you&apos;ve already downloaded can&apos;t be given back, and each AI credit costs us money to provide, so once you&apos;ve used the paid features the
+          payment isn&apos;t refundable. The Free plan lets you try the builder, the free templates and the ATS check before you pay.
+        </p>
+        <p><b>One refund per person.</b> If you&apos;ve had a refund before, later payments aren&apos;t refundable.</p>
       </section>
 
       <section>

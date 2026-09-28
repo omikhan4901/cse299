@@ -131,7 +131,7 @@ export default function PricingPlans({ config }) {
         <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-slate-500">
           Prices include VAT or sales tax where it applies. Plans renew automatically; cancel any time. Payments are handled by Paddle. By subscribing you agree to our{" "}
           <Link href="/terms" className="font-medium text-brand hover:underline">Terms</Link> and{" "}
-          <Link href="/refunds" className="font-medium text-brand hover:underline">Refund Policy</Link>, including a 14-day refund on your first payment.
+          <Link href="/refunds" className="font-medium text-brand hover:underline">Refund Policy</Link>. Your first payment can be refunded within 14 days if you haven&apos;t used the paid features yet.
         </p>
       ) : null}
 

@@ -28,6 +28,11 @@ const UserSchema = new mongoose.Schema({
     // "paddle" while the plan comes from a Paddle subscription (so ending it only undoes that).
     planSource: { type: String },
     paddleCustomerId: { type: String, index: true, sparse: true },
+    // Payments and refunds (from Paddle's webhooks), for the refund check in the admin console.
+    firstPaidAt: { type: Date },
+    lastPaidAt: { type: Date },
+    refundIds: { type: [String], default: undefined }, // Paddle adjustment ids of full refunds
+    chargebackIds: { type: [String], default: undefined },
     // Custom AI credit allowance (set by an admin or a campaign); null uses the plan's.
     creditLimit: { type: Number, default: null, min: 0 },
     creditPeriod: { type: String, enum: ['day', 'month', null], default: null },

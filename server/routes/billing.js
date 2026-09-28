@@ -8,6 +8,9 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const { paddleConfig, paddle, paddlePrices, grantsAccess, PLANS, INTERVALS } = require('../lib/paddle');
 const { applySubscription } = require('../lib/paddleEvents');
+const Download = require('../models/Download');
+const { templateTier } = require('../lib/templates');
+const CATEGORY_OF = require('../../shared/templates.json');
 
 const router = express.Router();
 
@@ -60,6 +63,17 @@ router.get('/me', protect, async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+});
+
+// @route POST /api/billing/download — the builder reports a PDF download with a paid template
+// (for the refund policy: a resume already downloaded can't be given back).
+const downloadsByUser = limit({ name: 'downloads', windowMs: 60 * 60 * 1000, max: 120, key: (req) => req.userId, message: 'Too many downloads.', label: 'PDF downloads recorded', group: 'Billing', scope: 'account', description: 'PDF downloads the builder reports (only paid templates are recorded, for the refund policy).' });
+router.post('/download', protect, downloadsByUser, async (req, res) => {
+    const template = req.body?.template;
+    if (typeof template !== 'string' || !CATEGORY_OF[template]) return res.status(400).json({ success: false, error: 'Unknown template.' });
+    const tier = templateTier(template, (await getSettings()).templates);
+    if (tier !== 'free') await Download.create({ user: req.userId, template, tier });
+    res.json({ success: true });
 });
 
 const billingActions = limit({ name: 'billing-actions', windowMs: 60 * 60 * 1000, max: 20, key: (req) => req.userId, message: 'Too many billing requests.', label: 'Billing portal and plan changes', group: 'Billing', scope: 'account', description: 'Opening the Paddle billing portal and switching plans.' });

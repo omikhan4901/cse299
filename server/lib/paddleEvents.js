@@ -112,10 +112,15 @@ async function onCustomer(event) {
 async function onTransaction(event) {
     const t = event.data;
     const user = await findUser({ userId: t.customData?.userId, customerId: t.customerId });
-    if (user) {
-        await linkCustomer(user._id, t.customerId);
-        await syncPlan(user._id);
+    if (!user) return;
+    await linkCustomer(user._id, t.customerId);
+    // Record when the account paid (for the refund check). A $0 transaction isn't a payment.
+    const total = Number(t.details?.totals?.grandTotal ?? t.details?.totals?.total ?? 0);
+    if (t.status === 'completed' && total > 0) {
+        const paidAt = toDate(t.billedAt) || toDate(event.occurredAt);
+        await User.updateOne({ _id: user._id }, { $min: { firstPaidAt: paidAt }, $max: { lastPaidAt: paidAt } });
     }
+    await syncPlan(user._id);
 }
 
 /**
@@ -126,9 +131,13 @@ async function onTransaction(event) {
 async function onAdjustment(event) {
     const a = event.data;
     const fullRefund = a.action === 'refund' && a.type === 'full' && a.status === 'approved';
-    if (!(fullRefund || a.action === 'chargeback') || !a.subscriptionId) return;
-    const sub = await Subscription.findOne({ subscriptionId: a.subscriptionId }).lean();
-    if (sub?.status === 'canceled') return;
+    const chargeback = a.action === 'chargeback';
+    if (!fullRefund && !chargeback) return;
+    const sub = a.subscriptionId ? await Subscription.findOne({ subscriptionId: a.subscriptionId }).lean() : null;
+    // Remember it on the account (by id, so a repeated delivery isn't counted twice): one refund per person.
+    const userId = sub?.user || (await findUser({ customerId: a.customerId }))?._id;
+    if (userId) await User.updateOne({ _id: userId }, { $addToSet: { [fullRefund ? 'refundIds' : 'chargebackIds']: a.id } });
+    if (!a.subscriptionId || sub?.status === 'canceled') return;
     try {
         const canceled = await paddle().subscriptions.cancel(a.subscriptionId, { effectiveFrom: 'immediately' });
         await applySubscription(canceled, new Date());

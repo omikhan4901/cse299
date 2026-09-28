@@ -12,6 +12,7 @@ const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email')
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
+const { refundCheck } = require('../lib/refunds');
 
 /**
  * Admin console API. Everything here needs an admin or super admin
@@ -151,7 +152,8 @@ router.get('/users/:id', wrap(async (req, res) => {
         AiEvent.find({ user: user._id }).sort({ at: -1 }).limit(50).lean(),
         user.campaign ? Campaign.findById(user.campaign).select('name code').lean() : null,
     ]);
-    res.json({ success: true, data: { ...described, resumesList: resumes, events, campaign } });
+    const billing = await User.findById(user._id).select('firstPaidAt lastPaidAt refundIds chargebackIds').lean();
+    res.json({ success: true, data: { ...described, resumesList: resumes, events, campaign, refundCheck: await refundCheck(billing) } });
 }));
 
 /** Applies the editable fields from an admin request to a user document. */

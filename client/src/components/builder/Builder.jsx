@@ -486,6 +486,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     try {
       await downloadPdf(resume);
       celebrate(origin);
+      // Recorded for the refund policy (only paid templates count; the server decides which).
+      if (token) api("/billing/download", { token, method: "POST", body: { template: resume.template } }).catch(() => {});
     } catch (err) {
       console.error(err);
       message.error("Could not create the PDF. Please try again.");

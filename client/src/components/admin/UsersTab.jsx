@@ -29,6 +29,31 @@ function Credits({ c }) {
 }
 
 /** Edit drawer for one user: plan, credits, role, ban, password, delete. */
+/** Whether the latest payment can be refunded under the refund policy (/refunds), and why not. */
+function RefundCheck({ r }) {
+  const date = (d) => (d ? new Date(d).toLocaleDateString() : "—");
+  return (
+    <div className={`rounded-xl border p-4 ${r.eligible ? "border-emerald-200 bg-emerald-50/50" : "border-amber-200 bg-amber-50/50"}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-medium text-ink">Refund check</p>
+        <Tag color={r.eligible ? "green" : "orange"} className="!m-0">{r.eligible ? "Qualifies" : "Doesn't qualify"}</Tag>
+      </div>
+      <p className="mt-1 text-xs text-slate-500">
+        First paid {date(r.firstPaidAt)} · latest payment {date(r.lastPaidAt)} · since then: {r.paidDownloads} paid-template PDF{r.paidDownloads === 1 ? "" : "s"}, {r.aiCredits} AI credits
+        {r.refunds ? ` · ${r.refunds} earlier refund${r.refunds > 1 ? "s" : ""}` : ""}
+        {r.chargebacks ? ` · ${r.chargebacks} chargeback${r.chargebacks > 1 ? "s" : ""}` : ""}
+      </p>
+      {r.reasons.length ? (
+        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm text-amber-900">
+          {r.reasons.map((x) => <li key={x}>{x}</li>)}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-emerald-800">Within the refund policy. Refund from the Paddle dashboard; the plan ends automatically.</p>
+      )}
+    </div>
+  );
+}
+
 function UserDrawer({ id, onClose, onChanged, isSuper }) {
   const { message, modal } = App.useApp();
   const { data, loading, call, setData } = useAdmin(id ? `/users/${id}` : null);
@@ -138,6 +163,8 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
             ) : null}
             <Button type="primary" htmlType="submit" loading={saving} className="!mt-4">Save changes</Button>
           </Form>
+
+          {u.refundCheck ? <RefundCheck r={u.refundCheck} /> : null}
 
           <div className="rounded-xl border border-slate-200 p-4">
             <p className="font-medium text-ink">This {u.credits.period}&apos;s credits</p>
