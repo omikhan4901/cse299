@@ -514,9 +514,9 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour="sections">
       {onHelp ? (
-        <button type="button" onClick={onHelp} className="group flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-3 text-left transition hover:border-amber-300 hover:shadow-sm">
+        <button type="button" onClick={onHelp} data-tour="guide" className="group flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-4 py-3 text-left transition hover:border-amber-300 hover:shadow-sm">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
             <Lightbulb size={16} />
           </span>

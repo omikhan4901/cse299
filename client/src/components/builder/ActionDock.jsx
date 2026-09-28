@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { AI_LOCKED_MESSAGE } from "./ai";
 
-function DockButton({ title, onClick, children, className = "", disabled, badge }) {
+function DockButton({ title, onClick, children, className = "", disabled, badge, tour }) {
   return (
     <Tooltip title={title} placement="left">
       <motion.button
@@ -18,6 +18,7 @@ function DockButton({ title, onClick, children, className = "", disabled, badge 
         whileTap={disabled ? undefined : { scale: 0.92 }}
         className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
         aria-label={title}
+        data-tour={tour}
       >
         {children}
         {badge}
@@ -43,13 +44,14 @@ export default function ActionDock({
   const aiTitle = (label) => (aiEnabled ? label : `${label} — ${AI_LOCKED_MESSAGE}`);
 
   return (
-    <div className="pointer-events-none fixed top-1/2 right-5 z-30 hidden -translate-y-1/2 lg:block">
+    <div className="pointer-events-none absolute top-1/2 right-4 z-30 hidden -translate-y-1/2 lg:block [@media(max-height:860px)]:origin-right [@media(max-height:860px)]:scale-[0.85]">
       <motion.nav
         initial={{ opacity: 0, x: 40 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ type: "spring", stiffness: 260, damping: 24, delay: 0.15 }}
         className="pointer-events-auto flex flex-col items-center gap-1.5 rounded-[28px] bg-white/90 p-2.5 shadow-[0_12px_40px_rgba(15,31,42,0.14)] ring-1 ring-slate-900/5 backdrop-blur-xl"
         aria-label="Builder actions"
+        data-tour="dock"
       >
         <DockButton title="Edit content" onClick={() => onTab("content")} className={tab === "content" ? "bg-brand-50 text-brand" : "text-slate-500 hover:bg-slate-100"}>
           <PenLine size={19} />
@@ -80,10 +82,10 @@ export default function ActionDock({
         ) : null}
 
         <Divider />
-        <DockButton title={aiTitle("AI assistant")} onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={lock}>
+        <DockButton title={aiTitle("AI assistant")} tour="dock-ai" onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={lock}>
           <MessageSquare size={18} />
         </DockButton>
-        <DockButton title="ATS check" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm">
+        <DockButton title="ATS check" tour="dock-ats" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm">
           <ScanSearch size={18} />
         </DockButton>
         <DockButton title={aiTitle("Cover letter")} onClick={() => onAi("cover")} className="bg-pink-50 text-pink-600 shadow-sm" badge={lock}>
@@ -110,7 +112,7 @@ export default function ActionDock({
         >
           {saveState === "saving" ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
         </DockButton>
-        <DockButton title="Share link" onClick={onShare} className="text-brand hover:bg-brand-50">
+        <DockButton title="Share link" tour="dock-share" onClick={onShare} className="text-brand hover:bg-brand-50">
           <Share2 size={18} />
         </DockButton>
         <Tooltip title="Download PDF" placement="left">
@@ -123,6 +125,7 @@ export default function ActionDock({
             className="relative mt-1 flex h-14 w-14 items-center justify-center rounded-full bg-navy text-white shadow-[0_10px_24px_rgba(0,42,58,0.35)]"
             aria-label="Download PDF"
             data-download-button
+            data-tour="dock-download"
           >
             <span className="absolute inset-0 animate-[dock-glow_2.8s_ease-in-out_infinite] rounded-full" />
             {downloading ? <Loader2 size={22} className="animate-spin" /> : <Download size={22} />}

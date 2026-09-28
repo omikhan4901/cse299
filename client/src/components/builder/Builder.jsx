@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button, Dropdown, Segmented, Tooltip, App, Input, Result, Spin } from "antd";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, FilePlus2, Eraser,
-  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen,
+  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
@@ -23,6 +23,7 @@ import ShareModal from "./ShareModal";
 import { ChatModal, CoverLetterModal, aiResume } from "./AiModals";
 import AtsModal from "./AtsModal";
 import TemplateGallery from "./TemplateGallery";
+import BuilderTour from "./BuilderTour";
 import ResumeGuideModal from "./ResumeGuideModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
@@ -140,6 +141,17 @@ function Editor({ initial, example, onSaved }) {
   const [aiModal, setAiModal] = useState(null);
   const [gallery, setGallery] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+
+  // The builder fills the window and its panels scroll on their own, so the page itself never needs to.
+  useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.style.overflow;
+    html.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = previous;
+    };
+  }, []);
   const [refiningId, setRefiningId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -426,6 +438,24 @@ function Editor({ initial, example, onSaved }) {
             Share
           </Button>
         </div>
+        <Tooltip title="Upload an existing PDF or Word resume and we'll fill in every section">
+          <Button icon={<Upload size={15} />} onClick={() => openAi("import")} data-tour="import">
+            <span className="hidden md:inline">Import resume</span>
+          </Button>
+        </Tooltip>
+        <Tooltip title="Take a quick tour of the builder">
+          <Button
+            icon={<Compass size={15} />}
+            onClick={() => {
+              setTab("content");
+              setMobileView("edit");
+              setTourOpen(true);
+            }}
+            className="!hidden sm:!inline-flex"
+          >
+            <span className="hidden xl:inline">Take a tour</span>
+          </Button>
+        </Tooltip>
         <Dropdown menu={moreMenu} trigger={["click"]} placement="bottomRight">
           <Button icon={<MoreHorizontal size={16} />} aria-label="More actions" />
         </Dropdown>
@@ -439,10 +469,10 @@ function Editor({ initial, example, onSaved }) {
         <Segmented block value={mobileView} onChange={setMobileView} options={[{ label: "Edit", value: "edit" }, { label: "Preview", value: "preview" }]} />
       </div>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {/* Editor */}
         <aside className={`thin-scroll w-full shrink-0 overflow-y-auto border-r border-slate-200 bg-slate-50 lg:block lg:w-[460px] xl:w-[500px] ${mobileView === "edit" ? "block" : "hidden"}`}>
-          <div className="sticky top-0 z-10 bg-slate-50/95 px-4 pt-4 pb-3 backdrop-blur">
+          <div className="sticky top-0 z-10 bg-slate-50/95 px-4 pt-4 pb-3 backdrop-blur" data-tour="tabs">
             <Segmented
               block
               value={tab}
@@ -476,7 +506,7 @@ function Editor({ initial, example, onSaved }) {
         </aside>
 
         {/* Preview */}
-        <section className={`thin-scroll min-w-0 flex-1 overflow-auto bg-slate-200/60 lg:block lg:pr-24 ${mobileView === "preview" ? "block" : "hidden"}`} aria-label="Resume preview">
+        <section className={`thin-scroll min-w-0 flex-1 overflow-auto bg-slate-200/60 lg:block lg:pr-24 ${mobileView === "preview" ? "block" : "hidden"}`} aria-label="Resume preview" data-tour="preview">
           <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200/70 bg-slate-100/90 px-4 py-2 text-xs text-slate-500 backdrop-blur">
             <span>
               <b className="font-medium text-slate-700">{tpl.name}</b> · {resume.theme.pageSize === "LETTER" ? "US Letter" : "A4"} · {pages} page{pages === 1 ? "" : "s"}
@@ -492,25 +522,26 @@ function Editor({ initial, example, onSaved }) {
             <PdfPreview resume={resume} zoom={zoom} onPageCount={setPages} />
           </div>
         </section>
+
+        <ActionDock
+          tab={tab}
+          onTab={(t) => {
+            setTab(t);
+            setMobileView("edit");
+          }}
+          zoom={zoom}
+          onZoom={setZoom}
+          aiEnabled={AI_ENABLED}
+          onAi={openAi}
+          saveState={saveState}
+          onSave={handleSave}
+          onShare={handleShare}
+          onDownload={handleDownload}
+          downloading={downloading}
+          onHelp={() => setGuideOpen(true)}
+        />
       </div>
 
-      <ActionDock
-        tab={tab}
-        onTab={(t) => {
-          setTab(t);
-          setMobileView("edit");
-        }}
-        zoom={zoom}
-        onZoom={setZoom}
-        aiEnabled={AI_ENABLED}
-        onAi={openAi}
-        saveState={saveState}
-        onSave={handleSave}
-        onShare={handleShare}
-        onDownload={handleDownload}
-        downloading={downloading}
-        onHelp={() => setGuideOpen(true)}
-      />
 
       <SaveModal open={saveOpen} onCancel={() => setSaveOpen(false)} onSave={createResume} loading={saving} resume={resume} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />
@@ -525,6 +556,7 @@ function Editor({ initial, example, onSaved }) {
         }}
       />
       <ResumeGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <BuilderTour open={tourOpen} onClose={() => setTourOpen(false)} />
       <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
       {AI_ENABLED ? (
         <>
