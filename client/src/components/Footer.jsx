@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BuilderLink } from "./BuilderLauncher";
 import { GithubIcon as Github } from "./BrandIcons";
 import Logo from "./Logo";
+import { CONTACT_EMAIL } from "@/lib/config";
 
 export default function Footer() {
   return (
@@ -23,6 +24,7 @@ export default function Footer() {
             <li><Link className="hover:text-white" href="/privacy">Privacy policy</Link></li>
             <li><Link className="hover:text-white" href="/terms">Terms of service</Link></li>
             <li><Link className="hover:text-white" href="/refunds">Refund policy</Link></li>
+            <li><a className="hover:text-white" href={`mailto:${CONTACT_EMAIL}`}>Contact support</a></li>
           </ul>
         </div>
         <div>
