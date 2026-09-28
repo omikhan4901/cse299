@@ -40,17 +40,20 @@ const RESPONSE_SCHEMA = {
             type: 'ARRAY',
             items: {
                 type: 'OBJECT',
+                // Item fields sit directly on the operation: models fill flat fields far more
+                // reliably than a nested object of optional ones.
                 properties: {
+                    evidence: { type: 'STRING' },
                     op: { type: 'STRING', enum: OPS },
                     section: { type: 'STRING', enum: Object.keys(SECTION_FIELDS) },
                     target: { type: 'STRING' },
                     field: { type: 'STRING' },
                     value: { type: 'STRING' },
-                    item: { type: 'OBJECT', properties: Object.fromEntries(ALL_ITEM_FIELDS.map((f) => [f, { type: 'STRING' }])) },
+                    ...Object.fromEntries(ALL_ITEM_FIELDS.map((f) => [f, { type: 'STRING' }])),
                     bullets: { type: 'ARRAY', items: { type: 'STRING' } },
                     values: { type: 'ARRAY', items: { type: 'STRING' } },
-                    evidence: { type: 'STRING' },
                 },
+                propertyOrdering: ['evidence', 'op', 'section', 'target', 'field', 'value', ...ALL_ITEM_FIELDS, 'bullets', 'values'],
                 required: ['op', 'evidence'],
             },
         },
@@ -62,9 +65,9 @@ const INSTRUCTION = `You turn what a person writes about their career into struc
 
 You receive CURRENT RESUME (an outline of what they already have, with item ids) and INPUT (new text from them: a pasted CV, notes, a paragraph, or a follow-up message).
 Return operations that add INPUT's information to the resume:
-- "add": a new item in "section". Its fields go in "item", its achievement points in "bullets".
+- "add": a new item in "section". Put its fields (company, title, startDate, …) directly on the operation, and its achievement points in "bullets".
 - "addBullets": new points for an item that already exists ("section" and "target" = its id).
-- "update": new values for fields of an existing item ("section", "target", and the fields in "item"), e.g. an end date the person has just given.
+- "update": new values for fields of an existing item ("section", "target", and the changed fields directly on the operation), e.g. an end date the person has just given.
 - "set": a personal detail or the summary. "field" is one of: ${PERSONAL_FIELDS.map((f) => `personal.${f}`).join(', ')}, summary. "value" holds it.
 - "addValues": "field" is skills, languages or interests; "values" lists them one by one.
 
@@ -76,11 +79,12 @@ Rules:
 2. If INPUT is about something already in CURRENT RESUME (the same employer, project, school or award, or phrases like "that project", "my job at X"), use its id with "addBullets" or "update". Never add a second copy.
 3. Skip information already in CURRENT RESUME.
 4. Keep the person's facts and wording. You may fix grammar and spelling, split a long sentence into separate points, start points with a strong verb and use past tense for finished work. Never add adjectives or claims they didn't make.
-5. Dates: "Mon YYYY" (e.g. "Mar 2021"), just "YYYY" if only the year is known, or "Present". Education uses startYear and endYear (years only).
-6. Sections: jobs, internships, part-time, tutoring and research-assistant positions go in experience; personal, academic and thesis projects in projects. Individual technologies, tools and methods go in skills; spoken languages (with level if given) in languages.
-7. If INPUT is partly or fully in Bangla, write the resume text in English, keeping names as they are.
-8. "evidence": copy the shortest exact phrase from INPUT that the operation is based on.
-9. If INPUT has nothing for a resume, return an empty list.`;
+5. Dates: "Mon YYYY" (e.g. "Mar 2021"), just "YYYY" if only the year or a season is known, or "Present". Education uses startYear and endYear (years only).
+6. Sections: jobs, internships, part-time, tutoring, teaching and research-assistant positions go in experience (always with "company" = the employer or institution, and "title"); personal, academic and thesis projects in projects; each degree is its own education item. Publications take the venue as "publisher" and the year as "date".
+7. Skills: every technology, programming language, tool and method named anywhere in INPUT (in a job, a project or a point) also goes in one "addValues" for skills, written the usual way (e.g. "Node.js"). Spoken languages (with level if given) go in languages.
+8. If INPUT is partly or fully in Bangla, write the resume text in English, keeping names as they are.
+9. "evidence": copy the shortest exact phrase from INPUT that the operation is based on.
+10. If INPUT has nothing for a resume, return an empty list.`;
 
 /** The contents for the model: the outline and the new input. */
 function prompt(outline, text) {
@@ -92,7 +96,11 @@ function prompt(outline, text) {
 // Bangla digits (০–৯) count as the same numbers as 0–9: "২০২২" confirms "2022".
 const asciiDigits = (s) => String(s || '').replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - 0x09e6));
 const norm = (s) => asciiDigits(s).toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}+#]+/gu, ' ').trim();
-const words = (s) => norm(s).split(' ').filter(Boolean);
+const FILLER = new Set(['in', 'of', 'the', 'and', 'at', 'on', 'for', 'a', 'an']);
+const words = (s) => norm(s).split(' ').filter((w) => w && !FILLER.has(w));
+// Degree levels: "BA in English" and "MA in English" are different degrees.
+const LEVELS = new Set(['ssc', 'hsc', 'o', 'a', 'ba', 'bs', 'bsc', 'bss', 'bba', 'bcom', 'beng', 'llb', 'mbbs', 'ma', 'ms', 'msc', 'mss', 'mba', 'mcom', 'meng', 'llm', 'mphil', 'phd', 'diploma']);
+const levelOf = (degree) => norm(String(degree || '').replace(/\./g, '')).split(' ').find((w) => LEVELS.has(w));
 
 /** True when the shorter text's words are (almost) all in the other: "Pathao" ≈ "Pathao Ltd.". */
 function similar(a, b, threshold = 0.8) {
@@ -107,7 +115,12 @@ function similar(a, b, threshold = 0.8) {
 function findSame(section, item, list) {
     return list.find((e) => {
         if (section === 'experience') return similar(e.company, item.company) && (!item.title || !e.title || similar(e.title, item.title, 0.6));
-        if (section === 'education') return similar(e.institution, item.institution) && (!item.degree || !e.degree || similar(e.degree, item.degree, 0.6));
+        if (section === 'education') {
+            if (!similar(e.institution, item.institution)) return false;
+            if (!item.degree || !e.degree) return true;
+            const [a, b] = [levelOf(e.degree), levelOf(item.degree)];
+            return a && b ? a === b : similar(e.degree, item.degree, 0.6);
+        }
         if (section === 'volunteering') return similar(e.organization, item.organization);
         if (section === 'links') return similar(e.url || e.label, item.url || item.label);
         if (section === 'references') return similar(e.name, item.name);
@@ -124,6 +137,31 @@ const newPoints = (bullets, existing) => {
     const kept = [];
     for (const b of bullets) if (![...existing, ...kept].some((e) => similar(e, b, 0.85))) kept.push(b);
     return kept;
+};
+
+// The usual way of writing a tool, and the shorthand people use for it: "sklearn" confirms "scikit-learn".
+const ALIASES = {
+    'scikit-learn': ['sklearn', 'scikit'],
+    javascript: ['js'],
+    typescript: ['ts'],
+    'node.js': ['node', 'nodejs'],
+    nodejs: ['node'],
+    react: ['reactjs', 'react js'],
+    'react.js': ['react', 'reactjs'],
+    'vue.js': ['vue'],
+    'next.js': ['next', 'nextjs'],
+    'express.js': ['express'],
+    postgresql: ['postgres'],
+    mongodb: ['mongo'],
+    kubernetes: ['k8s'],
+    'c#': ['csharp'],
+    tensorflow: ['tf'],
+    'power bi': ['powerbi'],
+    'microsoft excel': ['excel', 'ms excel'],
+    'machine learning': ['ml'],
+    bangla: ['bengali', 'বাংলা'],
+    bengali: ['bangla'],
+    english: ['ইংরেজি'],
 };
 
 const MONTH = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?$/i;
@@ -155,6 +193,19 @@ function strings(o) {
     return [o.value, ...Object.values(o.item || {}), ...(o.bullets || []), ...(o.values || [])].filter((s) => typeof s === 'string' && s);
 }
 
+const DATE_FIELDS = new Set(['startDate', 'endDate', 'date', 'startYear', 'endYear']);
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+/** "March 2021" → "Mar 2021"; "Summer 2023" → "2023" (not a month); years only for education. */
+function cleanDate(v, field) {
+    const s = asciiDigits(v).trim();
+    if (/^(present|current|now|ongoing)$/i.test(s)) return field.endsWith('Year') || field === 'endDate' ? 'Present' : s;
+    const year = s.match(/\b(19|20)\d{2}\b/)?.[0];
+    if (field.endsWith('Year')) return year || s;
+    const month = s.match(/^([a-z]{3})[a-z]*\.?,?\s+(19|20)\d{2}$/i);
+    if (month) return MONTHS.includes(month[1].toLowerCase()) ? `${month[1][0].toUpperCase()}${month[1].slice(1, 3).toLowerCase()} ${year}` : year;
+    return s;
+}
+
 const clean = (v, max = 400) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
 /** Keeps only what the resume model allows. Returns null for an unusable operation. */
@@ -169,10 +220,13 @@ function sanitize(raw) {
             o.target = String(raw.target);
         }
         if (raw.op !== 'addBullets') {
+            // Fields come flat on the operation (the schema), or nested in "item".
+            const from = raw.item && typeof raw.item === 'object' ? { ...raw, ...raw.item } : raw;
             o.item = {};
-            for (const f of SECTION_FIELDS[raw.section]) if (f !== POINTS_FIELD[raw.section] && clean(raw.item?.[f])) o.item[f] = clean(raw.item[f], 200);
+            for (const f of SECTION_FIELDS[raw.section]) if (f !== POINTS_FIELD[raw.section] && clean(from[f])) o.item[f] = DATE_FIELDS.has(f) ? cleanDate(clean(from[f], 40), f) : clean(from[f], 200);
         }
         o.bullets = POINTS_FIELD[raw.section] ? (Array.isArray(raw.bullets) ? raw.bullets : []).map((b) => clean(b)).filter(Boolean).slice(0, 20) : [];
+        if (raw.op === 'add' && !Object.keys(o.item).length && !o.bullets.length) return null; // nothing to add
     } else if (raw.op === 'set') {
         const f = String(raw.field || '');
         if (f !== 'summary' && !(f.startsWith('personal.') && PERSONAL_FIELDS.includes(f.slice(9)))) return null;
@@ -193,12 +247,22 @@ function sanitize(raw) {
  * `outline` is the resume outline sent with the request (ids, fields, first points).
  * Returns { operations, skipped } (skipped = things that were already in the resume).
  */
-function checkOperations(rawOps, { source, outline = {} }) {
-    const corpus = norm(`${source} ${JSON.stringify(outline)}`);
-    const corpusDigits = asciiDigits(`${source} ${JSON.stringify(outline)}`).replace(/,/g, '');
-    // Numbers must appear as whole numbers ("20" isn't confirmed by "2020").
+/**
+ * Checks against what the person wrote: inCorpus(phrase) for names and skills (aliases
+ * allowed), known(token) for fact tokens (numbers must appear whole: "20" isn't confirmed
+ * by "2020").
+ */
+function checker(text) {
+    const corpus = norm(text);
+    const corpusDigits = asciiDigits(text).replace(/,/g, '');
     const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const known = (t) => (/^\d/.test(t) ? new RegExp(`(^|[^\\d.])${escape(t)}(?![\\d]|\\.\\d)`).test(corpusDigits) : corpus.includes(norm(t)));
+    const inCorpus = (t) => corpus.includes(norm(t)) || (ALIASES[t.toLowerCase()] || []).some((a) => new RegExp(`(^| )${escape(norm(a))}( |$)`).test(corpus));
+    const known = (t) => (/^\d/.test(t) ? new RegExp(`(^|[^\\d.])${escape(t)}(?![\\d]|\\.\\d)`).test(corpusDigits) : inCorpus(t));
+    return { corpus, inCorpus, known };
+}
+
+function checkOperations(rawOps, { source, outline = {} }) {
+    const { corpus, inCorpus, known } = checker(`${source} ${JSON.stringify(outline)}`);
     const out = [];
     let skipped = 0;
     const listOf = (section) => (Array.isArray(outline[section]) ? outline[section] : []);
@@ -209,6 +273,12 @@ function checkOperations(rawOps, { source, outline = {} }) {
         if (!o) continue;
 
         if (o.op === 'add') {
+            // A dated entry (publication, award, course…) without its year: take the year from
+            // the evidence when that is really in the text and names exactly one year.
+            if (SECTION_FIELDS[o.section].includes('date') && !o.item.date && o.evidence && corpus.includes(norm(o.evidence))) {
+                const years = [...new Set(asciiDigits(o.evidence).match(/\b(19|20)\d{2}\b/g) || [])];
+                if (years.length === 1) o.item.date = years[0];
+            }
             // Already in this batch: fold into that operation.
             const twin = addedIn(o.section).find((a) => findSame(o.section, o.item, [a.item]));
             if (twin) {
@@ -264,7 +334,7 @@ function checkOperations(rawOps, { source, outline = {} }) {
 
         // Anything factual that isn't in what the person wrote (or already had) is flagged.
         const unverified = [...new Set(strings(o).flatMap(factTokens))].filter((t) => !known(t));
-        const unlisted = o.op === 'addValues' ? o.values.filter((v) => !corpus.includes(norm(v))) : [];
+        const unlisted = o.op === 'addValues' ? o.values.filter((v) => !inCorpus(v)) : [];
         const missing = [...new Set([...unverified, ...unlisted.map((v) => v.toLowerCase())])];
         if (missing.length) o.flags = [...(o.flags || []), { kind: 'unverified', tokens: missing }];
         out.push(o);
@@ -273,4 +343,4 @@ function checkOperations(rawOps, { source, outline = {} }) {
     return { operations: out, skipped };
 }
 
-module.exports = { INSTRUCTION, RESPONSE_SCHEMA, prompt, checkOperations, factTokens, similar, SECTION_FIELDS, POINTS_FIELD };
+module.exports = { checker, INSTRUCTION, RESPONSE_SCHEMA, prompt, checkOperations, factTokens, similar, SECTION_FIELDS, POINTS_FIELD };

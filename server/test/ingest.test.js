@@ -83,6 +83,36 @@ describe('checking the AI operations', () => {
         assert.deepEqual(operations[1].flags, [{ kind: 'replaces', fields: ['personal.email'] }]);
     });
 
+    it('reads fields given flat on the operation, keeps different degrees apart, and tidies dates', () => {
+        const source = 'BA and MA in English from Dhaka University. Intern at Robi in summer 2023 until march 2024. Paper at ICCIT 2021.';
+        const { operations } = checkOperations(
+            [
+                { op: 'add', section: 'education', institution: 'Dhaka University', degree: 'BA in English', evidence: 'BA' },
+                { op: 'add', section: 'education', institution: 'Dhaka University', degree: 'MA in English', evidence: 'MA' },
+                { op: 'add', section: 'education', institution: 'Dhaka University', degree: 'B.A. English', evidence: 'BA' },
+                { op: 'add', section: 'experience', company: 'Robi', title: 'Intern', startDate: 'Summer 2023', endDate: 'march 2024', evidence: 'Intern at Robi' },
+                { op: 'add', section: 'publications', title: 'A paper', evidence: 'Paper at ICCIT 2021' },
+                { op: 'add', section: 'projects', evidence: 'nothing in it' },
+            ],
+            { source, outline: {} }
+        );
+        assert.deepEqual(
+            operations.map((o) => o.item),
+            [
+                { institution: 'Dhaka University', degree: 'BA in English' },
+                { institution: 'Dhaka University', degree: 'MA in English' },
+                { company: 'Robi', title: 'Intern', startDate: '2023', endDate: 'Mar 2024' },
+                { title: 'A paper', date: '2021' },
+            ],
+            'the second BA folds into the first; a season keeps only its year; the year comes from the evidence; an empty add is dropped'
+        );
+    });
+
+    it('the usual name of a tool is confirmed by the shorthand the person used', () => {
+        const { operations } = checkOperations([{ op: 'addValues', field: 'skills', values: ['scikit-learn', 'Node.js', 'Kubernetes'], evidence: 'x' }], { source: 'python, sklearn and node', outline: {} });
+        assert.deepEqual(operations[0].flags, [{ kind: 'unverified', tokens: ['kubernetes'] }]);
+    });
+
     it('skills already listed are left out; fact tokens ignore sentence starts and months', () => {
         const { operations, skipped } = checkOperations([{ op: 'addValues', field: 'skills', values: ['node.js', 'Go'], evidence: 'x' }], { source: 'Node.js and Go', outline });
         assert.equal(operations.length, 0);

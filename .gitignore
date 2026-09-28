@@ -6,3 +6,5 @@ node_modules
 
 # Frontend build directory
 client/dist
+# Import evaluation output (server/eval)
+server/eval/ingest/last-report.json

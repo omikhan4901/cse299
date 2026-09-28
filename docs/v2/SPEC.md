@@ -1,6 +1,7 @@
 # ResumeX V2: product specification and roadmap
 
-Status: agreed direction, revised after the owner's review (28 September 2026).
+Status: agreed direction, revised after the owner's review (28 September 2026); build order
+in `PLAN.md` (29 September 2026).
 
 **This is a living document, not a contract.** Before each phase starts, re-read the parts
 it depends on, re-check the assumptions against what we've learned (usage data, user
@@ -359,8 +360,8 @@ keep changing; the application keeps what the employer received.
 ```
 CareerProfile      one per user
   user, rev (same optimistic concurrency as resumes)
-  personal { …today's fields, biodata: { fatherName, motherName, dob, nid, religion,
-             nationality, permanentAddress, presentAddress, maritalStatus } }
+  personal { …today's fields }   (no biodata: see §5.1; biodata lives only in a biodata
+                                  resume, and there is never an NID field)
   summaries [{ id, label, text }]
   experience [{ id, title, company, location, startDate, endDate,
                 bullets: [{ id, text, tags[], review: bool }], tags[] }]
@@ -405,6 +406,14 @@ Reminder (derived; stored only for email sending state)
   `AiEvent`, with an admin view of real cost per feature. Needed before tuning credits.
 - **Scheduler:** Cloud Scheduler → `POST /api/internal/reminders` (authenticated with
   `INTERNAL_API_KEY`) for email digests.
+
+**Two formats, one converter.** The profile stores bullets and skills as items with ids;
+resumes keep today's format (bullets as lines, skills as a comma list), so the builder,
+templates and PDF engine are untouched. The generator converts; each resume item keeps its
+`profileItemId`, and bullets are matched by text when syncing.
+
+**Shipping in pieces.** Every push to `main` deploys, so V2 screens sit behind an admin
+setting, **V2 preview** (admins and listed accounts only), until V2 is switched on.
 
 ### Integration checklist (per CLAUDE.md), per feature
 
@@ -489,6 +498,9 @@ next one slips.
 
 **Before each phase:** re-read its section, re-check assumptions against usage and
 feedback, update this spec, then build.
+
+**Order of work (29 September 2026):** while AI testing is paused, the non-AI parts of every
+phase are built first, and AI parts are verified later from a queue. See `PLAN.md`.
 
 ---
 

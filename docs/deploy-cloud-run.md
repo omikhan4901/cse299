@@ -31,6 +31,18 @@ The front end stays on Vercel and the database on MongoDB Atlas.
    | `SMTP_URL`, `MAIL_FROM`, `APP_URL` | when email is set up |
 
    For extra safety, store `MONGO_URI`, `JWT_SECRET` and `GEMINI_API_KEY` in **Secret Manager** and choose "Reference a secret".
+
+   **AI through Vertex AI instead** (billed to this Google Cloud project, so Cloud credits apply;
+   no API key needed): enable the Vertex AI API, give the service's account the
+   **Vertex AI User** role (`roles/aiplatform.user`, labelled "Agent Platform User" in newer
+   consoles), make sure billing is enabled on the project, then set:
+
+   | Name | Value |
+   | --- | --- |
+   | `AI_PROVIDER` | `vertex` (remove it, or set `studio`, to go back to `GEMINI_API_KEY`) |
+   | `VERTEX_PROJECT` | the project id, e.g. `resumex-509921` |
+   | `VERTEX_LOCATION` | `global` (or a region) |
+   | `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL` | model ids that Vertex offers (see Model Garden) |
 6. **Create**. The first build takes a few minutes. When it finishes, open `https://<service-url>/api/health`; it should show `"db":true`.
 
 ## 2. Connect the rest

@@ -48,3 +48,21 @@ If a connection is a real product decision (pricing, what's free, legal wording)
   webhook secrets.
 - `client/AGENTS.md` and `client/CLAUDE.md` are written by `next dev`; commit them when they change.
 - Before pushing: `npm test` in `server/`, and `npx eslint src` plus `npx next build` in `client/`.
+
+## Working with the owner (keep this section short; add only what changes how work is done)
+
+- Keep this file current: when you learn how the owner wants things done, add it here in one
+  line. Remove anything that stops being true. Don't pad it.
+- The owner's "go ahead" starts work. If they interrupt a tool call, stop and wait.
+- **Look and feel:** calm, uncluttered screens with little text. Heavy features still show
+  one clear next action at a time; details appear only when needed (progressive disclosure).
+  Match the existing design (antd + Tailwind, motion); make it eye-catching but easy on the eyes.
+- **Tests:** rigorous and edge-case heavy, but fast (the whole server suite runs in ~4 min;
+  never add slow tests). Don't call the live AI or run `server/eval` unless asked: AI
+  credit is limited. AI routes are tested with the stubbed model only.
+- **V2** is built behind the admin "V2 preview" switch, in the order of `docs/v2/PLAN.md`,
+  keeping the spec's philosophy (deterministic first, AI proposes and the user approves).
+  Paddle goes live only after V2 is complete and tested.
+- The owner isn't a cloud-console expert: give exact click paths or commands, and always
+  the least-privilege option (e.g. `roles/aiplatform.user`, not admin).
+- Credentials the owner shares live only in the session scratchpad; never print or commit them.

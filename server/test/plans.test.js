@@ -159,20 +159,24 @@ describe('refunds', () => {
         assert.equal((await usage(token)).used, 0, 'refunded');
     });
 
-    it('a quota error says so instead of "try again in a minute"', async () => {
-        const { token } = await register();
-        const realFetch = globalThis.fetch;
-        globalThis.fetch = async (url, opts) =>
-            String(url).includes('generativelanguage') ? new Response(JSON.stringify({ error: { message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: 429 }) : realFetch(url, opts);
-        try {
-            const r = await refine(token);
-            assert.equal(r.status, 502);
-            assert.match(r.body.error, /usage limit/);
-            assert.equal((await usage(token)).used, 0, 'refunded');
-        } finally {
-            globalThis.fetch = realFetch;
-        }
-    });
+    for (const [status, message] of [
+        [429, 'You exceeded your current quota, please check your plan and billing details.'],
+        [402, 'Your prepayment credits are depleted.'],
+    ]) {
+        it(`a used-up quota or balance (${status}) says so instead of "try again in a minute"`, async () => {
+            const { token } = await register();
+            const realFetch = globalThis.fetch;
+            globalThis.fetch = async (url, opts) => (String(url).includes('generativelanguage') ? new Response(JSON.stringify({ error: { message } }), { status }) : realFetch(url, opts));
+            try {
+                const r = await refine(token);
+                assert.equal(r.status, 502);
+                assert.match(r.body.error, /usage limit/);
+                assert.equal((await usage(token)).used, 0, 'refunded');
+            } finally {
+                globalThis.fetch = realFetch;
+            }
+        });
+    }
 });
 
 describe('AI input', () => {

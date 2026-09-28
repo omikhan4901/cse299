@@ -7,6 +7,7 @@ const { loadResumeGuide } = require('../lib/resumeGuide');
 const { aiQuota, usageSummary } = require('../lib/credits');
 const { INSTRUCTION: INGEST_INSTRUCTION, RESPONSE_SCHEMA: INGEST_SCHEMA, prompt: ingestPrompt, checkOperations } = require('../lib/ingest');
 const { readPdf } = require('../lib/pdfText');
+const vertex = require('../lib/vertex');
 
 const router = express.Router();
 
@@ -17,8 +18,11 @@ const isPdf = (buf) => buf.length > 5 && buf.subarray(0, 5).toString('latin1') =
 const isZip = (buf) => buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04;
 
 /**
- * AI routes (Gemini). Switched off unless GEMINI_API_KEY is set, and can be
- * forced off with AI_ENABLED=false while the provider is being fixed.
+ * AI routes (Gemini). Two providers with the same models and request format:
+ *   - AI Studio (default): needs GEMINI_API_KEY.
+ *   - Vertex AI (AI_PROVIDER=vertex): billed to the Google Cloud project; see lib/vertex.js.
+ * Switched off when neither is set up, and can be forced off with AI_ENABLED=false while
+ * the provider is being fixed.
  * GEMINI_MODEL picks the model (defaults to Google's always-current Flash alias, since pinned models get retired).
  */
 const API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -26,7 +30,7 @@ const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 // Used when the main model is overloaded or unavailable.
 const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-lite-latest';
 
-const aiEnabled = () => process.env.AI_ENABLED !== 'false' && !!process.env.GEMINI_API_KEY;
+const aiEnabled = () => process.env.AI_ENABLED !== 'false' && (vertex.useVertex() || !!process.env.GEMINI_API_KEY);
 
 class AiError extends Error {
     constructor(message, status = 502) {
@@ -83,12 +87,29 @@ const fetchWithRetry = async (url, options, { deadline, signal }, maxRetries = 3
 };
 
 // Calls one model; returns the HTTP response even when it's an error.
-const callModel = (model, payload, limits) =>
-    fetchWithRetry(`${API_BASE_URL}/${model}:generateContent`, {
+const callModel = async (model, payload, limits) => {
+    if (!vertex.useVertex()) {
+        return fetchWithRetry(`${API_BASE_URL}/${model}:generateContent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+            body: JSON.stringify(payload),
+        }, limits);
+    }
+    let token;
+    try {
+        token = await vertex.accessToken();
+    } catch (err) {
+        console.error(err.message);
+        throw new AiError('The AI service is unavailable right now. Please try again later.');
+    }
+    // Vertex wants every turn to say who is speaking.
+    const body = { ...payload, contents: payload.contents.map((c) => (c.role ? c : { role: 'user', ...c })) };
+    return fetchWithRetry(vertex.modelUrl(model), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
     }, limits);
+};
 
 /**
  * Calls Gemini and returns the generated text. Throws AiError on failure (never touches `res`).
@@ -114,9 +135,10 @@ const generate = async (systemInstruction, contents, generationConfig, req) => {
     if (!response.ok) {
         const detail = String(result?.error?.message || '');
         console.error('Gemini API error:', response.status, detail);
-        // A used-up quota won't clear in a minute, unlike a busy model.
-        if (response.status === 429 && /quota|billing|exceeded/i.test(detail)) {
-            console.error("Gemini quota reached: check the API key's quota and billing in Google AI Studio.");
+        // A used-up quota, prepaid balance (402) or switched-off billing (Vertex: 403) won't
+        // clear in a minute, unlike a busy model.
+        if (response.status === 402 || (response.status === 429 && /quota|billing|exceeded/i.test(detail)) || (response.status === 403 && /billing/i.test(detail))) {
+            console.error("Gemini quota or prepaid credit used up: check the API key's quota and billing in Google AI Studio.");
             throw new AiError('The AI has reached its usage limit for now. Please try again later.');
         }
         throw new AiError(response.status === 429 || response.status >= 500 ? BUSY_MESSAGE : 'The AI service is unavailable right now. Please try again later.');

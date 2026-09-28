@@ -16,10 +16,16 @@ const { resetLimits, setOverrides } = require('../lib/rateLimit');
 
 // ---- Gemini stub: tests decide what the "AI" answers ----
 const realFetch = globalThis.fetch;
-const ai = { reply: 'AI says hi', status: 200, calls: 0, delayMs: 0, aborted: 0 };
+const ai = { reply: 'AI says hi', status: 200, calls: 0, delayMs: 0, aborted: 0, tokens: 0, last: null };
 globalThis.fetch = async (url, opts) => {
-    if (String(url).includes('generativelanguage.googleapis.com')) {
+    // Vertex AI sign-in (lib/vertex.js): a service account key exchanged for a token.
+    if (String(url) === 'https://oauth2.googleapis.com/token') {
+        ai.tokens += 1;
+        return new Response(JSON.stringify({ access_token: `token-${ai.tokens}`, expires_in: 3600 }), { status: 200 });
+    }
+    if (/generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com/.test(String(url))) {
         ai.calls += 1;
+        ai.last = { url: String(url), headers: opts?.headers || {}, body: JSON.parse(opts.body) };
         // A slow answer, which the caller can cancel like a real request.
         if (ai.delayMs) {
             await new Promise((resolve, reject) => {
@@ -31,7 +37,7 @@ globalThis.fetch = async (url, opts) => {
                 });
             });
         }
-        if (ai.status !== 200) return new Response(JSON.stringify({ error: { message: 'stub failure' } }), { status: ai.status });
+        if (ai.status !== 200) return new Response(JSON.stringify({ error: { message: ai.errorMessage || 'stub failure' } }), { status: ai.status });
         const text = typeof ai.reply === 'function' ? ai.reply(JSON.parse(opts.body)) : ai.reply;
         return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
     }
@@ -139,6 +145,12 @@ async function resetState() {
     ai.calls = 0;
     ai.delayMs = 0;
     ai.aborted = 0;
+    ai.tokens = 0;
+    ai.last = null;
+    ai.errorMessage = null;
+    delete process.env.AI_PROVIDER;
+    delete process.env.VERTEX_CREDENTIALS;
+    require('../lib/vertex').reset();
     paddleApi.handler = null;
     paddleApi.calls = [];
     require('../lib/paddle').resetPaddleCache();
