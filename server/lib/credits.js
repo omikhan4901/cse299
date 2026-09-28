@@ -133,13 +133,27 @@ function aiQuota(feature) {
                 }
                 res.set('X-Credits-Limit', String(a.limit));
                 res.set('X-Credits-Remaining', String(Math.max(0, a.limit - (doc?.ai || 0))));
-                res.on('finish', () => {
+                // A request that fails (bad input, AI provider down) gets its credits back, and one
+                // that works is logged. Both happen *before* the response is sent: on Cloud Run,
+                // work left running after a response can be paused until the next request, so a
+                // refund done afterwards could show up late or never.
+                let settled = false;
+                const settle = async () => {
+                    if (settled) return;
+                    settled = true;
                     if (res.statusCode >= 400) {
-                        if (cost > 0) Usage.updateOne({ user: req.userId, day: key }, { $inc: { ai: -cost } }).catch(() => {});
+                        if (cost > 0) await Usage.updateOne({ user: req.userId, day: key }, { $inc: { ai: -cost } }).catch((err) => console.error('Credit refund failed:', err.message));
                     } else {
-                        AiEvent.create({ user: req.userId, feature, credits: cost }).catch(() => {});
+                        await AiEvent.create({ user: req.userId, feature, credits: cost }).catch(() => {});
                     }
-                });
+                };
+                const json = res.json.bind(res);
+                res.json = (body) => {
+                    settle().then(() => json(body));
+                    return res;
+                };
+                // Responses sent some other way.
+                res.on('finish', () => settle());
                 next();
             } catch (err) {
                 next(err);

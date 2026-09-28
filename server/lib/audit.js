@@ -8,8 +8,11 @@ const scrub = (value) => {
 };
 
 /** Records an admin action or security event. Never throws; secrets are masked. */
+// Awaited by callers, so the entry is written before the response goes out (on Cloud Run,
+// work left running after a response can be paused, or lost when the instance stops).
+// A failed write is logged, never thrown.
 function audit(req, action, target, details) {
-    AdminLog.create({
+    return AdminLog.create({
         actor: req.userId,
         actorEmail: req.adminEmail || req.actorEmail,
         action,

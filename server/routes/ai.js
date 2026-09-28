@@ -97,7 +97,13 @@ const generate = async (systemInstruction, contents, generationConfig) => {
     }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-        console.error('Gemini API error:', response.status, result?.error?.message);
+        const detail = String(result?.error?.message || '');
+        console.error('Gemini API error:', response.status, detail);
+        // A used-up quota won't clear in a minute, unlike a busy model.
+        if (response.status === 429 && /quota|billing|exceeded/i.test(detail)) {
+            console.error('Gemini quota reached: check the API key\'s quota and billing in Google AI Studio.');
+            throw new AiError('The AI has reached its usage limit for now. Please try again later.');
+        }
         throw new AiError(response.status === 429 || response.status >= 500 ? BUSY_MESSAGE : 'The AI service is unavailable right now. Please try again later.');
     }
     const text = result.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim();

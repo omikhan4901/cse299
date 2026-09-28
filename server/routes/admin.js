@@ -235,7 +235,7 @@ router.post('/users', wrap(async (req, res) => {
         if (err.name === 'ValidationError') return bad(res, Object.values(err.errors)[0].message);
         throw err;
     }
-    audit(req, 'user.create', user.email, { plan: user.plan });
+    await audit(req, 'user.create', user.email, { plan: user.plan });
     await sendUser(res, user, 201);
 }));
 
@@ -246,7 +246,7 @@ router.patch('/users/:id', wrap(async (req, res) => {
     try {
         await applyUserFields(user, req.body || {}, req);
         await user.save();
-        audit(req, 'user.update', user.email, req.body);
+        await audit(req, 'user.update', user.email, req.body);
     } catch (err) {
         if (err.status) return bad(res, err.message, err.status);
         if (err.name === 'ValidationError') return bad(res, Object.values(err.errors)[0].message);
@@ -263,7 +263,7 @@ router.post('/users/:id/reset-credits', wrap(async (req, res) => {
     if (!user) return bad(res, 'User not found.', 404);
     const a = allowanceFor(user, await getSettings());
     await Usage.deleteOne({ user: user._id, day: periodKey(a.period) });
-    audit(req, 'user.restore_credits', user.email);
+    await audit(req, 'user.restore_credits', user.email);
     await sendUser(res, user);
 }));
 
@@ -277,7 +277,7 @@ router.post('/users/:id/reset-2fa', wrap(async (req, res) => {
     user.twoFactor = { enabled: false };
     user.sessionVersion = (user.sessionVersion || 0) + 1;
     await user.save();
-    audit(req, 'user.reset_2fa', user.email);
+    await audit(req, 'user.reset_2fa', user.email);
     await sendUser(res, user);
 }));
 
@@ -289,7 +289,7 @@ router.delete('/users/:id', wrap(async (req, res) => {
     if (roleOf(user) === 'admin' && req.role !== 'superadmin') return bad(res, 'Only super admins can delete admin accounts.', 403);
     await Promise.all([Resume.deleteMany({ user: user._id }), Usage.deleteMany({ user: user._id }), AiEvent.deleteMany({ user: user._id })]);
     await user.deleteOne();
-    audit(req, 'user.delete', user.email);
+    await audit(req, 'user.delete', user.email);
     res.json({ success: true });
 }));
 
@@ -324,7 +324,7 @@ router.put('/settings', wrap(async (req, res) => {
         if (err.code === 'conflict') return res.status(409).json({ success: false, code: 'conflict', error: err.message, data: await settingsPayload() });
         throw err;
     }
-    audit(req, 'settings.update', null, patch);
+    await audit(req, 'settings.update', null, patch);
     res.json({ success: true, data: await settingsPayload() });
 }));
 
@@ -355,7 +355,7 @@ router.get('/campaigns', wrap(async (req, res) => {
 router.post('/campaigns', wrap(async (req, res) => {
     try {
         const campaign = await Campaign.create(pickCampaign(req.body));
-        audit(req, 'campaign.create', campaign.code, pickCampaign(req.body));
+        await audit(req, 'campaign.create', campaign.code, pickCampaign(req.body));
         res.status(201).json({ success: true, data: campaign });
     } catch (err) {
         campaignError(res, err);
@@ -369,7 +369,7 @@ router.patch('/campaigns/:id', wrap(async (req, res) => {
     Object.assign(campaign, pickCampaign(req.body));
     try {
         await campaign.save();
-        audit(req, 'campaign.update', campaign.code, pickCampaign(req.body));
+        await audit(req, 'campaign.update', campaign.code, pickCampaign(req.body));
         res.json({ success: true, data: campaign });
     } catch (err) {
         campaignError(res, err);
@@ -380,7 +380,7 @@ router.delete('/campaigns/:id', wrap(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'Campaign not found.', 404);
     // Members keep what they were given; the code just stops working.
     const gone = await Campaign.findByIdAndDelete(req.params.id);
-    audit(req, 'campaign.delete', gone?.code);
+    await audit(req, 'campaign.delete', gone?.code);
     res.json({ success: true });
 }));
 

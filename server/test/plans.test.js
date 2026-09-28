@@ -107,6 +107,43 @@ describe('campaigns', () => {
     });
 });
 
+describe('refunds', () => {
+    it('a failed request is refunded before its response arrives', async () => {
+        const Usage = require('../models/Usage');
+        const { token, user } = await register();
+        ai.status = 503; // the AI provider is overloaded
+        // Make the refund slow: it must still be done by the time the response arrives.
+        const real = Usage.updateOne;
+        Usage.updateOne = function (...args) {
+            const q = real.apply(this, args);
+            return { then: (ok, fail) => new Promise((r) => setTimeout(r, 300)).then(() => q).then(ok, fail), catch: (fail) => new Promise((r) => setTimeout(r, 300)).then(() => q).catch(fail) };
+        };
+        try {
+            const r = await refine(token);
+            assert.equal(r.status, 502);
+            const doc = await Usage.findOne({ user: user.id || user._id }).lean();
+            assert.equal(doc?.ai || 0, 0, 'refund already applied');
+        } finally {
+            Usage.updateOne = real;
+        }
+    });
+
+    it('a quota error says so instead of "try again in a minute"', async () => {
+        const { token } = await register();
+        const realFetch = globalThis.fetch;
+        globalThis.fetch = async (url, opts) =>
+            String(url).includes('generativelanguage') ? new Response(JSON.stringify({ error: { message: 'You exceeded your current quota, please check your plan and billing details.' } }), { status: 429 }) : realFetch(url, opts);
+        try {
+            const r = await refine(token);
+            assert.equal(r.status, 502);
+            assert.match(r.body.error, /usage limit/);
+            assert.equal((await usage(token)).used, 0, 'refunded');
+        } finally {
+            globalThis.fetch = realFetch;
+        }
+    });
+});
+
 describe('AI input', () => {
     it('junk or empty input is refused before calling the AI, and costs nothing', async () => {
         require('../lib/rateLimit').setOverrides({ 'ai-minute': { max: 100, windowMs: 60e3 } });

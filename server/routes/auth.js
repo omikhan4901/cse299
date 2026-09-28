@@ -233,7 +233,7 @@ router.post('/login', loginByIp, loginByEmail, async (req, res) => {
             return res.status(401).json({ success: false, error: 'Invalid credentials.' });
         }
         if (user.banned) return res.status(403).json({ success: false, code: 'banned', error: bannedMessage(user) });
-        if (!user.twoFactor?.enabled) User.updateOne({ _id: user._id }, { lastLoginAt: new Date() }).catch(() => {});
+        if (!user.twoFactor?.enabled) await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() }).catch(() => {});
         res.status(200).json(signInResponse(user));
     } catch (err) {
         console.error(err);
@@ -456,14 +456,14 @@ router.post(
             if (!how) {
                 req.userId = String(user._id);
                 req.actorEmail = user.email;
-                if (is2faAdmin(user)) audit(req, 'security.2fa_failed', user.email);
+                if (is2faAdmin(user)) await audit(req, 'security.2fa_failed', user.email);
                 return res.status(401).json({ success: false, error: 'That code is not right. Check the time on your phone and try again.' });
             }
             user.lastLoginAt = new Date();
             await user.save();
             req.userId = String(user._id);
             req.actorEmail = user.email;
-            if (is2faAdmin(user)) audit(req, how === 'recovery' ? 'security.login_recovery_code' : 'security.login', user.email);
+            if (is2faAdmin(user)) await audit(req, how === 'recovery' ? 'security.login_recovery_code' : 'security.login', user.email);
             res.json({
                 success: true,
                 token: getSignedJwtToken(user, { mfa: true }),
@@ -504,7 +504,7 @@ router.post('/2fa/enable', protect, mfaByUser, async (req, res, next) => {
         markPasswordChanged(user); // sign out other devices; they'll need the code from now on
         await user.save();
         req.actorEmail = user.email;
-        audit(req, 'security.2fa_enabled', user.email);
+        await audit(req, 'security.2fa_enabled', user.email);
         res.json({ success: true, token: getSignedJwtToken(user, { mfa: true }), user: publicUser(user), recoveryCodes: codes });
     } catch (err) {
         next(err);
@@ -587,7 +587,7 @@ router.post('/email/verify', protect, mfaByUser, async (req, res, next) => {
         user.emailCodeExpires = undefined;
         await user.save();
         req.actorEmail = user.email;
-        audit(req, 'security.email_verified', user.email);
+        await audit(req, 'security.email_verified', user.email);
         res.json({ success: true, user: publicUser(user) });
     } catch (err) {
         next(err);
