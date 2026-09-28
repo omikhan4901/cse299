@@ -1,7 +1,11 @@
 # ResumeX V2: product specification and roadmap
 
-Status: proposal for the owner's decisions (see "Decisions needed").
-Written against the code on `main` as of 28 September 2026.
+Status: agreed direction, revised after the owner's review (28 September 2026).
+
+**This is a living document, not a contract.** Before each phase starts, re-read the parts
+it depends on, re-check the assumptions against what we've learned (usage data, user
+feedback, what the previous phase revealed), and change the spec first if something no
+longer holds. Flag the change to the owner rather than building around it.
 
 ---
 
@@ -14,6 +18,32 @@ and the product tells the person, from their own data, what to do next. AI is us
 removes real work (turning messy text into structured data, polishing the few lines that
 matter). The workspace itself (profile, tailoring by selection, tracking, reminders, checks)
 is deterministic, so it costs almost nothing to run and still feels like a lot of product.
+
+**Career Profile ≠ resume.** The Career Profile is *everything I could truthfully say about
+myself*. A resume is *the subset of it this particular employer should see*. The magic of
+ResumeX is that selection, not the AI. AI is the interface that makes the profile easy to
+fill and the chosen lines read well.
+
+```
+                         RESUMEX
+                            │
+            ┌───────────────┴───────────────┐
+      CAREER PROFILE                   APPLICATIONS
+   "everything true about me"    "everything I'm applying to"
+            └───────────────┬───────────────┘
+                        TAILORING
+             ┌──────────────┼──────────────┐
+          Resume       Cover letter    Job match
+             └──────────────┼──────────────┘
+                       APPLICATION
+             ┌──────────────┼──────────────┐
+         Follow-up      Interview       Outcome
+             └──────────────┼──────────────┘
+                     (outcomes feed back
+                      into insights, later)
+```
+
+AI sits underneath as an acceleration layer; it is never the product itself.
 
 Five principles decide every feature below:
 
@@ -130,9 +160,12 @@ the person lives.
   - **Tags on items** (optional, added automatically from keywords): e.g. `teaching`,
     `backend`, which the tailoring engine uses.
   - **Summary variants**: several labelled summaries ("Academic", "Industry").
-  - **Bangladesh biodata fields** (optional, hidden unless turned on): father's name,
-    mother's name, date of birth, NID, religion, nationality, permanent and present
-    address, marital status. Never used by international templates.
+  - **No sensitive biodata stored (for now).** Some Bangladeshi employers ask for a
+    "biodata" with father's and mother's names, date of birth, NID, religion, addresses and
+    marital status. Until real users show it's needed often, ResumeX does **not** keep
+    these in the profile. A **biodata mode** asks for the fields when someone makes a
+    biodata CV, keeps them in that document only, and **never stores an NID** anywhere.
+    They are never sent to the AI.
 - **Completeness meter:** deterministic ("Add dates to 2 jobs", "3 bullets have no
   numbers"), reusing the ATS content checks.
 - **Where it's edited:** a Profile page with the same section editors as the builder
@@ -141,30 +174,43 @@ the person lives.
   most recently edited resume, with the user's confirmation. Existing resumes keep their
   content and keep working unchanged.
 
-### 5.2 Getting information in: paste anything, and an assistant that edits
+### 5.2 Getting information in: the whole profile is conversationally ingestible
 
-**Paste-anything import** (the answer to "people won't edit sections one by one"):
+The answer to "people won't edit twelve fields". Not an "import" button: **anywhere the
+user can type, they can paste or describe anything**, and ResumeX files it in the right place.
 
-1. One box: paste text of any kind (an old CV, a LinkedIn "About", a paragraph about a
-   job, a certificate's text) or drop a PDF/DOCX.
-2. One AI call turns it into structured items (the existing transcription schema and
-   mapping in `server/lib/resumeImport.js`, extended to accept text).
-3. **Review screen, not a silent overwrite:** "We found 2 jobs, 1 degree, 11 skills, 1
-   project." Each item shows **new / updates an existing item / duplicate**, matched
-   deterministically (same company + overlapping dates, same institution, same
-   skill name). The user accepts all, or item by item.
-4. Accepted items are merged into the Career Profile. AI-written wording is marked
-   "Review" until touched; the original pasted text is kept for 30 days for reference.
+**Ingestion (one AI call per message):**
 
-Cost: 3 credits per import (today's parse cost), shown on the button. Text input is
-cheaper to process than PDFs, so the admin may lower it.
+1. The user pastes or writes anything: an old CV, a LinkedIn "About", "During my third
+   year I worked on a project where I…", or a PDF/DOCX.
+2. The model receives the text **and a compact outline of the existing profile, with item
+   ids**, and returns **operations**, not a new resume: *add a job*, *add a bullet to
+   project #p3*, *set the end date of job #e1*, *add skills*. That is how "I forgot to
+   mention I presented this project at ICCIT" lands on the right project.
+3. Deterministic checks run on every operation: duplicates are detected (same company and
+   overlapping dates, same institution, same skill), and **any number, date, name or
+   organisation not found in the user's text or the existing profile is flagged**.
+4. **Review:** "I found 4 things: Project: University attendance system · Technology:
+   Python, OpenCV · Role: Backend developer · Achievement: cut processing time by 40%."
+   **[Add all]** **[Review one by one]**. Flagged items are unticked by default.
+5. Accepted operations are applied. The source text is kept for 30 days for reference.
 
-**The assistant becomes an editor.** In the builder and on the Profile, the assistant can
-answer with **proposed changes** alongside its text: "Add this job", "Rewrite these 3
-bullets", "Move Skills above Education". Each proposal is a small structured patch shown
-as a card with **Apply** / **Dismiss**; nothing changes until Apply. One credit per
-message, as today. Guardrail: the model may only restructure or reword what the user
-provided, and any number or fact not in the user's text is highlighted for review.
+**Two AI editing modes, clearly separated:**
+
+- **Rewrite (truth-preserving):** "Make this bullet professional." The output may reword
+  and restructure only; no new facts. Anything that looks new is flagged.
+- **Strengthen (ask, don't invent):** "This bullet is weak; what would make it stronger?"
+  The assistant **asks questions** ("Did you reduce the loading time? By roughly how
+  much? Was it deployed? Did you work in a team?") and only writes the stronger bullet
+  from the user's answers.
+
+The assistant chat uses the same machinery: its replies can carry proposed operations,
+shown as cards with **Apply** / **Dismiss**. Nothing changes until the user applies it.
+One credit per message, as today.
+
+**Definition of success (measured, see §12):** a user who pastes a messy paragraph about
+their work reaches an accurate structured profile with **no more than 1–2 manual
+corrections**, and **nothing invented** reaches the profile without being flagged.
 
 ### 5.3 Tailored resumes (the "n resumes from one profile" feature)
 
@@ -199,10 +245,12 @@ Edits made inside a tailored resume offer **Save to profile** so good rewrites a
 
 ### 5.4 Applications (job tracker)
 
-**Capture in one step:** paste a job link or the circular's text. Rules extract title,
-organisation, deadline ("Application deadline: 15 October 2026", "আবেদনের শেষ তারিখ"),
-location, and keywords. The job description is stored. (Image and PDF circulars: optional
-AI extraction for 1 credit, later.)
+**Capture in one step:** **+ Add application** → one box: "Paste job link or job circular"
+→ **Analyze**. Rules extract title, organisation, deadline ("Application deadline: 15
+October 2026", "আবেদনের শেষ তারিখ"), location, type and keywords, shown as a small card
+with **Save application**. That's all; every other field appears later, only when it
+becomes relevant (progressive disclosure). (Image and PDF circulars: optional AI
+extraction for 1 credit, later.)
 
 **An application has:** job (title, organisation, link, description, deadline, location,
 salary text), status, the resume sent (a **frozen snapshot**, see §6), cover letter, notes,
@@ -217,8 +265,26 @@ change). Every status change is recorded with its date.
 and role.
 
 **Checklist per application** (deterministic): job description added; tailored resume
-created; ATS match above 70%; cover letter (if asked); submitted; follow-up sent;
+created; **job match reviewed**; cover letter (if asked); submitted; follow-up sent;
 interview prepared. The next unchecked item is shown on the card as the "next step".
+
+**No score thresholds as tasks.** ResumeX's match score is an internal indicator, not a
+validated prediction of any employer's ATS, so the checklist never says "reach 70%". The
+job match shows evidence instead:
+
+```
+Job match
+✓ 8 of the requested skills are shown in your resume
+⚠ 3 requested skills not found: Docker, AWS, Kubernetes
+✓ Education requirement met (BSc in CSE)
+⚠ The job asks for 3 years; your dated experience adds up to 2
+```
+
+The numeric score can still be shown as information, never as a pass mark.
+
+**The resume sent, frozen:** once an application is marked Applied, its card shows
+"**Resume sent:** Software Engineer, Google, 14 Jan · **View exact copy**", which opens the
+snapshot exactly as it was sent, whatever happened to the resume afterwards.
 
 **From an application, one click to:** tailor a resume for it (§5.3), write a cover letter
 from the profile and the job (existing feature, 2 credits), run the ATS check against
@@ -353,15 +419,19 @@ page; server tests and the fuzz test; a browser check.
 
 ## 7. Pricing and unit economics
 
-- **Measure before promising more AI.** At Flash-class model prices, a typical call
-  (a few thousand tokens in, one or two thousand out) costs roughly a cent or less, but a
-  Premium user spending 1,000 credits on output-heavy calls could approach the plan's net
-  revenue after Paddle's fee and VAT. Log real token usage first (§6), then set credits.
-- **Country pricing.** $6.99 is a lot in Bangladesh. Paddle supports country price
-  overrides: consider about $2.99 (Pro) for Bangladesh, India and Pakistan. No code change.
-- **Job Search Pass.** A one-time 3-month Pro (e.g. $14.99) matches how people search, and
-  avoids the "cancel as soon as I'm hired" feeling. Paddle supports one-time prices; needs
-  a small change so a one-time purchase sets `planExpiresAt`.
+- **AI economics dashboard: a hard requirement before launch.** At Flash-class prices a
+  typical call costs roughly a cent or less, but a Premium user spending 1,000 credits on
+  output-heavy calls could approach the plan's net revenue. Every AI call records its
+  real input and output tokens; the admin console shows, per feature: calls, average
+  cost; and overall: average AI cost per paying user, net revenue per paying user and the
+  **AI cost ratio**. Credit allowances are set from this, not guessed.
+- **Prices are tested, not decided.** $6.99 is a lot in Bangladesh, but the right local
+  price is unknown. Test real options with real users, for example Free, ৳199/month,
+  ৳299/month and a **৳499 3-month Job Search Pass**, and see what people choose. Paddle
+  supports country prices (no code change).
+- **Job Search Pass.** A one-time 3-month plan matches how people search: someone happily
+  paying ৳499 while actively hunting may refuse ৳299 every month forever. Paddle supports
+  one-time prices; needs a small change so a one-time purchase sets `planExpiresAt`.
 - **Payment methods.** Paddle has no bKash/Nagad. If card access limits conversion, the
   options are institutional deals (campaigns) now, and a local gateway later.
 
@@ -400,12 +470,13 @@ next one slips.
 
 | Phase | Scope | Why this order | Size |
 | --- | --- | --- | --- |
-| **0. Get information in** | Paste-anything import with review and merge (into the open resume first); assistant proposes edits with Apply/Dismiss; log token usage per AI call | Fixes the complaint users already have; the merge logic is reused by the profile | ~1–1.5 weeks |
+| **0. Get information in** | Context-aware ingestion (operations, flags, review, merge) into the open resume first; assistant proposes operations with Apply/Dismiss; Rewrite and Strengthen modes; token usage per AI call and the AI economics dashboard; the import evaluation (§12) passing | Fixes the complaint users already have; the operations and merge logic are reused unchanged by the profile | ~1.5–2 weeks |
 | **1. Career Profile** | Profile model and page, migration from master/latest resume, completeness meter, import targets the profile, "Fill from profile" replaces "Fill from master", biodata fields | The foundation everything else reads from | ~2 weeks |
 | **2. Applications** | Tracker (capture from text/link, statuses, board and list, snapshot on Applied, checklist, contacts, notes), home "what to do today", in-app reminders, free limit of 5 active | The retention engine; no AI cost | ~2–3 weeks |
 | **3. Tailoring** | Deterministic tailoring from profile to job with match report; Pull updates / Save to profile; AI polish priced up front; batch with estimate and per-job refunds; cover letter from application | The "n resumes from one profile" promise, cheap to run | ~2–3 weeks |
 | **4. Bangladesh and reach** | Biodata templates, Bangla/English circular parsing, email digests (Cloud Scheduler), country pricing, Job Search Pass | Differentiation and conversion | ~2 weeks |
-| **V2.1** | Version compare, public profile page, deterministic interview prep per role, rates by role (with minimum sample), .ics export, Bangla CV (if the spike passes) | Valuable, not foundational | later |
+| **V2.1** | Version compare, public profile page, deterministic interview prep per role, .ics export, Bangla CV (if the spike passes) | Valuable, not foundational | later |
+| **V2.2 Outcome insights** | Learn from the user's own history: "23 software applications, 5 interviews; resume B → 3 interviews"; "interviews from 4 of 12 applications that included Project X". Shown only above a minimum sample, worded as observations, never as advice | A moat built from first-party outcome data; needs months of tracked applications first | later |
 
 ### Success measures
 
@@ -414,6 +485,10 @@ next one slips.
 - Retention: users who return in weeks 2–4 of their first month.
 - Conversion: free → paid, and where people hit the paywall (tracker limit, tailoring, credits).
 - Cost: AI cost per paying user under ~20% of their net revenue.
+- Import quality: the §12 evaluation, re-run whenever the prompt or model changes.
+
+**Before each phase:** re-read its section, re-check assumptions against usage and
+feedback, update this spec, then build.
 
 ---
 
@@ -422,11 +497,10 @@ next one slips.
 **Decisions for the owner:**
 
 1. Free tier for the tracker (recommended: 5 active applications) and tailoring (1 resume).
-2. Country pricing for Bangladesh / South Asia, and whether to offer a Job Search Pass.
-3. Whether biodata fields (NID, religion, marital status) should exist at all. They're
-   expected by some Bangladeshi employers but are sensitive personal data; if yes, they
-   stay optional, hidden by default, and never sent to the AI.
-4. Premium's credit allowance, after a few weeks of real cost data.
+2. Prices: run a real test (e.g. ৳199 / ৳299 monthly, ৳499 3-month pass) before choosing.
+3. Biodata: decided for now: no stored sensitive fields, a biodata mode that asks at
+   export, never an NID. Revisit only with evidence from users.
+4. Premium's credit allowance, from the AI economics dashboard.
 
 **Risks and assumptions to validate:**
 
@@ -439,3 +513,43 @@ next one slips.
   circulars (Bdjobs, university, government) before building the rest of Phase 2.
 - **Import quality:** messy text will produce wrong splits; the review screen is the
   safety net and must be fast to accept or fix.
+
+---
+
+## 12. Phase 0: re-evaluation and definition of done
+
+**Re-checked assumptions before starting:**
+
+- *"Import into the open resume first, the profile later"* still holds: the operations
+  target the resume's sections, which are the same sections the profile will have, so the
+  profile (Phase 1) reuses the operations, flags and review screen unchanged.
+- *"One call per message"*: ingestion needs the existing outline in the prompt so updates
+  can target items; a compact outline (ids, titles, dates, no full text) keeps the input
+  small. Very long pastes (a whole CV) are clipped to ~30k characters as today.
+- *"Replace import"*: the file import (PDF/DOCX) moves onto the same path, so it merges
+  into what's there instead of overwriting it.
+
+**Import evaluation (the success criterion made measurable):**
+
+A fixed set of realistic messy inputs, each with the expected result, run against the real
+model and scored automatically (`server/eval/ingest/`):
+
+- a chronological paragraph about several jobs; a skills dump; a Bangla–English mix;
+  a student with projects and no jobs; a lecturer with publications and teaching; a
+  bulleted old CV pasted as text; follow-ups that must attach to an existing item
+  ("I forgot to mention I presented BondhuKoi at…", "my job at X ended in March 2024");
+  repeated information that must not create duplicates.
+
+For each case the scorer counts **corrections**: fields that are missing, in the wrong
+place, wrong, or duplicated, compared with the expected result; and **invented facts**:
+numbers, dates, names or organisations in the output that aren't in the input or the
+existing profile *and* weren't flagged.
+
+**Phase 0 is done when:**
+
+- median corrections per case ≤ 1, and no case above 2;
+- zero unflagged invented facts across the whole set;
+- follow-up cases attach to the correct existing item every time (no duplicates);
+- accepting everything takes one click, and the review screen works on a phone;
+- every AI call in the app records its token usage, and the admin AI economics view shows
+  cost per feature and the AI cost ratio.
