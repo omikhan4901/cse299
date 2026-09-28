@@ -5,12 +5,12 @@ import { BuilderLink } from "@/components/BuilderLauncher";
 
 export const metadata = {
   title: "About ResumeX & FAQ",
-  description: "ResumeX is a free ATS resume builder that started as a university project. Learn how it works, what's under the hood and answers to common questions.",
+  description: "ResumeX is an ATS-friendly resume builder with 50 templates, a live PDF preview and a real ATS check. Learn how it works and find answers to common questions.",
   alternates: { canonical: "/about" },
 };
 
 const JOURNEY = [
-  { icon: Lightbulb, title: "The problem", text: "Formatting a resume is tedious, and the good tools are expensive or lock the PDF behind a paywall. Students needed a smart, free alternative." },
+  { icon: Lightbulb, title: "The problem", text: "Formatting a resume is tedious, and the good tools are expensive or lock the PDF behind a paywall. Job seekers deserve a fast, honest alternative." },
   { icon: Layers, title: "The architecture", text: "A MongoDB, Express and Node.js API with JWT authentication, and a React front end — now on Next.js so every public page is fast and search-friendly." },
   { icon: Hammer, title: "The hard part: PDFs", text: "Browser printing made layouts break across pages. Version 2 renders real PDFs with a dedicated layout engine, so the preview and the download are identical." },
   { icon: Rocket, title: "Version 2.0", text: "Fifty templates in seven categories, custom colours and fonts, live PDF preview, share links, master profiles and a builder that works without an account." },
@@ -36,9 +36,9 @@ export default function AboutPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <section className="bg-gradient-to-b from-brand-50 to-white">
         <div className="container-x py-16 text-center md:py-24">
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand ring-1 ring-brand-200">CSE299 project</span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand ring-1 ring-brand-200">About ResumeX</span>
           <h1 className="mx-auto mt-5 max-w-3xl font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
-            Smarter resumes, built by students for students
+            Resumes that get read, by software and by people
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">
             ResumeX turns your experience into a polished, professional PDF in minutes — with a live preview, beautiful templates and no paywalls.
@@ -65,12 +65,9 @@ export default function AboutPage() {
 
       <section className="bg-slate-50 py-16">
         <div className="container-x">
-          <h2 className="text-center font-display text-3xl font-bold text-ink">The team</h2>
-          <Stagger className="mx-auto mt-10 grid max-w-3xl gap-6 sm:grid-cols-2" gap={0.15}>
-            {[
-              { name: "Mehboob Ehsan Khan", role: "Lead developer", gh: "omikhan4901" },
-              { name: "Nabigah Bin Sayeed", role: "Developer", gh: "Nabigah274" },
-            ].map((m) => (
+          <h2 className="text-center font-display text-3xl font-bold text-ink">Who&apos;s behind it</h2>
+          <Stagger className="mx-auto mt-10 grid max-w-sm gap-6" gap={0.15}>
+            {[{ name: "Mehboob Ehsan Khan", role: "Founder & developer", gh: "omikhan4901" }].map((m) => (
               <StaggerItem key={m.gh} className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-900/5 transition duration-300 hover:-translate-y-1 hover:shadow-lg">
                 <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-navy font-display text-xl font-bold text-white">
                   {m.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}

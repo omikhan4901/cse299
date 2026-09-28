@@ -15,6 +15,6 @@ export const SITE_NAME = "ResumeX";
 export const SITE_DESCRIPTION =
   "Free ATS-friendly resume builder and CV maker. 50 designer templates, a live PDF preview, a real ATS check and AI help. Download a pixel-perfect PDF in minutes.";
 
-/** Shown on the privacy and terms pages. */
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "support@resumex.cc";
+/** Shown on the privacy and terms pages (fixed, so a stray environment variable can't change it). */
+export const CONTACT_EMAIL = "support@resumex.cc";
 export const LEGAL_UPDATED = "27 September 2026";

@@ -124,7 +124,6 @@ npm run dev               # http://localhost:3000
 | `NEXT_PUBLIC_API_URL` | API base URL, including `/api` |
 | `NEXT_PUBLIC_SITE_URL` | Public site URL (canonical links, sitemap, share links) |
 | `NEXT_PUBLIC_AI_ENABLED` | `true` to enable AI features |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | Shown on the privacy and terms pages |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | Optional. Google Search Console HTML-tag value |
 | `NEXT_PUBLIC_BING_SITE_VERIFICATION` | Optional. Bing Webmaster Tools meta-tag value |
 
@@ -158,9 +157,6 @@ cse299/
 └── Dockerfile                 # API container
 ```
 
-## Contributors
+## Author
 
-- **Mehboob Ehsan Khan** · [@omikhan4901](https://github.com/omikhan4901)
-- **Nabigah Bin Sayeed** · [@Nabigah274](https://github.com/Nabigah274)
-
-Started as a CSE299 project at North South University.
+Built and run by **Mehboob Ehsan Khan** · [@omikhan4901](https://github.com/omikhan4901)

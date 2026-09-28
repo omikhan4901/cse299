@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { BuilderLink } from "./BuilderLauncher";
-import { Heart } from "lucide-react";
 import { GithubIcon as Github } from "./BrandIcons";
 import Logo from "./Logo";
 
@@ -43,17 +42,12 @@ export default function Footer() {
                 <Github size={15} /> Mehboob Ehsan Khan
               </a>
             </li>
-            <li>
-              <a className="inline-flex items-center gap-2 hover:text-white" href="https://github.com/Nabigah274" target="_blank" rel="noopener noreferrer">
-                <Github size={15} /> Nabigah Bin Sayeed
-              </a>
-            </li>
           </ul>
         </div>
       </div>
       <div className="border-t border-white/10">
         <p className="container-x flex items-center justify-center gap-1.5 py-5 text-xs text-white/50">
-          © {new Date().getFullYear()} ResumeX · Made with <Heart size={12} className="fill-rose-400 text-rose-400" /> for CSE299
+          © {new Date().getFullYear()} ResumeX. All rights reserved.
         </p>
       </div>
     </footer>
