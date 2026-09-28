@@ -82,4 +82,7 @@ function clientIp(req) {
     return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
-module.exports = { limit, clientIp, retryIn, setOverrides, describeLimits };
+/** Clears every counter (tests only). */
+const resetLimits = () => buckets.clear();
+
+module.exports = { limit, clientIp, retryIn, setOverrides, describeLimits, resetLimits };

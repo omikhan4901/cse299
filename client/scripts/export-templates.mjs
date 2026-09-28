@@ -10,7 +10,11 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dir = mkdtempSync(path.join(tmpdir(), "resumex-templates-"));
 // The registry is plain data but uses extensionless imports; copy it as .mjs to load it in Node.
 writeFileSync(path.join(dir, "specs.mjs"), readFileSync(path.join(root, "src/pdf/engine/specs.js")));
-writeFileSync(path.join(dir, "registry.mjs"), readFileSync(path.join(root, "src/pdf/registry.js"), "utf8").replace('"./engine/specs"', '"./specs.mjs"'));
+writeFileSync(path.join(dir, "access.mjs"), readFileSync(path.join(root, "src/lib/access.js")));
+writeFileSync(
+  path.join(dir, "registry.mjs"),
+  readFileSync(path.join(root, "src/pdf/registry.js"), "utf8").replace('"./engine/specs"', '"./specs.mjs"').replace('"../lib/access"', '"./access.mjs"')
+);
 const { TEMPLATES } = await import(path.join(dir, "registry.mjs"));
 const out = Object.fromEntries(TEMPLATES.map((t) => [t.id, t.category]));
 writeFileSync(path.join(root, "..", "shared", "templates.json"), `${JSON.stringify(out, null, 2)}\n`);

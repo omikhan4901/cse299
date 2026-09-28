@@ -17,7 +17,8 @@ export const CREDITS_CHANGED = "resumex:credits-changed";
 /** Call after anything that may have spent credits, to refresh the balance. */
 export const notifyCreditsChanged = () => typeof window !== "undefined" && window.dispatchEvent(new Event(CREDITS_CHANGED));
 
-import { PLAN_ORDER, planIncludes, templateById, templateTier } from "@/pdf/registry";
+import { PLAN_ORDER, templateById, templateTier } from "@/pdf/registry";
+import { canUseFeature, canUseTemplate } from "@/lib/access";
 
 export function BillingProvider({ children }) {
   const { token } = useAuth();
@@ -106,7 +107,7 @@ export function BillingProvider({ children }) {
     const plan = config?.plans?.find((p) => p.id === planId);
     const features = [...(config?.aiFeatures || []), ...(config?.appFeatures || [])];
     // Until the settings load (or while free mode is on) nothing is locked.
-    const canUse = (key) => !config || freeMode || !!plan?.features?.[key] || (!plan && !!config.plans?.[0]?.features?.[key]);
+    const canUse = (key) => canUseFeature(config, planId, key);
     const upgradePlanFor = (key) => config?.plans?.find((p) => p.features?.[key]);
     return {
       config,
@@ -131,19 +132,17 @@ export function BillingProvider({ children }) {
       },
       /** The plan a template needs when this account's plan doesn't include it, or null. */
       templateLock: (id) => {
-        if (!config || freeMode) return null;
         const t = templateById(id);
-        if (planIncludes(planId, t, config.templates)) return null;
+        if (canUseTemplate(config, planId, t)) return null;
         const need = templateTier(t, config.templates);
         return config.plans?.find((p) => p.id === need) || { id: need, name: need[0].toUpperCase() + need.slice(1) };
       },
       /** How many templates a plan includes. */
-      templatesFor: (id, all) => all.filter((t) => planIncludes(id, t, config?.templates)).length,
+      templatesFor: (id, all) => all.filter((t) => canUseTemplate(config && { ...config, freeMode: { enabled: false } }, id, t)).length,
       /** True when the template can be used; otherwise explains the upgrade and returns false. */
       requireTemplate: (id) => {
-        if (!config || freeMode) return true;
         const t = templateById(id);
-        if (planIncludes(planId, t, config.templates)) return true;
+        if (canUseTemplate(config, planId, t)) return true;
         const need = templateTier(t, config.templates);
         setUpgrade({ feature: "templates", what: `The ${t.name} template`, plan: config.plans?.find((p) => p.id === need), description: "Every plan includes a set of designs. This one needs a higher plan." });
         return false;

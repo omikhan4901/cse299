@@ -58,22 +58,9 @@ export const templatesIn = (category) => TEMPLATES.filter((t) => t.category === 
 
 export const categoryById = (id) => CATEGORIES.find((c) => c.id === id);
 
-// ---- Template access (which plan a template needs) ----
-// Admins set a plan per category and can override single templates (settings.templates).
-// Plans stack: free < pro < premium. These defaults apply until the settings load.
-export const PLAN_ORDER = ["free", "pro", "premium"];
-export const FREE_TEMPLATE_CATEGORIES = ["ats", "student"];
-const DEFAULT_ACCESS = { categories: Object.fromEntries(CATEGORIES.map((c) => [c.id, FREE_TEMPLATE_CATEGORIES.includes(c.id) ? "free" : "pro"])), overrides: {} };
-
-/** The plan id a template needs ("free", "pro" or "premium"). */
-export const templateTier = (template, access) => {
-  if (!template) return "free";
-  const a = access || DEFAULT_ACCESS;
-  return a.overrides?.[template.id] || a.categories?.[template.category] || DEFAULT_ACCESS.categories[template.category] || "pro";
-};
-
-/** True when a plan includes a template. */
-export const planIncludes = (planId, template, access) => PLAN_ORDER.indexOf(templateTier(template, access)) <= Math.max(0, PLAN_ORDER.indexOf(planId));
+// ---- Template access (which plan a template needs): rules live in lib/access.js ----
+import { FREE_TEMPLATE_CATEGORIES, PLAN_ORDER, planIncludes, templateTier } from "../lib/access";
+export { FREE_TEMPLATE_CATEGORIES, PLAN_ORDER, planIncludes, templateTier };
 
 /** With the default settings, whether a template needs a paid plan (used for static page text). */
 export const isPremiumTemplate = (template) => templateTier(template) !== "free";

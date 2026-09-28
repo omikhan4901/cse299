@@ -70,6 +70,11 @@ const protect = async (req, res, next) => {
 const emailQuery = (email) =>
     new RegExp(`^${String(email).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
 
+// A plausible email (a string, no spaces or control characters, a sane length), or
+// null. Checked before any lookup: MongoDB rejects a regex with a null byte in it.
+const EMAIL_RE = /^[^\s@\x00-\x1f\x7f]+@[^\s@\x00-\x1f\x7f]+\.[^\s@\x00-\x1f\x7f]{2,}$/;
+const validEmail = (email) => (typeof email === 'string' && email.trim().length <= 254 && EMAIL_RE.test(email.trim()) ? email.trim() : null);
+
 // Sessions: 14 days for users, 12 hours for admins. `mfa` marks a session that passed two-factor.
 const getSignedJwtToken = (user, { mfa = false } = {}) =>
     jwt.sign({ id: user._id, v: user.sessionVersion || 0, ...(mfa ? { mfa: true } : {}) }, process.env.JWT_SECRET, {
@@ -158,6 +163,8 @@ router.post('/register', registerByIp, async (req, res) => {
     if (!name || !email || !password) {
         return res.status(400).json({ success: false, error: 'Please enter all fields.' });
     }
+    if (typeof name !== 'string' || !name.trim()) return res.status(400).json({ success: false, error: 'Please enter your name.' });
+    if (!validEmail(email)) return res.status(400).json({ success: false, error: 'Please enter a valid email.' });
     if (passwordProblem(password)) {
         return res.status(400).json({ success: false, error: passwordProblem(password) });
     }
@@ -226,6 +233,7 @@ router.post('/login', loginByIp, loginByEmail, async (req, res) => {
     if (!email || !password) {
         return res.status(400).json({ success: false, error: 'Please provide an email and password.' });
     }
+    if (!validEmail(email)) return res.status(401).json({ success: false, error: 'Invalid credentials.' });
 
     try {
         const user = await User.findOne({ email: emailQuery(email) }).select('+password');
@@ -338,8 +346,8 @@ router.delete('/me', protect, sensitiveByUser, async (req, res) => {
 // @desc    Emails a one-hour reset link. Always answers the same way, so it
 //          can't be used to find out which emails have accounts.
 router.post('/forgot-password', resetByIp, resetByEmail, async (req, res) => {
-    const email = emailKey(req);
-    if (!email) return res.status(400).json({ success: false, error: 'Please enter your email.' });
+    const email = validEmail(emailKey(req));
+    if (!email) return res.status(400).json({ success: false, error: 'Please enter a valid email.' });
     if (!canSendMail()) {
         return res.status(503).json({ success: false, error: "Password reset by email isn't available yet. Please contact support." });
     }

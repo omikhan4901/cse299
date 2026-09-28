@@ -113,6 +113,11 @@ const sendError = (res, err) => {
 const clip = (text, max) => String(text || '').slice(0, max);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const list = (v) => (Array.isArray(v) ? v : []);
+const str = (v) => (typeof v === 'string' ? v.trim() : '');
+// Whether a resume has any writing in it: an empty or malformed one isn't worth a paid AI call.
+const hasText = (v, depth = 0) =>
+    depth < 8 && (typeof v === 'string' ? !!v.trim() : Array.isArray(v) ? v.some((x) => hasText(x, depth + 1)) : isObj(v) ? Object.values(v).some((x) => hasText(x, depth + 1)) : false);
+const resumeOk = (resume) => isObj(resume) && hasText(cleanResume(resume));
 
 // Keep prompts small: never send photos or database fields to the model, and cap
 // the size (the request body can be up to 10 MB, which would be costly to send on).
@@ -135,7 +140,7 @@ const fixNewlines = (value) => {
 // --- 1. Context-aware refinement ---
 router.post('/refine', protect, aiQuota('refine'), async (req, res) => {
     const { resumeText, fullResume, sectionType } = req.body;
-    if (!resumeText || !String(resumeText).trim()) return res.status(400).json({ success: false, error: 'No text provided.' });
+    if (!str(resumeText)) return res.status(400).json({ success: false, error: 'No text provided.' });
 
     const context = isObj(fullResume)
         ? `CONTEXT FROM USER'S RESUME:
@@ -175,7 +180,7 @@ router.post('/chat', protect, aiQuota('chat'), async (req, res) => {
     }
     const contents = conversation
         .slice(-20)
-        .filter((msg) => isObj(msg) && String(msg.content || '').trim())
+        .filter((msg) => isObj(msg) && str(msg.content))
         .map((msg) => ({
             role: msg.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: clip(msg.content, 4000) }],
@@ -213,8 +218,9 @@ ${resumeJson(fullResume)}`;
 // --- 3. ATS audit (structured JSON) ---
 router.post('/audit', protect, aiQuota('audit'), async (req, res) => {
     const { resumeData, jobDescription } = req.body;
-    if (!resumeData) return res.status(400).json({ success: false, error: 'Missing resume.' });
-    const targeted = !!String(jobDescription || '').trim();
+    if (!resumeOk(resumeData)) return res.status(400).json({ success: false, error: 'Add some details to your resume first.' });
+    if (jobDescription != null && typeof jobDescription !== 'string') return res.status(400).json({ success: false, error: 'The job description should be text.' });
+    const targeted = !!str(jobDescription);
 
     const schema = {
         type: 'OBJECT',
@@ -276,9 +282,8 @@ router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), as
 // --- 5. Cover letter ---
 router.post('/cover-letter', protect, aiQuota('coverLetter'), async (req, res) => {
     const { resumeData, jobDescription } = req.body;
-    if (!resumeData || !String(jobDescription || '').trim()) {
-        return res.status(400).json({ success: false, error: 'Missing resume or job description.' });
-    }
+    if (!resumeOk(resumeData)) return res.status(400).json({ success: false, error: 'Add some details to your resume first.' });
+    if (!str(jobDescription)) return res.status(400).json({ success: false, error: 'Paste the job description first.' });
 
     const systemInstruction = `You are an expert career coach and copywriter.
 Write a tailored, professional cover letter for the candidate below and the target job.
