@@ -18,6 +18,8 @@ export async function generateMetadata({ params }) {
   return {
     title: heading,
     description,
+    // Shared resumes hold personal details: open to anyone with the link, but kept out of search results.
+    robots: { index: false, follow: true },
     alternates: { canonical: `/view/${id}` },
     openGraph: { type: "profile", title: heading, description, url: `/view/${id}` },
     twitter: { card: "summary_large_image", title: heading, description },

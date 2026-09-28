@@ -176,6 +176,15 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       html.style.overflow = previous;
     };
   }, []);
+  // /builder?check=ats (from the ATS checker page) opens the ATS check straight away.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("check") !== "ats") return;
+    url.searchParams.delete("check");
+    window.history.replaceState(null, "", url);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAiModal("audit");
+  }, []);
   const [refiningId, setRefiningId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);

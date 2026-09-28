@@ -6,11 +6,11 @@ import Logo from "./Logo";
 export default function Footer() {
   return (
     <footer className="bg-navy text-white/70 print:hidden">
-      <div className="container-x grid gap-10 py-14 md:grid-cols-4">
+      <div className="container-x grid gap-10 py-14 md:grid-cols-5">
         <div className="md:col-span-2">
           <Logo href="/" light />
           <p className="mt-4 max-w-sm text-sm leading-relaxed">
-            A free resume builder with designer templates, a live PDF preview and one-click downloads. Built to help students and professionals land their next role.
+            A free ATS resume builder and CV maker with 50 designer templates, a live PDF preview, a real ATS check and one-click downloads. Built to help students and professionals land their next role.
           </p>
         </div>
         <div>
@@ -18,9 +18,20 @@ export default function Footer() {
           <ul className="mt-4 space-y-2.5 text-sm">
             <li><Link className="hover:text-white" href="/builder">Resume builder</Link></li>
             <li><Link className="hover:text-white" href="/templates">Resume templates</Link></li>
+            <li><Link className="hover:text-white" href="/ats-checker">ATS resume checker</Link></li>
             <li><Link className="hover:text-white" href="/about">About &amp; FAQ</Link></li>
             <li><Link className="hover:text-white" href="/privacy">Privacy policy</Link></li>
             <li><Link className="hover:text-white" href="/terms">Terms of service</Link></li>
+          </ul>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-white">Resources</h3>
+          <ul className="mt-4 space-y-2.5 text-sm">
+            <li><Link className="hover:text-white" href="/resume-guide">How to write a resume</Link></li>
+            <li><Link className="hover:text-white" href="/guides/fresh-graduate-resume">Fresh graduate resume</Link></li>
+            <li><Link className="hover:text-white" href="/templates/category/ats-friendly">ATS-friendly templates</Link></li>
+            <li><Link className="hover:text-white" href="/templates/category/student-entry-level">Student templates</Link></li>
+            <li><Link className="hover:text-white" href="/guides">All guides</Link></li>
           </ul>
         </div>
         <div>

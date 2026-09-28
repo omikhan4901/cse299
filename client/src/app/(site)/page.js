@@ -8,14 +8,16 @@ import HeroVisual from "@/components/HeroVisual";
 import TemplateMarquee from "@/components/TemplateMarquee";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { AI_ENABLED, SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/config";
+import { CATEGORY_PAGES, jsonLdHtml } from "@/lib/seo";
+import { GUIDES } from "@/content/guides";
 
 export const metadata = { alternates: { canonical: "/" } };
 
 const FEATURES = [
   { icon: Eye, title: "Live PDF preview", text: "What you see is exactly the file you download — real pages, real page breaks, no surprises." },
   { icon: Download, title: "One-click download", text: "No print dialogs or browser settings. Get a crisp, text-based PDF named after you." },
-  { icon: Palette, title: "Your colours & fonts", text: "Pick an accent colour, choose from six professional fonts and switch between A4 and US Letter." },
-  { icon: ScanSearch, title: "ATS-friendly", text: "Selectable text and clean structure, so applicant tracking systems can read every word." },
+  { icon: Palette, title: "Your colours & fonts", text: "Pick an accent colour, choose from 11 professional fonts and switch between A4 and US Letter." },
+  { icon: ScanSearch, title: "Real ATS check", text: "We read your actual PDF like an applicant tracking system and run 30+ checks, including keyword match against the job.", href: "/ats-checker" },
   { icon: Share2, title: "Share with a link", text: "Publish your resume as a web page with a PDF download — perfect for LinkedIn and email." },
   { icon: Crown, title: "Master profile", text: "Keep everything in one master resume, then spin off tailored versions for each job." },
 ];
@@ -35,18 +37,29 @@ const REVIEWS = [
 export default function HomePage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
+    "@type": "SoftwareApplication",
     name: SITE_NAME,
     url: SITE_URL,
     description: SITE_DESCRIPTION,
     applicationCategory: "BusinessApplication",
-    operatingSystem: "Web",
+    applicationSubCategory: "Resume builder",
+    operatingSystem: "Web browser",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    featureList: [
+      `${TEMPLATES.length} resume templates`,
+      "Live PDF preview",
+      "ATS resume checker with job description keyword match",
+      "AI writing assistant and cover letter writer",
+      "Custom colours, fonts, A4 and US Letter",
+      "Shareable resume link",
+      "Private mode that stores nothing",
+    ],
   };
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(jsonLd)} />
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-brand-50 via-white to-white">
@@ -141,6 +154,13 @@ export default function HomePage() {
               </StaggerItem>
             ))}
           </Stagger>
+          <nav aria-label="Template styles" className="mt-10 flex flex-wrap gap-2">
+            {CATEGORY_PAGES.map((c) => (
+              <Link key={c.slug} href={`/templates/category/${c.slug}`} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-brand hover:text-brand">
+                {c.title}
+              </Link>
+            ))}
+          </nav>
         </div>
       </section>
 
@@ -156,7 +176,7 @@ export default function HomePage() {
               <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand transition duration-300 group-hover:scale-110 group-hover:rotate-6">
                 <f.icon size={21} />
               </span>
-              <h3 className="mt-4 font-semibold text-ink">{f.title}</h3>
+              <h3 className="mt-4 font-semibold text-ink">{f.href ? <Link href={f.href} className="hover:text-brand">{f.title}</Link> : f.title}</h3>
               <p className="mt-1.5 text-[15px] leading-relaxed text-slate-600">{f.text}</p>
             </StaggerItem>
           ))}
@@ -195,6 +215,27 @@ export default function HomePage() {
               </StaggerItem>
             ))}
           </Stagger>
+        </div>
+      </section>
+
+      {/* Guides */}
+      <section className="container-x pt-20">
+        <Reveal className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold tracking-wider text-brand uppercase">Career guides</p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Learn what recruiters look for</h2>
+          </div>
+          <Link href="/guides" className="inline-flex items-center gap-1.5 font-semibold text-brand hover:underline">
+            All guides <ArrowRight size={16} />
+          </Link>
+        </Reveal>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {[{ href: "/resume-guide", title: "How to Write a Good Resume (Step-by-Step Guide)", description: "Structure, bullet points, keywords and formatting: everything in one place." }, ...GUIDES.slice(0, 2).map((g) => ({ ...g, href: `/guides/${g.slug}` }))].map((g) => (
+            <Link key={g.href} href={g.href} className="group rounded-2xl border border-slate-200 p-6 transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg">
+              <h3 className="font-semibold text-ink group-hover:text-brand">{g.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{g.description}</p>
+            </Link>
+          ))}
         </div>
       </section>
 

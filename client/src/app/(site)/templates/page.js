@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { CATEGORIES, TEMPLATES, templatesIn } from "@/pdf/registry";
+import { categoryPageFor, abs } from "@/lib/seo";
 import TemplateCard from "@/components/TemplateCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 
 export const metadata = {
-  title: "Free Resume Templates",
+  title: "50 Free Resume Templates (ATS-Friendly & Creative)",
   description: `${TEMPLATES.length} free, professionally designed resume templates in seven styles — ATS-optimized, modern minimalist, creative, executive, academic, student and two-column. Customise colours and fonts and download as PDF.`,
   alternates: { canonical: "/templates" },
 };
@@ -13,7 +15,7 @@ export default function TemplatesPage() {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Resume templates",
-    itemListElement: TEMPLATES.map((t, i) => ({ "@type": "ListItem", position: i + 1, name: `${t.name} resume template`, description: t.description })),
+    itemListElement: TEMPLATES.map((t, i) => ({ "@type": "ListItem", position: i + 1, name: `${t.name} resume template`, url: abs(`/templates/${t.slug}`) })),
   };
   return (
     <div className="bg-gradient-to-b from-brand-50/70 to-white">
@@ -39,7 +41,9 @@ export default function TemplatesPage() {
         {CATEGORIES.map((c, ci) => (
           <section key={c.id} id={c.id} className="scroll-mt-36 pt-14">
             <Reveal className="mb-8 max-w-2xl">
-              <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">{c.name}</h2>
+              <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
+                <Link href={`/templates/category/${categoryPageFor(c.id).slug}`} className="hover:text-brand">{categoryPageFor(c.id).title}</Link>
+              </h2>
               <p className="mt-1.5 text-slate-600">{c.description}</p>
             </Reveal>
             <Stagger className="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4" gap={0.06}>

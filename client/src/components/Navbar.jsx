@@ -12,6 +12,8 @@ import { useAuth } from "./AuthProvider";
 
 const LINKS = [
   { href: "/templates", label: "Templates" },
+  { href: "/ats-checker", label: "ATS Checker" },
+  { href: "/guides", label: "Guides" },
   { href: "/about", label: "About" },
 ];
 

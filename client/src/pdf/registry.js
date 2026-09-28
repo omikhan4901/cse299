@@ -44,11 +44,15 @@ function tagsFor(t) {
 
 const ORDER = Object.fromEntries(CATEGORIES.map((c, i) => [c.id, i]));
 
+const kebab = (id) => id.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
 export const TEMPLATES = [...HANDMADE, ...ENGINE_TEMPLATES]
-  .map((t) => ({ ...t, tags: tagsFor(t) }))
+  .map((t) => ({ ...t, tags: tagsFor(t), slug: kebab(t.id) }))
   .sort((a, b) => ORDER[a.category] - ORDER[b.category]);
 
 export const templateById = (id) => TEMPLATES.find((t) => t.id === id) || TEMPLATES.find((t) => t.id === "Classic");
+
+export const templateBySlug = (slug) => TEMPLATES.find((t) => t.slug === slug);
 
 export const templatesIn = (category) => TEMPLATES.filter((t) => t.category === category);
 

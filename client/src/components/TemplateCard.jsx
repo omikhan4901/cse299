@@ -3,11 +3,11 @@ import Image from "next/image";
 
 export default function TemplateCard({ template, priority = false }) {
   return (
-    <Link href={`/builder?template=${template.id}`} className="group block">
+    <Link href={`/templates/${template.slug}`} className="group block">
       <div className="relative aspect-[1/1.414] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition duration-300 group-hover:-translate-y-1 group-hover:shadow-xl">
         <Image src={`/templates/${template.id}.jpg`} alt={`${template.name} resume template preview`} fill sizes="(min-width: 1024px) 280px, (min-width: 640px) 45vw, 90vw" className="object-cover object-top" priority={priority} />
         <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-ink/70 via-ink/0 to-transparent pb-6 opacity-0 transition group-hover:opacity-100">
-          <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink shadow-lg">Use this template</span>
+          <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink shadow-lg">Preview &amp; use</span>
         </div>
       </div>
       <div className="mt-3 flex items-start justify-between gap-2">

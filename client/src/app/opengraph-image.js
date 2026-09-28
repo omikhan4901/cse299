@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "ResumeX – Free resume builder with live PDF preview";
+export const alt = "ResumeX – Free ATS resume builder with 50 templates";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -13,7 +13,7 @@ export default function OpengraphImage() {
           <div style={{ fontSize: 52, fontWeight: 800 }}>ResumeX</div>
         </div>
         <div style={{ fontSize: 68, fontWeight: 800, marginTop: 48, lineHeight: 1.1, maxWidth: 900 }}>Build the resume that lands the job</div>
-        <div style={{ fontSize: 30, marginTop: 28, opacity: 0.8 }}>10 free templates · Live PDF preview · One-click download</div>
+        <div style={{ fontSize: 30, marginTop: 28, opacity: 0.8 }}>50 free templates · Real ATS check · Live PDF preview</div>
       </div>
     ),
     size

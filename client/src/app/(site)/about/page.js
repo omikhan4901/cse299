@@ -5,7 +5,7 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 
 export const metadata = {
   title: "About ResumeX & FAQ",
-  description: "ResumeX is a free resume builder built as a CSE299 project. Learn how it works, what's under the hood and answers to common questions.",
+  description: "ResumeX is a free ATS resume builder that started as a university project. Learn how it works, what's under the hood and answers to common questions.",
   alternates: { canonical: "/about" },
 };
 
@@ -17,7 +17,7 @@ const JOURNEY = [
 ];
 
 const FAQ = [
-  { q: "Is ResumeX really free?", a: "Yes. Building, downloading and sharing resumes is free, with no watermarks. It's a student project, not a business." },
+  { q: "Is ResumeX really free?", a: "Yes. Building, downloading and sharing resumes is free, with no watermarks. Optional paid plans add extras such as more AI credits, but you never need one to get your PDF." },
   { q: "Do I need an account?", a: "No. You can build and download a resume straight away — your draft is kept in your browser. Create an account when you want to save several resumes, sync them across devices or share a public link." },
   { q: "Will my resume get through applicant tracking systems (ATS)?", a: "Every template exports a text-based PDF, so ATS software can read it. For online applications, the single-column templates (Compact ATS, Classic and Basic Stylish) are the safest choice." },
   { q: "Why does my PDF look exactly like the preview?", a: "Because the preview is the PDF. We render the real file as you type and show you its pages, instead of printing a web page." },
