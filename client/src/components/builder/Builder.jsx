@@ -27,7 +27,8 @@ import AtsModal from "./AtsModal";
 import TemplateGallery from "./TemplateGallery";
 import BuilderTour from "./BuilderTour";
 import { CreditMeter, CreditTooltip } from "../Credits";
-import { useBilling, FREE_TEMPLATE_CATEGORIES } from "../BillingProvider";
+import { useBilling, isPremiumTemplate } from "../BillingProvider";
+import PlanTag from "../billing/PlanTag";
 import ResumeGuideModal from "./ResumeGuideModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
@@ -402,6 +403,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       message.info("Share links need the resume to be saved to your account, so they aren't available in a private session.");
       return;
     }
+    if (!resume.isPublic && !allowed("shareLinks", "Sharing a link to your resume")) return;
     if (!isAuthenticated || !resume._id) {
       message.info("Save your resume first to get a shareable link.");
       handleSave();
@@ -474,7 +476,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     try {
       return await api(path, { token, method: "POST", body });
     } catch (err) {
-      message.error(err.message);
+      if (err.code !== "upgrade") message.error(err.message); // plan locks show the upgrade dialog instead
       return null;
     } finally {
       setRefiningId(null);
@@ -488,6 +490,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   };
 
   const refineSummary = async () => {
+    if (!allowed("refine", "AI rewrite")) return;
     if (!requireAccount()) return;
     if (!resume.summary.trim()) return message.info("Write a few words first, then let AI polish them.");
     const data = await aiCall("summary", "/ai/refine", { resumeText: resume.summary, fullResume: aiResume(resume), sectionType: "summary" });
@@ -495,6 +498,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   };
 
   const refineItem = async (itemId, text) => {
+    if (!allowed("refine", "AI rewrite")) return;
     if (!requireAccount()) return;
     if (!text.trim()) return message.info("Write a few points first, then let AI polish them.");
     const data = await aiCall(itemId, "/ai/refine", { resumeText: text, fullResume: aiResume(resume), sectionType: "experience" });
@@ -515,41 +519,38 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       setShowExample(false);
       message.success("Imported! Check each section and fix anything we missed.");
     } catch (err) {
-      message.error(err.message);
+      if (err.code !== "upgrade") message.error(err.message);
     } finally {
       hide();
     }
   };
 
   const billing = useBilling();
-  // Plan locks (only active when free mode is off in the admin settings).
+  // Plan locks (only when free mode is off in the admin settings). Locked controls carry a
+  // plan tag, and using one explains the upgrade instead of failing.
   const FEATURE_OF = { audit: "atsCheck", chat: "chat", cover: "coverLetter", import: "parse" };
-  const upgradeNotice = (feature, what) => {
-    const plan = billing?.upgradePlanFor(feature);
-    message.info({
-      content: (
-        <span>
-          {what} is included in the {plan?.name || "paid"} plan.{" "}
-          <Link href="/pricing" className="font-medium text-brand underline">See plans</Link>
-        </span>
-      ),
-      duration: 6,
-    });
-  };
-  const templateLocked = (id) => {
-    const t = templateById(id);
-    return !!billing && !billing.canUse("premiumTemplates") && !FREE_TEMPLATE_CATEGORIES.includes(t.category);
-  };
+  const FEATURE_NAME = { audit: "The ATS check", chat: "The AI assistant", cover: "The cover letter writer", import: "Importing a resume" };
+  const allowed = (feature, what) => !billing || billing.requireFeature(feature, what);
+  const templateLocked = (id) => !!billing && isPremiumTemplate(templateById(id)) && !billing.canUse("premiumTemplates");
   const pickTemplate = (id) => {
-    if (templateLocked(id)) return upgradeNotice("premiumTemplates", `The ${templateById(id).name} template`);
+    if (templateLocked(id)) return allowed("premiumTemplates", `The ${templateById(id).name} template`);
     editor.setField("template", id);
     return true;
   };
+  // A locked template chosen before the plans loaded (e.g. from /templates/<name>): keep the
+  // previous design and explain, rather than letting it through.
+  const requestedTemplate = useRef(initial.template);
+  useEffect(() => {
+    if (!billing?.config || !templateLocked(requestedTemplate.current) || resume._id) return;
+    const locked = requestedTemplate.current;
+    requestedTemplate.current = null;
+    editor.setField("template", "Classic");
+    allowed("premiumTemplates", `The ${templateById(locked).name} template`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billing?.config]);
 
   const openAi = (key) => {
-    if (billing && FEATURE_OF[key] && !billing.canUse(FEATURE_OF[key])) {
-      return upgradeNotice(FEATURE_OF[key], { audit: "The ATS check", chat: "The AI assistant", cover: "The cover letter writer", import: "Importing a resume" }[key]);
-    }
+    if (FEATURE_OF[key] && !allowed(FEATURE_OF[key], FEATURE_NAME[key])) return;
     // The ATS check is rule-based and runs locally, so it works without AI or an account.
     if (key === "audit") return setAiModal("audit");
     if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
@@ -563,14 +564,14 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const aiItem = (key, icon, label, onClick) => ({
     key,
     icon,
-    label: AI_ENABLED ? label : <Tooltip title={AI_LOCKED_MESSAGE} placement="left">{label} <Lock size={11} className="ml-1 inline" /></Tooltip>,
+    label: AI_ENABLED ? <span className="inline-flex items-center gap-1.5">{label} <PlanTag feature={{ chat: "chat", cover: "coverLetter", import: "parse" }[key]} /></span> : <Tooltip title={AI_LOCKED_MESSAGE} placement="left">{label} <Lock size={11} className="ml-1 inline" /></Tooltip>,
     disabled: !AI_ENABLED,
     onClick,
   });
 
   const moreMenu = {
     items: [
-      { key: "ats", icon: <ScanSearch size={15} />, label: "ATS check", onClick: () => openAi("audit") },
+      { key: "ats", icon: <ScanSearch size={15} />, label: <span className="inline-flex items-center gap-1.5">ATS check <PlanTag feature="atsCheck" /></span>, onClick: () => openAi("audit") },
       { key: "file-save", icon: <FileDown size={15} />, label: "Save to file", onClick: () => saveToFile(resume) },
       { key: "file-open", icon: <FolderOpen size={15} />, label: "Open file", onClick: () => document.getElementById("resume-open-file")?.click() },
       ...(!resume._id ? [{ key: "private", icon: <EyeOff size={15} />, label: privateMode ? "Leave private session" : "Private session", onClick: privateMode ? endPrivateSession : startPrivateSession }] : []),
@@ -645,7 +646,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
             </Button>
           </Tooltip>
           <Button icon={<Share2 size={15} />} onClick={handleShare} className="!hidden sm:!inline-flex">
-            Share
+            Share {resume.isPublic ? null : <PlanTag feature="shareLinks" />}
           </Button>
         </div>
         <div className="hidden sm:block">
@@ -654,6 +655,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         <CreditTooltip feature="parse" title="Import your resume" description="Upload an existing PDF or Word resume and we'll fill in every section for you." placement="bottom">
           <Button icon={<Upload size={15} />} onClick={() => openAi("import")} data-tour="import">
             <span className="hidden md:inline">Import resume</span>
+            <PlanTag feature="parse" />
           </Button>
         </CreditTooltip>
         <Tooltip title="Take a quick tour of the builder">
@@ -797,6 +799,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
           onDownload={handleDownload}
           downloading={downloading}
           onHelp={() => setGuideOpen(true)}
+          lockFor={(key) => (billing ? billing.lockFor(key) : null)}
+          shareLocked={!resume.isPublic && !!billing?.lockFor("shareLinks")}
         />
       </div>
 

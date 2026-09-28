@@ -79,6 +79,20 @@ export default function PlansTab() {
                   ))}
                 </ul>
               </div>
+              {(() => {
+                // Credits only buy AI features, so point out plans where they can't be used.
+                const aiOn = meta.aiFeatures.filter((f) => p.features[f.key]);
+                const credits = settings.freeMode.enabled && p.id === "free" ? settings.freeMode.dailyCredits : p.credits;
+                if (credits > 0 && !aiOn.length) {
+                  return <Alert type="warning" showIcon title={`These ${credits} credits can't be spent`} description="No AI features are switched on for this plan. Turn some on, or set credits to 0." />;
+                }
+                if (credits === 0 && aiOn.length) {
+                  return <Alert type="warning" showIcon title="AI features on, but no credits" description={`${aiOn.map((f) => f.name).join(", ")} will show as available but can't be used without credits.`} />;
+                }
+                return aiOn.length ? (
+                  <p className="text-xs text-slate-500">Credits can be spent on: {aiOn.map((f) => f.name).join(", ")}.</p>
+                ) : null;
+              })()}
               <Field label="Perks on the pricing page" hint="One per line">
                 <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} value={p.perks.join("\n")} onChange={(e) => setPlan(i, (x) => (x.perks = e.target.value.split("\n")))} />
               </Field>

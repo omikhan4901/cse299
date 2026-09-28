@@ -3,7 +3,7 @@
 import { Tooltip } from "antd";
 import { motion } from "motion/react";
 import {
-  Palette, PenLine, BookOpen, ZoomIn, ZoomOut, Maximize2, MessageSquare, ScanSearch, Mail, Upload, Save, Share2, Download, Loader2, Lock, Check,
+  Palette, PenLine, BookOpen, ZoomIn, ZoomOut, Maximize2, MessageSquare, ScanSearch, Mail, Upload, Save, Share2, Download, Loader2, Lock, Check, Crown,
 } from "lucide-react";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import { CreditTooltip } from "../Credits";
@@ -38,7 +38,7 @@ const Divider = () => <div className="my-1 h-px w-7 bg-slate-200" />;
  * original ResumeX builder: editing, view, AI tools, then save/share/download.
  */
 export default function ActionDock({
-  tab, onTab, zoom, onZoom, aiEnabled, onAi, saveState, onSave, onShare, onDownload, downloading, onHelp,
+  tab, onTab, zoom, onZoom, aiEnabled, onAi, saveState, onSave, onShare, onDownload, downloading, onHelp, lockFor = () => null, shareLocked = false,
 }) {
   const lock = aiEnabled ? null : (
     <span className="absolute -right-0.5 -bottom-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow ring-1 ring-slate-200">
@@ -46,6 +46,14 @@ export default function ActionDock({
     </span>
   );
   const aiTitle = (label) => (aiEnabled ? label : `${label} — ${AI_LOCKED_MESSAGE}`);
+  // A crown on anything this account's plan doesn't include.
+  const crown = (
+    <span className="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow ring-2 ring-white">
+      <Crown size={10} strokeWidth={2.5} />
+    </span>
+  );
+  const badge = (feature) => (!aiEnabled ? lock : lockFor(feature) ? crown : null);
+  const planTitle = (label, feature) => (lockFor(feature) ? `${label} · ${lockFor(feature).name} plan` : aiTitle(label));
 
   return (
     <div className="pointer-events-none absolute top-1/2 right-4 z-30 hidden -translate-y-1/2 lg:block [@media(max-height:860px)]:origin-right [@media(max-height:860px)]:scale-[0.85]">
@@ -86,16 +94,16 @@ export default function ActionDock({
         ) : null}
 
         <Divider />
-        <DockButton title={aiTitle("AI assistant")} feature={aiEnabled ? "chat" : undefined} tour="dock-ai" onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={lock}>
+        <DockButton title={planTitle("AI assistant", "chat")} feature={aiEnabled ? "chat" : undefined} tour="dock-ai" onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={badge("chat")}>
           <MessageSquare size={18} />
         </DockButton>
-        <DockButton title="ATS check · always free" tour="dock-ats" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm">
+        <DockButton title={lockFor("atsCheck") ? `ATS check · ${lockFor("atsCheck").name} plan` : "ATS check · no credits needed"} tour="dock-ats" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm" badge={lockFor("atsCheck") ? crown : null}>
           <ScanSearch size={18} />
         </DockButton>
-        <DockButton title={aiTitle("Cover letter")} feature={aiEnabled ? "coverLetter" : undefined} onClick={() => onAi("cover")} className="bg-pink-50 text-pink-600 shadow-sm" badge={lock}>
+        <DockButton title={planTitle("Cover letter", "coverLetter")} feature={aiEnabled ? "coverLetter" : undefined} onClick={() => onAi("cover")} className="bg-pink-50 text-pink-600 shadow-sm" badge={badge("coverLetter")}>
           <Mail size={18} />
         </DockButton>
-        <DockButton title={aiTitle("Import PDF / DOCX")} feature={aiEnabled ? "parse" : undefined} onClick={() => onAi("import")} className="bg-amber-50 text-amber-600 shadow-sm" badge={lock}>
+        <DockButton title={planTitle("Import PDF / DOCX", "parse")} feature={aiEnabled ? "parse" : undefined} onClick={() => onAi("import")} className="bg-amber-50 text-amber-600 shadow-sm" badge={badge("parse")}>
           <Upload size={18} />
         </DockButton>
 
@@ -116,7 +124,7 @@ export default function ActionDock({
         >
           {saveState === "saving" ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
         </DockButton>
-        <DockButton title="Share link" tour="dock-share" onClick={onShare} className="text-brand hover:bg-brand-50">
+        <DockButton title={shareLocked ? `Share link · ${lockFor("shareLinks")?.name || "paid"} plan` : "Share link"} tour="dock-share" onClick={onShare} className="text-brand hover:bg-brand-50" badge={shareLocked ? crown : null}>
           <Share2 size={18} />
         </DockButton>
         <Tooltip title="Download PDF" placement="left">

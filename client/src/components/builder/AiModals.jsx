@@ -114,7 +114,7 @@ export function CoverLetterModal({ open, onClose, resume, token }) {
       const data = await api("/ai/cover-letter", { token, method: "POST", body: { resumeData: aiResume(resume), jobDescription: job } });
       setLetter(data.coverLetter);
     } catch (err) {
-      message.error(err.message);
+      if (err.code !== "upgrade") message.error(err.message);
     } finally {
       setLoading(false);
     }

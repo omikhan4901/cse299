@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, Check, ShieldCheck, AlertTriangle } from "lucide-react";
-import { TEMPLATES, templateBySlug, templatesIn, categoryById } from "@/pdf/registry";
+import { TEMPLATES, templateBySlug, templatesIn, categoryById, isPremiumTemplate } from "@/pdf/registry";
+import TemplateCta from "@/components/billing/TemplateCta";
 import { categoryPageFor, abs, jsonLdHtml } from "@/lib/seo";
 import Breadcrumbs from "@/components/seo/Breadcrumbs";
 import TemplateCard from "@/components/TemplateCard";
@@ -84,14 +85,12 @@ export default async function TemplatePage({ params }) {
               </div>
             </div>
             <ul className="mt-6 grid gap-2.5 text-slate-700 sm:grid-cols-2">
-              {["Free to edit and download", "Live PDF preview as you type", "Any colour, 11 fonts, A4 or Letter", "Built-in ATS score and keyword match", "AI help with bullet points", "Private mode: nothing saved"].map((f) => (
+              {[isPremiumTemplate(t) ? "Edit and download as a PDF" : "Free to edit and download", "Live PDF preview as you type", "Any colour, 11 fonts, A4 or Letter", "Built-in ATS score and keyword match", "AI help with bullet points", "Private mode: nothing saved"].map((f) => (
                 <li key={f} className="flex items-center gap-2 text-sm"><Check size={16} className="shrink-0 text-brand" /> {f}</li>
               ))}
             </ul>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href={`/builder?template=${t.id}`} className="group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 transition hover:-translate-y-0.5">
-                Use this template <ArrowRight size={18} className="transition group-hover:translate-x-1" />
-              </Link>
+              <TemplateCta template={{ id: t.id, name: t.name }} premium={isPremiumTemplate(t)} />
               <Link href={`/templates/category/${catPage.slug}`} className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-ink hover:border-brand-200 hover:text-brand">
                 More {cat.name.toLowerCase()} templates
               </Link>

@@ -4,6 +4,19 @@ const mongoose = require("mongoose");
 const Resume = require("../models/Resume");
 const { protect } = require("./auth");
 const { limit } = require("../lib/rateLimit");
+const User = require("../models/User");
+const { getSettings } = require("../lib/settings");
+const { canUse } = require("../lib/credits");
+
+// Publishing a share link needs the "shareLinks" feature (only enforced when free mode is off).
+// Links that are already public keep working; making one public is what's checked.
+const shareAllowed = async (req, res) => {
+  const [user, settings] = await Promise.all([User.findById(req.userId).select("plan planExpiresAt").lean(), getSettings()]);
+  if (canUse(user, settings, "shareLinks")) return true;
+  const plan = settings.plans.find((p) => p.features.shareLinks);
+  res.status(403).json({ success: false, code: "upgrade", feature: "shareLinks", error: `Share links are part of the ${plan?.name || "paid"} plan.` });
+  return false;
+};
 
 // Autosave sends a request a couple of seconds after typing stops, so this is generous.
 const perAccount = limit({ name: "resumes", windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: "Too many requests." });
@@ -65,6 +78,7 @@ router.post("/", protect, perAccount, async (req, res) => {
   try {
     if (!(await underResumeCap(req, res))) return;
     const data = pickEditable(req.body);
+    if (data.isPublic === true && !(await shareAllowed(req, res))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId }, { isMaster: false });
     const resume = await Resume.create({ ...data, user: req.userId });
     res.status(201).json({ success: true, data: resume });
@@ -99,6 +113,7 @@ router.put("/:id", protect, perAccount, async (req, res) => {
     const resume = await findOwned(req, res);
     if (!resume) return;
     const data = pickEditable(req.body);
+    if (data.isPublic === true && !resume.isPublic && !(await shareAllowed(req, res))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId, _id: { $ne: resume._id } }, { isMaster: false });
     resume.set(data);
     await resume.save();

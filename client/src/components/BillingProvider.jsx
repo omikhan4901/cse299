@@ -1,8 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, UPGRADE_NEEDED } from "@/lib/api";
+import { CONTACT_EMAIL } from "@/lib/config";
 import { useAuth } from "./AuthProvider";
+import UpgradeModal from "./billing/UpgradeModal";
 
 /**
  * Plans, prices, credit costs and the signed-in account's credit balance.
@@ -15,13 +17,14 @@ export const CREDITS_CHANGED = "resumex:credits-changed";
 /** Call after anything that may have spent credits, to refresh the balance. */
 export const notifyCreditsChanged = () => typeof window !== "undefined" && window.dispatchEvent(new Event(CREDITS_CHANGED));
 
-// Templates open to everyone when plans are enforced (the rest need "premiumTemplates").
-export const FREE_TEMPLATE_CATEGORIES = ["ats", "student"];
+export { FREE_TEMPLATE_CATEGORIES, isPremiumTemplate } from "@/pdf/registry";
 
 export function BillingProvider({ children }) {
   const { token } = useAuth();
   const [config, setConfig] = useState(null);
   const [usage, setUsage] = useState(null);
+  // The locked feature someone just tried to use: { feature, what } (shows the upgrade dialog).
+  const [upgrade, setUpgrade] = useState(null);
 
   useEffect(() => {
     api("/billing/plans")
@@ -56,11 +59,21 @@ export function BillingProvider({ children }) {
     };
   }, [refreshUsage]);
 
+  // The server is the final word on plans: if it refuses something, explain the upgrade.
+  useEffect(() => {
+    const onUpgrade = (e) => setUpgrade({ feature: e.detail.feature });
+    window.addEventListener(UPGRADE_NEEDED, onUpgrade);
+    return () => window.removeEventListener(UPGRADE_NEEDED, onUpgrade);
+  }, []);
+
   const value = useMemo(() => {
     const freeMode = config?.freeMode?.enabled ?? true;
     const planId = usage?.plan?.id || "free";
     const plan = config?.plans?.find((p) => p.id === planId);
     const features = [...(config?.aiFeatures || []), ...(config?.appFeatures || [])];
+    // Until the settings load (or while free mode is on) nothing is locked.
+    const canUse = (key) => !config || freeMode || !!plan?.features?.[key] || (!plan && !!config.plans?.[0]?.features?.[key]);
+    const upgradePlanFor = (key) => config?.plans?.find((p) => p.features?.[key]);
     return {
       config,
       usage,
@@ -69,13 +82,28 @@ export function BillingProvider({ children }) {
       plan,
       costOf: (key) => config?.featureCosts?.[key] ?? null,
       featureInfo: (key) => features.find((f) => f.key === key),
-      // Until the settings load (or while free mode is on) nothing is locked.
-      canUse: (key) => !config || freeMode || !!plan?.features?.[key] || (!plan && !!config.plans?.[0]?.features?.[key]),
-      upgradePlanFor: (key) => config?.plans?.find((p) => p.features?.[key]),
+      canUse,
+      upgradePlanFor,
+      /** The plan that unlocks a feature this account can't use, or null when it's usable. */
+      lockFor: (key) => (canUse(key) ? null : upgradePlanFor(key) || { id: "pro", name: "Pro" }),
+      /** AI features this account can spend its credits on. */
+      usableAiFeatures: () => (config?.aiFeatures || []).filter((f) => canUse(f.key)),
+      /** True when the feature can be used; otherwise explains the upgrade and returns false. */
+      requireFeature: (key, what) => {
+        if (canUse(key)) return true;
+        setUpgrade({ feature: key, what });
+        return false;
+      },
+      upgradeHref: (p) => `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${p?.name || "a paid plan"}`)}`,
     };
   }, [config, usage, refreshUsage]);
 
-  return <BillingContext.Provider value={value}>{children}</BillingContext.Provider>;
+  return (
+    <BillingContext.Provider value={value}>
+      {children}
+      <UpgradeModal request={upgrade} onClose={() => setUpgrade(null)} billing={value} />
+    </BillingContext.Provider>
+  );
 }
 
 export const useBilling = () => useContext(BillingContext);

@@ -105,6 +105,7 @@ function aiQuota(feature) {
                     return res.status(403).json({
                         success: false,
                         code: 'upgrade',
+                        feature,
                         error: `${featureName} is part of the ${upgrade?.name || 'paid'} plan.`,
                     });
                 }

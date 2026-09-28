@@ -5,6 +5,7 @@ import { Popover, Progress, Tooltip } from "antd";
 import { Crown, Lock, Zap } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { useBilling, resetsIn } from "./BillingProvider";
+import PlanTag from "./billing/PlanTag";
 
 const periodWord = (p) => (p === "month" ? "this month" : "today");
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -84,21 +85,31 @@ export function CreditMeter() {
         {usage.source === "freeMode" ? " · free during early access" : usage.source === "custom" ? " · custom allowance" : ""}
       </p>
       <div className="mt-3 border-t border-slate-100 pt-3">
-        <p className="mb-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase">Cost per use</p>
+        <p className="mb-1.5 text-xs font-semibold tracking-wide text-slate-400 uppercase">Your credits work for</p>
         <ul className="space-y-1">
-          {costs.map((f) => (
-            <li key={f.key} className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">{f.name}</span>
-              <span className="inline-flex items-center gap-1 font-medium text-ink tabular-nums">
-                <Zap size={12} className="fill-amber-400 text-amber-500" /> {billing.costOf(f.key)}
-              </span>
-            </li>
-          ))}
+          {costs.map((f) => {
+            const locked = billing.lockFor(f.key);
+            return (
+              <li key={f.key} className={`flex items-center justify-between text-sm ${locked ? "text-slate-400" : ""}`}>
+                <span className={locked ? "" : "text-slate-600"}>{f.name}</span>
+                {locked ? (
+                  <PlanTag feature={f.key} />
+                ) : (
+                  <span className="inline-flex items-center gap-1 font-medium text-ink tabular-nums">
+                    <Zap size={12} className="fill-amber-400 text-amber-500" /> {billing.costOf(f.key)}
+                  </span>
+                )}
+              </li>
+            );
+          })}
           <li className="flex items-center justify-between text-sm">
             <span className="text-slate-600">ATS check</span>
-            <span className="text-xs font-medium text-emerald-600">Always free</span>
+            {billing.lockFor("atsCheck") ? <PlanTag feature="atsCheck" /> : <span className="text-xs font-medium text-emerald-600">No credits needed</span>}
           </li>
         </ul>
+        {costs.length && costs.every((f) => billing.lockFor(f.key)) ? (
+          <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">Your plan doesn&apos;t include AI features yet. Upgrade to use your credits.</p>
+        ) : null}
       </div>
       <div className="mt-3 flex justify-between border-t border-slate-100 pt-3 text-xs">
         <Link href="/account" className="font-medium text-brand hover:underline">Usage details</Link>

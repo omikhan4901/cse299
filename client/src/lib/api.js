@@ -1,11 +1,15 @@
 import { API_URL } from "./config";
 
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
+
+/** Fired when the server refuses something because of the plan; BillingProvider shows the upgrade dialog. */
+export const UPGRADE_NEEDED = "resumex:upgrade-needed";
 
 /**
  * fetch() wrapper for the Express API. Throws ApiError with the server's
@@ -26,7 +30,12 @@ export async function api(path, { token, method = "GET", body, timeout = 60000 }
       signal: controller.signal,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.success === false) throw new ApiError(data.error || `Request failed (${res.status})`, res.status);
+    if (!res.ok || data.success === false) {
+      if (data.code === "upgrade" && data.feature && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature } }));
+      }
+      throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.code);
+    }
     return data;
   } catch (err) {
     if (err instanceof ApiError) throw err;

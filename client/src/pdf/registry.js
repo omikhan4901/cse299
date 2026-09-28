@@ -58,6 +58,10 @@ export const templatesIn = (category) => TEMPLATES.filter((t) => t.category === 
 
 export const categoryById = (id) => CATEGORIES.find((c) => c.id === id);
 
+// Categories open to everyone when plans are enforced; the rest need the "premiumTemplates" feature.
+export const FREE_TEMPLATE_CATEGORIES = ["ats", "student"];
+export const isPremiumTemplate = (template) => !!template && !FREE_TEMPLATE_CATEGORIES.includes(template.category);
+
 export const ACCENT_SWATCHES = ["#4338ca", "#2563eb", "#0f766e", "#007b7b", "#15803d", "#b45309", "#be123c", "#7c3aed", "#334155", "#0f172a"];
 
 /** A varied handful shown on the home page and in the hero (one or two per category). */

@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Segmented } from "antd";
-import { Check, Crown, Sparkles, Zap } from "lucide-react";
+import { Check, Crown, Minus, Sparkles, Zap } from "lucide-react";
 import { formatPrice } from "../BillingProvider";
 import { CONTACT_EMAIL } from "@/lib/config";
 
 /** The three plans from the admin settings, with a monthly / yearly switch. */
 export default function PricingPlans({ config }) {
   const [yearly, setYearly] = useState(false);
-  const { plans, currency, freeMode, aiFeatures, featureCosts } = config;
+  const { plans, currency, freeMode, aiFeatures, appFeatures = [], featureCosts } = config;
   const hasYearly = plans.some((p) => p.yearlyPrice > 0);
 
   return (
@@ -83,9 +83,57 @@ export default function PricingPlans({ config }) {
         })}
       </div>
 
-      <div className="mx-auto mt-14 max-w-2xl rounded-2xl border border-slate-200 bg-white p-6">
+      {/* Generated from the plan settings, so it always matches what's actually locked. */}
+      <div className="mx-auto mt-14 max-w-5xl overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left">
+              <th className="p-4 font-display text-base font-bold text-ink">Compare plans</th>
+              {plans.map((p) => (
+                <th key={p.id} className={`p-4 text-center font-semibold ${p.highlight ? "text-brand" : "text-ink"}`}>{p.name}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            <tr>
+              <td className="p-4 text-slate-700">AI credits</td>
+              {plans.map((p) => (
+                <td key={p.id} className="p-4 text-center font-medium text-ink tabular-nums">
+                  {freeMode.enabled && p.id === "free" ? `${freeMode.dailyCredits} / day` : `${p.credits.toLocaleString()} / ${p.creditPeriod}`}
+                </td>
+              ))}
+            </tr>
+            {[...appFeatures, ...aiFeatures].map((f) => (
+              <tr key={f.key}>
+                <td className="p-4">
+                  <span className="text-slate-700">{f.name}</span>
+                  {featureCosts[f.key] != null && aiFeatures.some((a) => a.key === f.key) ? (
+                    <span className="ml-2 inline-flex items-center gap-0.5 text-xs text-slate-400"><Zap size={11} className="fill-amber-400 text-amber-500" /> {featureCosts[f.key]}</span>
+                  ) : null}
+                </td>
+                {plans.map((p) => (
+                  <td key={p.id} className="p-4 text-center">
+                    {freeMode.enabled || p.features[f.key] ? (
+                      <Check size={18} className="mx-auto text-brand" aria-label="Included" />
+                    ) : (
+                      <Minus size={18} className="mx-auto text-slate-300" aria-label="Not included" />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr>
+              <td className="p-4 text-slate-700">Live PDF builder, PDF download, private mode</td>
+              {plans.map((p) => <td key={p.id} className="p-4 text-center"><Check size={18} className="mx-auto text-brand" aria-label="Included" /></td>)}
+            </tr>
+          </tbody>
+        </table>
+        {freeMode.enabled ? <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">{freeMode.label}: every feature is open to everyone right now.</p> : null}
+      </div>
+
+      <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="font-display text-lg font-bold text-ink">How credits work</h2>
-        <p className="mt-1 text-sm text-slate-600">AI features use credits from your allowance, which refreshes automatically. The ATS check never uses credits.</p>
+        <p className="mt-1 text-sm text-slate-600">AI features use credits from your allowance, which refreshes automatically. Credits only work for the AI features your plan includes. The ATS check never uses credits.</p>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {aiFeatures.map((f) => (
             <li key={f.key} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">

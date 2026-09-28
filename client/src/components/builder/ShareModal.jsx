@@ -21,7 +21,7 @@ export default function ShareModal({ open, onClose, resume, onChange }) {
       onChange({ isPublic: data.isPublic, shortId: data.shortId });
       message.success(isPublic ? "Your resume is now public" : "Your resume is private again");
     } catch (err) {
-      message.error(err.message);
+      if (err.code !== "upgrade") message.error(err.message);
     } finally {
       setLoading(false);
     }

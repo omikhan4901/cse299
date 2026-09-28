@@ -14,6 +14,8 @@ import { AI_ENABLED } from "@/lib/config";
 import { loadPdfJs } from "./PdfPreview";
 import { aiResume } from "./AiModals";
 import { CreditTooltip } from "../Credits";
+import PlanTag from "../billing/PlanTag";
+import { useBilling } from "../BillingProvider";
 
 const { TextArea } = Input;
 
@@ -181,6 +183,7 @@ function AtsChecker({ resume, token }) {
   const [error, setError] = useState(null);
   const [ai, setAi] = useState({ loading: false, data: null, error: null });
   const runId = useRef(0);
+  const billing = useBilling();
   useEffect(() => () => void runId.current++, []);
 
   const run = async () => {
@@ -224,6 +227,7 @@ function AtsChecker({ resume, token }) {
   };
 
   const askAi = async () => {
+    if (billing && !billing.requireFeature("audit", "AI suggestions")) return;
     setAi({ loading: true, data: null, error: null });
     try {
       const data = await api("/ai/audit", { token, method: "POST", body: { resumeData: aiResume(resume), jobDescription: job } });
@@ -350,7 +354,7 @@ function AtsChecker({ resume, token }) {
             <p className="text-sm text-slate-600"><b className="text-ink">Want rewrite ideas?</b> Get an AI opinion — it isn&apos;t part of the score.</p>
             <CreditTooltip feature="audit">
               <Button icon={<Sparkles size={14} />} loading={ai.loading} onClick={askAi} disabled={!token}>
-                AI suggestions
+                AI suggestions <PlanTag feature="audit" />
               </Button>
             </CreditTooltip>
           </div>
