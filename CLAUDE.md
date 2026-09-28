@@ -1,5 +1,8 @@
 # Working on ResumeX
 
+The plan for ResumeX V2 (Career Profile, applications, tailoring) is in `docs/v2/SPEC.md`.
+Read it before building anything in that area, and keep it up to date when decisions change.
+
 ## Features must work together
 
 When adding or changing a feature, even from a short or vague request, always work out how
