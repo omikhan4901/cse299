@@ -10,6 +10,8 @@ const SettingsSchema = new mongoose.Schema(
         key: { type: String, default: 'global', unique: true },
         data: { type: mongoose.Schema.Types.Mixed, default: {} },
         updatedBy: { type: String },
+        // Goes up by one on every save, so a save from an out-of-date admin page is refused.
+        rev: { type: Number, default: 0 },
     },
     { timestamps: true, minimize: false }
 );

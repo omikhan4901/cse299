@@ -103,6 +103,41 @@ describe('admin actions', () => {
 });
 
 describe('settings', () => {
+    it('a save from an out-of-date page is refused, and never undoes other sections', async () => {
+        const boss = await superadmin();
+        const loaded = (await api('GET', '/admin/settings', { token: boss.token })).body.data;
+        // Page A (loaded earlier) and page B both have `loaded.rev`. B saves template access first.
+        const b = await api('PUT', '/admin/settings', { token: boss.token, body: { templates: { categories: { minimal: 'premium' }, overrides: {} }, baseRev: loaded.rev } });
+        assert.equal(b.status, 200);
+        assert.equal(b.body.data.rev, loaded.rev + 1);
+        // A saves its credit costs from the old revision: refused, with the latest settings.
+        const a = await api('PUT', '/admin/settings', { token: boss.token, body: { featureCosts: { refine: 4 }, baseRev: loaded.rev } });
+        assert.equal(a.status, 409);
+        assert.equal(a.body.code, 'conflict');
+        assert.equal(a.body.data.settings.templates.categories.minimal, 'premium');
+        // A retries with just its change on top of the latest: both changes are kept.
+        const retry = await api('PUT', '/admin/settings', { token: boss.token, body: { featureCosts: { refine: 4 }, baseRev: a.body.data.rev } });
+        assert.equal(retry.status, 200);
+        assert.equal(retry.body.data.settings.featureCosts.refine, 4);
+        assert.equal(retry.body.data.settings.templates.categories.minimal, 'premium');
+    });
+
+    it("merges onto the stored settings, not this server's cached copy", async () => {
+        const boss = await superadmin();
+        await api('GET', '/billing/plans'); // warm this instance's cache
+        // Another server instance saves meanwhile (straight to the database).
+        const Settings = require('../models/Settings');
+        const doc = await Settings.findOne({ key: 'global' });
+        doc.data = { ...doc.data, registration: 'closed' };
+        doc.rev = (doc.rev || 0) + 1;
+        doc.markModified('data');
+        await doc.save();
+        const r = await api('PUT', '/admin/settings', { token: boss.token, body: { showPricing: true } });
+        assert.equal(r.status, 200);
+        assert.equal(r.body.data.settings.registration, 'closed', "the other instance's change survives");
+        assert.equal(r.body.data.settings.showPricing, true);
+    });
+
     it('a partial or malformed save never drops a plan', async () => {
         const boss = await superadmin();
         const r = await api('PUT', '/admin/settings', { token: boss.token, body: { plans: [{ name: 'Starter' }], freeMode: null, featureCosts: 'x' } });

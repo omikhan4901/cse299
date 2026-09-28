@@ -92,6 +92,9 @@ const ResumeSchema = new mongoose.Schema(
     shortId: { type: String, default: generateShortId, unique: true },
     isMaster: { type: Boolean, default: false },
     isPublic: { type: Boolean, default: false },
+    // Goes up by one on every content save. The builder sends the revision it
+    // started from, so an edit made in another tab or device is never overwritten silently.
+    rev: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

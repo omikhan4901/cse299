@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Button, Dropdown, Segmented, Tooltip, App, Input, Result, Spin } from "antd";
+import { Button, Dropdown, Segmented, Tooltip, App, Input, Modal, Result, Spin } from "antd";
 import { AnimatePresence } from "motion/react";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, Eraser,
@@ -212,6 +212,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
   const creating = useRef(false);
+  // The saved revision this editor started from. Saves send it, so an edit made in another
+  // tab or device in the meantime is never overwritten without asking (see the dialog below).
+  const revRef = useRef(initial.rev ?? 0);
+  // The server's newer copy, when a save found one.
+  const [conflict, setConflict] = useState(null);
 
   const payloadJson = useMemo(() => JSON.stringify(toPayload(resume)), [resume]);
   const [initialJson] = useState(payloadJson);
@@ -237,24 +242,73 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   }, [resume, privateMode, showExample, edited]);
 
   const saveNow = useCallback(async () => {
-    if (!resume._id || !token) return;
+    if (!resume._id || !token || conflict) return;
     const body = payloadJson;
     setSaving(true);
     try {
-      await api(`/resumes/${resume._id}`, { token, method: "PUT", body: JSON.parse(body) });
+      const { data } = await api(`/resumes/${resume._id}`, { token, method: "PUT", body: { ...JSON.parse(body), baseRev: revRef.current } });
+      revRef.current = data.rev ?? revRef.current + 1;
       setSavedJson(body);
       onSaveSucceeded();
     } catch (err) {
+      if (err.code === "conflict" && err.data) {
+        setConflict(err.data);
+        setSaveError(null);
+      }
       // The plan doesn't include the chosen template (e.g. the rules changed): go back to the
       // saved design, which the upgrade dialog explains, instead of retrying forever.
-      if (err.code === "upgrade") {
+      else if (err.code === "upgrade") {
         const savedTemplate = savedJson ? JSON.parse(savedJson).template : "Classic";
         setResume((r) => ({ ...r, template: savedTemplate || "Classic" }));
       } else onSaveFailed(err);
     } finally {
       setSaving(false);
     }
-  }, [resume._id, token, payloadJson, savedJson, setResume, onSaveFailed, onSaveSucceeded]);
+  }, [resume._id, token, conflict, payloadJson, savedJson, setResume, onSaveFailed, onSaveSucceeded]);
+
+  /** Replaces what's in the editor with a copy from the server (it counts as saved). */
+  const takeServerCopy = useCallback(
+    (data) => {
+      const next = normalizeResume(data);
+      revRef.current = data.rev ?? 0;
+      setSavedJson(JSON.stringify(toPayload(next)));
+      setResume(next);
+    },
+    [setResume]
+  );
+
+  // Back to this tab after working elsewhere: if the resume was saved since and nothing here is
+  // unsaved, switch to the newer copy now, so this tab can't later save old content over it.
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    dirtyRef.current = dirty || saving || !!conflict;
+  }, [dirty, saving, conflict]);
+  useEffect(() => {
+    if (!resume._id || !token) return;
+    let busy = false;
+    const check = async () => {
+      if (busy || document.visibilityState !== "visible" || dirtyRef.current) return;
+      busy = true;
+      try {
+        const { data } = await api(`/resumes/${resume._id}`, { token });
+        // Still nothing typed while it loaded?
+        if ((data.rev ?? 0) > revRef.current && !dirtyRef.current) {
+          takeServerCopy(data);
+          message.info("Updated with changes saved in another tab.");
+        }
+      } catch {
+        // Offline or signed out: the next save reports it.
+      } finally {
+        busy = false;
+      }
+    };
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
+  }, [resume._id, token, takeServerCopy, message]);
 
   /** Adds this resume to the account. Edits made while the request is in flight are kept and saved next. */
   const createResume = useCallback(
@@ -266,6 +320,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       try {
         const { data } = await api("/resumes", { token, method: "POST", body: { ...toPayload(snapshot), nickname, isMaster } });
         const ids = { _id: data._id, shortId: data.shortId, nickname, isMaster, isPublic: data.isPublic };
+        revRef.current = data.rev ?? 0;
         setSavedJson(JSON.stringify(toPayload({ ...snapshot, ...ids })));
         setResume((r) => ({ ...r, ...ids }));
         clearDraft();
@@ -289,10 +344,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   // Saved resumes autosave shortly after you stop typing.
   useEffect(() => {
-    if (!dirty || !token || sessionExpired) return;
+    if (!dirty || !token || sessionExpired || conflict) return;
     const t = setTimeout(saveNow, 1500);
     return () => clearTimeout(t);
-  }, [dirty, token, saveNow, sessionExpired, retryTick]);
+  }, [dirty, token, saveNow, sessionExpired, conflict, retryTick]);
 
   // Signed in: a new resume goes into the account as soon as it has content, so it can't get lost.
   const wantsAccountCopy = isAuthenticated && !!token && !resume._id && !privateMode && !sessionExpired && hasRealContent(resume) && (!showExample || edited);
@@ -609,6 +664,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       ? { icon: <CloudOff size={13} />, text: "Saved in this browser only", tone: "text-slate-400" }
       : needsLogin
         ? { icon: <LogIn size={13} />, text: "Signed out · log in to keep saving", tone: "text-red-500", action: "login" }
+        : conflict
+          ? { icon: <FileWarning size={13} />, text: "Changed in another tab · choose a version", tone: "text-amber-600" }
         : saving
           ? { icon: <Loader2 size={13} className="animate-spin" />, text: resume._id ? "Saving…" : "Saving to your account…", tone: "text-slate-500" }
           : saveError
@@ -834,6 +891,46 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
           if (pickTemplate(t)) message.success(`Switched to ${templateById(t).name}`);
         }}
       />
+      <Modal
+        open={!!conflict}
+        title="This resume was changed somewhere else"
+        closable={false}
+        mask={{ closable: false }}
+        keyboard={false}
+        footer={null}
+      >
+        <p className="text-slate-600">
+          It was saved from another tab or device{conflict?.updatedAt ? ` at ${new Date(conflict.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}, after you opened it here. Which version do you want to keep?
+        </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button
+            onClick={() => {
+              takeServerCopy(conflict);
+              setConflict(null);
+              message.success("Showing the latest saved version.");
+            }}
+          >
+            Use the other version
+          </Button>
+          <Button
+            onClick={() => {
+              setConflict(null);
+              createResume({ nickname: `${resume.nickname || "Resume"} (my copy)`.slice(0, 120) });
+            }}
+          >
+            Save mine as a copy
+          </Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              revRef.current = conflict.rev ?? revRef.current;
+              setConflict(null);
+            }}
+          >
+            Keep mine
+          </Button>
+        </div>
+      </Modal>
       <ResumeGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       <BuilderTour open={tourOpen} onClose={() => setTourOpen(false)} signedIn={isAuthenticated} />
       <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />

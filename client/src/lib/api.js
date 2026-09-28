@@ -1,10 +1,11 @@
 import { API_URL } from "./config";
 
 export class ApiError extends Error {
-  constructor(message, status, code) {
+  constructor(message, status, code, data) {
     super(message);
     this.status = status;
     this.code = code;
+    this.data = data; // e.g. the latest copy of a resume on a "conflict"
   }
 }
 
@@ -37,7 +38,7 @@ export async function api(path, { token, method = "GET", body, timeout = 60000 }
       if (data.code === "upgrade" && data.feature && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature, plan: data.plan, template: data.template } }));
       }
-      throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.code);
+      throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.code, data.data);
     }
     return data;
   } catch (err) {

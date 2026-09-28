@@ -10,7 +10,7 @@ const AdminLog = require('../models/AdminLog');
 const { audit } = require('../lib/audit');
 const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email');
 const { limit, describeLimits } = require('../lib/rateLimit');
-const { getSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
+const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 
 /**
@@ -308,14 +308,24 @@ router.get('/audit', wrap(async (req, res) => {
 
 // ---------- Settings (plans, prices, credit costs, free mode) ----------
 
+const settingsPayload = async () => ({ ...(await readSettings()), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, rateLimits: describeLimits() });
+
 router.get('/settings', wrap(async (req, res) => {
-    res.json({ success: true, data: { settings: await getSettings(), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, rateLimits: describeLimits() } });
+    res.json({ success: true, data: await settingsPayload() });
 }));
 
+// Send only the sections you changed, plus `baseRev` (the `rev` you loaded): a save from
+// an out-of-date page is refused with the latest settings, instead of undoing other changes.
 router.put('/settings', wrap(async (req, res) => {
-    const settings = await updateSettings(req.body || {}, req.adminEmail);
-    audit(req, 'settings.update', null, req.body);
-    res.json({ success: true, data: { settings, aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, rateLimits: describeLimits() } });
+    const { baseRev, ...patch } = req.body || {};
+    try {
+        await updateSettings(patch, req.adminEmail, { baseRev: Number.isInteger(baseRev) ? baseRev : undefined });
+    } catch (err) {
+        if (err.code === 'conflict') return res.status(409).json({ success: false, code: 'conflict', error: err.message, data: await settingsPayload() });
+        throw err;
+    }
+    audit(req, 'settings.update', null, patch);
+    res.json({ success: true, data: await settingsPayload() });
 }));
 
 // ---------- Campaigns ----------

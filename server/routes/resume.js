@@ -78,6 +78,10 @@ async function findOwned(req, res) {
   return resume;
 }
 
+// Someone saved this resume after the caller loaded it: send the latest copy so they can choose.
+const conflict = (res, resume) =>
+  res.status(409).json({ success: false, code: "conflict", error: "This resume was changed in another tab or device.", data: resume });
+
 const handleError = (res, err, fallback) => {
   console.error(err);
   if (err.name === "ValidationError") {
@@ -127,13 +131,27 @@ router.put("/:id", protect, perAccount, async (req, res) => {
     const resume = await findOwned(req, res);
     if (!resume) return;
     const data = pickEditable(req.body);
+    // Sharing and "master" toggles don't touch the content, so they never conflict.
+    const content = Object.keys(data).some((k) => k !== "isMaster" && k !== "isPublic");
+    const rev = resume.rev || 0;
+    const baseRev = req.body.baseRev;
+    if (content && baseRev !== undefined && baseRev !== rev) return conflict(res, resume);
     if (data.isPublic === true && !resume.isPublic && !(await shareAllowed(req, res))) return;
     if (typeof data.template === "string" && data.template !== resume.template && !(await templateOk(req, res, data.template))) return;
-    if (data.isMaster) await Resume.updateMany({ user: req.userId, _id: { $ne: resume._id } }, { isMaster: false });
+    if (data.isMaster) await Resume.updateMany({ user: req.userId, _id: { $ne: resume._id } }, { isMaster: false }, { timestamps: false });
     resume.set(data);
+    if (content) {
+      resume.rev = rev + 1;
+      // Saves only if nobody else saved in between (otherwise DocumentNotFoundError below).
+      resume.$where = rev === 0 ? { rev: { $in: [0, null] } } : { rev };
+    }
     await resume.save();
     res.status(200).json({ success: true, data: resume });
   } catch (err) {
+    if (err.name === "DocumentNotFoundError") {
+      const latest = await Resume.findById(req.params.id).catch(() => null);
+      if (latest) return conflict(res, latest);
+    }
     handleError(res, err, "Server error while updating the resume.");
   }
 });

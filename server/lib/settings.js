@@ -149,21 +149,42 @@ async function getSettings() {
     return cache;
 }
 
-async function updateSettings(patch, by) {
-    const current = await getSettings();
-    const merged = merge(current, patch);
+/** The settings and their revision, read from the database (not the cache). */
+async function readSettings() {
+    const doc = await Settings.findOne({ key: 'global' }).lean();
+    return { settings: clean(doc?.data), rev: doc?.rev || 0 };
+}
+
+/**
+ * Saves a partial change. It's merged onto the stored settings (not this server's
+ * cached copy, which another instance may have changed since). With `baseRev`, a
+ * save made from settings older than the stored ones is refused with a 409.
+ */
+async function updateSettings(patch, by, { baseRev } = {}) {
+    const doc = await Settings.findOne({ key: 'global' });
+    const rev = doc?.rev || 0;
+    const conflict = () => Object.assign(new Error('Someone else changed the settings since you opened this page.'), { status: 409, code: 'conflict' });
+    if (baseRev !== undefined && baseRev !== rev) throw conflict();
+    const merged = merge(clean(doc?.data), patch);
     // Template access is saved as a whole, so removing an override really removes it.
     if (isObj(patch?.templates)) merged.templates = patch.templates;
     if (isObj(patch?.rateLimits)) merged.rateLimits = patch.rateLimits;
     const next = clean(merged);
-    const doc = await Settings.findOne({ key: 'global' });
-    if (doc) {
-        doc.data = next;
-        doc.updatedBy = by;
-        doc.markModified('data');
-        await doc.save();
-    } else {
-        await Settings.create({ key: 'global', data: next, updatedBy: by });
+    try {
+        if (doc) {
+            doc.data = next;
+            doc.updatedBy = by;
+            doc.rev = rev + 1;
+            doc.markModified('data');
+            // Only if nobody saved in between.
+            doc.$where = rev === 0 ? { rev: { $in: [0, null] } } : { rev };
+            await doc.save();
+        } else {
+            await Settings.create({ key: 'global', data: next, updatedBy: by, rev: 1 });
+        }
+    } catch (err) {
+        if (err.name === 'DocumentNotFoundError' || err.code === 11000) throw conflict();
+        throw err;
     }
     cache = next;
     cachedAt = Date.now();
@@ -176,4 +197,4 @@ setInterval(() => getSettings().catch(() => {}), TTL + 1000).unref();
 
 const planById = (settings, id) => settings.plans.find((p) => p.id === id) || settings.plans[0];
 
-module.exports = { getSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_IDS, DEFAULTS };
+module.exports = { getSettings, readSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_IDS, DEFAULTS };

@@ -121,6 +121,7 @@ export function normalizeResume(input) {
     isMaster: !!data.isMaster,
     isPublic: !!data.isPublic,
     updatedAt: data.updatedAt,
+    ...(Number.isInteger(data.rev) ? { rev: data.rev } : {}),
     personal: { ...base.personal },
     summary: str(data.summary),
     skills: str(data.skills),
@@ -166,8 +167,13 @@ export const withContentOf = (target, source, { keepPhoto = false } = {}) => {
 };
 
 /** The fields the API accepts when saving (no ids, owner or timestamps). */
+/**
+ * The resume content the builder saves. Server-owned fields are left out, and so are
+ * the share and "master" toggles, which the dashboard and share dialog change on their own
+ * (an open builder would otherwise put back an old value).
+ */
 export function toPayload(resume) {
-  const { _id, shortId, updatedAt, isPublic, ...rest } = resume;
+  const { _id, shortId, updatedAt, isPublic, isMaster, rev, ...rest } = resume;
   return rest;
 }
 

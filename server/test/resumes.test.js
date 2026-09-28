@@ -1,6 +1,6 @@
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, resetState, setSettings } = require('./helpers');
+const { start, stop, api, register, resetState, setSettings, needsRealMongo } = require('./helpers');
 
 before(() => start('resumes'));
 after(stop);
@@ -117,5 +117,61 @@ describe('templates by plan (server side)', () => {
         assert.equal((await api('POST', '/resumes', { token, body: { nickname: 'N', template: 'Nordic' } })).status, 403);
         await setSettings({ templates: { categories: require('../lib/settings').DEFAULTS.templates.categories, overrides: { Nordic: 'free' } } });
         assert.equal((await api('POST', '/resumes', { token, body: { nickname: 'N', template: 'Nordic' } })).status, 201, 'per-template override applies');
+    });
+});
+
+describe('editing in two tabs', () => {
+    const put = (token, id, body) => api('PUT', `/resumes/${id}`, { token, body });
+
+    it('a save based on an old revision is refused with the latest copy', async () => {
+        const { token } = await register();
+        const { body } = await api('POST', '/resumes', { token, body: { nickname: 'CV', summary: 'v0' } });
+        const id = body.data._id;
+        assert.equal(body.data.rev, 0);
+        // Both tabs opened revision 0. Tab A saves first.
+        const a = await put(token, id, { summary: 'from tab A', baseRev: 0 });
+        assert.equal(a.status, 200);
+        assert.equal(a.body.data.rev, 1);
+        // Tab B still thinks it's editing revision 0: refused, and told what's there now.
+        const b = await put(token, id, { summary: 'from tab B', baseRev: 0 });
+        assert.equal(b.status, 409);
+        assert.equal(b.body.code, 'conflict');
+        assert.equal(b.body.data.summary, 'from tab A');
+        assert.equal(b.body.data.rev, 1);
+        assert.equal((await api('GET', `/resumes/${id}`, { token })).body.data.summary, 'from tab A', 'tab A kept');
+        // Tab B chooses to keep its version: it saves on top of revision 1.
+        const force = await put(token, id, { summary: 'from tab B', baseRev: 1 });
+        assert.equal(force.status, 200);
+        assert.equal(force.body.data.rev, 2);
+    });
+
+    it('share and master toggles never conflict with an open editor', async () => {
+        const { token } = await register();
+        const id = (await api('POST', '/resumes', { token, body: { nickname: 'CV' } })).body.data._id;
+        const other = (await api('POST', '/resumes', { token, body: { nickname: 'Other', isMaster: true } })).body.data;
+        assert.equal((await put(token, id, { isPublic: true })).status, 200);
+        assert.equal((await put(token, id, { isMaster: true })).body.data.rev, 0, 'toggles keep the revision');
+        const after = (await api('GET', `/resumes/${other._id}`, { token })).body.data;
+        assert.equal(after.isMaster, false);
+        assert.equal(after.updatedAt, other.updatedAt, "un-mastering another resume doesn't make it look edited");
+        assert.equal((await put(token, id, { summary: 'typed', baseRev: 0 })).status, 200, 'the editor still saves');
+    });
+
+    it('saves without a revision (older app versions) still work', async () => {
+        const { token } = await register();
+        const id = (await api('POST', '/resumes', { token, body: { nickname: 'CV' } })).body.data._id;
+        assert.equal((await put(token, id, { summary: 'a' })).status, 200);
+        const r = await put(token, id, { summary: 'b' });
+        assert.equal(r.status, 200);
+        assert.equal(r.body.data.rev, 2);
+    });
+
+    it('two saves racing from the same revision: exactly one wins', async (t) => {
+        if (needsRealMongo()) return t.skip(needsRealMongo());
+        const { token } = await register();
+        const id = (await api('POST', '/resumes', { token, body: { nickname: 'CV' } })).body.data._id;
+        const results = await Promise.all(Array.from({ length: 6 }, (_, i) => put(token, id, { summary: `tab ${i}`, baseRev: 0 })));
+        assert.equal(results.filter((r) => r.status === 200).length, 1);
+        assert.equal(results.filter((r) => r.status === 409).length, 5);
     });
 });
