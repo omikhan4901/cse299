@@ -5,6 +5,8 @@ const { protect } = require('./auth');
 const { toResume, TRANSCRIPT_SCHEMA, TRANSCRIBE_INSTRUCTION } = require('../lib/resumeImport');
 const { loadResumeGuide } = require('../lib/resumeGuide');
 const { aiQuota, usageSummary } = require('../lib/credits');
+const { INSTRUCTION: INGEST_INSTRUCTION, RESPONSE_SCHEMA: INGEST_SCHEMA, prompt: ingestPrompt, checkOperations } = require('../lib/ingest');
+const { readPdf } = require('../lib/pdfText');
 
 const router = express.Router();
 
@@ -298,6 +300,50 @@ router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), as
         res.status(200).json({ success: true, extractedData: toResume(fixNewlines(JSON.parse(json))) });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError('Could not read that resume. Please try another file.') : err);
+    }
+});
+
+// --- 4b. Ingest: anything pasted or uploaded → reviewable operations on the resume ---
+// (server/lib/ingest.js; the builder shows them for review and applies the accepted ones).
+router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), async (req, res) => {
+    const file = req.file;
+    const typed = str(req.body?.text);
+    let outline = req.body?.outline;
+    if (typeof outline === 'string') {
+        try {
+            outline = JSON.parse(outline);
+        } catch {
+            outline = null;
+        }
+    }
+    if (!isObj(outline)) outline = {};
+    if (!file && !typed) return res.status(400).json({ success: false, error: 'Paste some text or choose a PDF or Word file.' });
+    if (typed.length > 30000) return res.status(400).json({ success: false, error: 'That text is very long. Paste it in parts of up to about 30,000 characters.' });
+    if (file) req.aiLongTask = true;
+
+    try {
+        // The text the model reads, and the facts are checked against.
+        let source = typed;
+        let pdfPart = null;
+        if (file) {
+            if (isPdf(file.buffer)) {
+                const { text } = await readPdf(file.buffer).catch(() => ({ text: '' }));
+                if (text.replace(/\s/g, '').length > 150) source = `${text}\n\n${typed}`.trim();
+                else pdfPart = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } }; // a scanned PDF
+            } else if (isZip(file.buffer) && /\.docx$/i.test(file.originalname)) {
+                const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+                if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
+                source = `${text}\n\n${typed}`.trim();
+            } else {
+                return res.status(400).json({ success: false, error: 'Please upload a PDF or DOCX file.' });
+            }
+        }
+        const parts = [...(pdfPart ? [pdfPart] : []), { text: ingestPrompt(outline, clip(source, 30000) || '(see the attached PDF)') }];
+        const json = await generate(INGEST_INSTRUCTION, [{ role: 'user', parts }], { responseMimeType: 'application/json', responseSchema: INGEST_SCHEMA }, req);
+        const { operations, skipped } = checkOperations(JSON.parse(json).operations, { source, outline });
+        res.status(200).json({ success: true, operations, skipped });
+    } catch (err) {
+        sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of that. Please try again.") : err);
     }
 });
 
