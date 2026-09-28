@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Dropdown, Segmented, Tooltip, App, Input, Result, Spin } from "antd";
 import {
-  Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, FilePlus2, Eraser,
+  Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, Eraser,
   ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -410,7 +410,6 @@ function Editor({ initial, example, onSaved }) {
       ] },
       { type: "divider" },
       ...(isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
-      { key: "new", icon: <FilePlus2 size={15} />, label: <Link href="/builder?new=blank">Start a blank resume</Link> },
       {
         key: "clear",
         icon: <Eraser size={15} />,
@@ -494,13 +493,6 @@ function Editor({ initial, example, onSaved }) {
               </Button>
             </Tooltip>
           ) : null}
-          <Tooltip title="Start a new, blank resume">
-            <Link href="/builder?new=blank">
-              <Button icon={<FilePlus2 size={15} />}>
-                <span className="hidden xl:inline">New</span>
-              </Button>
-            </Link>
-          </Tooltip>
           <Tooltip title="Empty every section (you can undo)">
             <Button danger icon={<Eraser size={15} />} onClick={clearAllContent} aria-label="Clear all content">
               <span className="hidden xl:inline">Clear</span>
