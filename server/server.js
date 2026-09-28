@@ -5,6 +5,11 @@ const cors = require('cors');
 
 // Load environment variables before anything reads them.
 dotenv.config();
+// Must come before the routes: sends errors from async handlers to the error handler.
+require('./lib/asyncErrors');
+
+// A bug in one request should never take the whole API down.
+process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err));
 
 const authRoutes = require('./routes/auth');
 const aiRoutes = require('./routes/ai');
@@ -116,6 +121,7 @@ app.use((req, res) => res.status(404).json({ success: false, error: 'Not found' 
 app.use((err, req, res, next) => {
     const status = err.name === 'MulterError' ? 400 : err.status || err.statusCode || 500;
     if (status >= 500) console.error(err);
+    if (res.headersSent) return; // the handler already answered before failing
     res.status(status).json({
         success: false,
         error:

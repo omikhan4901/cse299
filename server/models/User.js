@@ -28,6 +28,8 @@ const UserSchema = new mongoose.Schema({
     // Custom AI credit allowance (set by an admin or a campaign); null uses the plan's.
     creditLimit: { type: Number, default: null, min: 0 },
     creditPeriod: { type: String, enum: ['day', 'month', null], default: null },
+    // When the custom allowance ends (campaign allowances last `durationDays`); empty = no end.
+    creditLimitExpiresAt: { type: Date },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     banned: { type: Boolean, default: false },
     bannedReason: { type: String, default: '' },

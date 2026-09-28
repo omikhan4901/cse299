@@ -110,13 +110,19 @@ const sendError = (res, err) => {
     res.status(err.status || 500).json({ success: false, error: err instanceof AiError ? err.message : 'AI request failed.' });
 };
 
-// Keep prompts small: never send photos or database fields to the model.
-const cleanResume = (resume = {}) => {
-    const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, ...rest } = resume;
-    return { ...rest, personal: { ...(rest.personal || {}), profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
-};
-
 const clip = (text, max) => String(text || '').slice(0, max);
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const list = (v) => (Array.isArray(v) ? v : []);
+
+// Keep prompts small: never send photos or database fields to the model, and cap
+// the size (the request body can be up to 10 MB, which would be costly to send on).
+const MAX_RESUME_CHARS = 40000;
+const cleanResume = (resume) => {
+    if (!isObj(resume)) return {};
+    const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, ...rest } = resume;
+    return { ...rest, personal: { ...(isObj(rest.personal) ? rest.personal : {}), profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
+};
+const resumeJson = (resume) => clip(JSON.stringify(cleanResume(resume)), MAX_RESUME_CHARS);
 
 // The model sometimes writes line breaks as a literal "\\n"; turn them back into real ones.
 const fixNewlines = (value) => {
@@ -131,11 +137,11 @@ router.post('/refine', protect, aiQuota('refine'), async (req, res) => {
     const { resumeText, fullResume, sectionType } = req.body;
     if (!resumeText || !String(resumeText).trim()) return res.status(400).json({ success: false, error: 'No text provided.' });
 
-    const context = fullResume
+    const context = isObj(fullResume)
         ? `CONTEXT FROM USER'S RESUME:
-- Job title: ${fullResume.personal?.title || 'N/A'}
-- Skills: ${fullResume.skills || 'N/A'}
-- Previous roles: ${(fullResume.experience || []).map((e) => e.title).filter(Boolean).join(', ') || 'N/A'}`
+- Job title: ${clip(fullResume.personal?.title, 200) || 'N/A'}
+- Skills: ${clip(fullResume.skills, 2000) || 'N/A'}
+- Previous roles: ${clip(list(fullResume.experience).map((e) => e?.title).filter(Boolean).join(', '), 1000) || 'N/A'}`
         : '';
 
     const task = sectionType === 'summary'
@@ -167,10 +173,13 @@ router.post('/chat', protect, aiQuota('chat'), async (req, res) => {
     if (!Array.isArray(conversation) || conversation.length === 0) {
         return res.status(400).json({ success: false, error: 'No conversation history.' });
     }
-    const contents = conversation.slice(-20).map((msg) => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: clip(msg.content, 4000) }],
-    }));
+    const contents = conversation
+        .slice(-20)
+        .filter((msg) => isObj(msg) && String(msg.content || '').trim())
+        .map((msg) => ({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: clip(msg.content, 4000) }],
+        }));
     // Gemini requires the conversation to start with a user turn.
     while (contents.length && contents[0].role !== 'user') contents.shift();
     if (!contents.length) return res.status(400).json({ success: false, error: 'No question provided.' });
@@ -191,7 +200,7 @@ ${guide}
 </resume_guide>
 ` : ''}
 RESUME:
-${JSON.stringify(cleanResume(fullResume))}`;
+${resumeJson(fullResume)}`;
 
     try {
         const response = await generate(systemInstruction, contents);
@@ -223,7 +232,7 @@ ${targeted ? `Score 0-100 how well the resume matches this job description:\n"""
 Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 10 missing keywords${targeted ? ' from the job description' : ''}.`;
 
     try {
-        const text = await generate(systemInstruction, [{ role: 'user', parts: [{ text: JSON.stringify(cleanResume(resumeData)) }] }], {
+        const text = await generate(systemInstruction, [{ role: 'user', parts: [{ text: resumeJson(resumeData) }] }], {
             responseMimeType: 'application/json',
             responseSchema: schema,
         });
@@ -275,7 +284,7 @@ router.post('/cover-letter', protect, aiQuota('coverLetter'), async (req, res) =
 Write a tailored, professional cover letter for the candidate below and the target job.
 
 CANDIDATE RESUME (JSON):
-${JSON.stringify(cleanResume(resumeData))}
+${resumeJson(resumeData)}
 
 JOB DESCRIPTION:
 """${clip(jobDescription, 6000)}"""

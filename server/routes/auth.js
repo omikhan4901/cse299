@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Resume = require('../models/Resume');
 const Usage = require('../models/Usage');
+const AiEvent = require('../models/AiEvent');
 const Campaign = require('../models/Campaign');
 const { limit, clientIp } = require('../lib/rateLimit');
 const { effectivePlanId } = require('../lib/credits');
@@ -196,6 +197,7 @@ router.post('/register', registerByIp, async (req, res) => {
                           planExpiresAt: campaign.plan !== 'free' ? new Date(Date.now() + campaign.durationDays * 864e5) : undefined,
                           creditLimit: campaign.creditLimit,
                           creditPeriod: campaign.creditPeriod,
+                          creditLimitExpiresAt: campaign.creditLimit != null ? new Date(Date.now() + campaign.durationDays * 864e5) : undefined,
                       }
                     : {}),
             });
@@ -321,7 +323,7 @@ router.delete('/me', protect, sensitiveByUser, async (req, res) => {
         if (!(await bcrypt.compare(String(password), user.password))) {
             return res.status(400).json({ success: false, error: 'That password is incorrect.' });
         }
-        await Promise.all([Resume.deleteMany({ user: user._id }), Usage.deleteMany({ user: user._id })]);
+        await Promise.all([Resume.deleteMany({ user: user._id }), Usage.deleteMany({ user: user._id }), AiEvent.deleteMany({ user: user._id })]);
         await user.deleteOne();
         res.json({ success: true });
     } catch (err) {

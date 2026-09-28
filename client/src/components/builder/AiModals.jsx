@@ -55,7 +55,9 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
     setInput("");
     setLoading(true);
     try {
-      const data = await api("/ai/chat", { token, method: "POST", body: { conversation: next.slice(1), fullResume: aiResume(resume) } });
+      // Leave out the greeting and any error bubbles: they aren't part of the conversation.
+      const conversation = next.slice(1).filter((m) => !m.error);
+      const data = await api("/ai/chat", { token, method: "POST", body: { conversation, fullResume: aiResume(resume) } });
       setMessages((m) => [...m, { role: "assistant", content: data.response }]);
     } catch (err) {
       setMessages((m) => [...m, { role: "assistant", content: err.message, error: true }]);

@@ -87,7 +87,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
               email: u.email,
               plan: u.plan || "free",
               planExpiresAt: toDateInput(u.planExpiresAt),
-              customCredits: u.creditLimit != null,
+              customCredits: u.credits.source === "custom",
               creditLimit: u.creditLimit ?? u.credits.limit,
               creditPeriod: u.creditPeriod || u.credits.period,
               role: u.role === "admin" ? "admin" : "user",
@@ -158,7 +158,13 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
                   title: `Set a new password for ${u.name}`,
                   content: <Input.Password placeholder="At least 8 characters" onChange={(e) => (pw = e.target.value)} className="!mt-2" />,
                   okText: "Set password",
-                  onOk: () => save({ password: pw }),
+                  onOk: () => {
+                    if (pw.length < 8) {
+                      message.error("The password needs at least 8 characters.");
+                      return Promise.reject(new Error("too short")); // keeps the dialog open
+                    }
+                    return save({ password: pw });
+                  },
                 });
               }}
             >
@@ -291,6 +297,7 @@ function AddUserModal({ open, onClose, onCreated }) {
 
 export default function UsersTab({ isSuper }) {
   const { token } = useAuth();
+  const { message } = App.useApp();
   const [query, setQuery] = useState({ q: "", plan: "", status: "", page: 1 });
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
@@ -299,7 +306,8 @@ export default function UsersTab({ isSuper }) {
   const { data, loading, error, reload } = useAdmin(`/users?${params}`);
 
   const exportCsv = async () => {
-    const res = await fetch(`${API_URL}/admin/users/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${API_URL}/admin/users/export.csv`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+    if (!res?.ok) return message.error("Could not export the users. Please try again.");
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement("a");
     a.href = url;

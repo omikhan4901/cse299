@@ -73,10 +73,13 @@ const str = (v, fallback, max = 200) => (typeof v === 'string' ? v.trim().slice(
 function clean(input) {
     const s = merge(DEFAULTS, input || {});
     const costs = {};
-    for (const f of AI_FEATURES) costs[f.key] = Math.round(num(s.featureCosts?.[f.key], DEFAULTS.featureCosts[f.key], { max: 1000 }));
+    const featureCosts = isObj(s.featureCosts) ? s.featureCosts : {};
+    for (const f of AI_FEATURES) costs[f.key] = Math.round(num(featureCosts[f.key] ?? DEFAULTS.featureCosts[f.key], DEFAULTS.featureCosts[f.key], { max: 1000 }));
     const featureKeys = [...AI_FEATURES, ...APP_FEATURES].map((f) => f.key);
-    const plans = (Array.isArray(s.plans) ? s.plans : DEFAULTS.plans).slice(0, 3).map((p, i) => {
-        const d = DEFAULTS.plans[i];
+    // Always exactly the three tiers: a missing or malformed plan falls back to its defaults,
+    // so accounts on Pro or Premium never lose their tier because of a partial save.
+    const plans = DEFAULTS.plans.map((d, i) => {
+        const p = (Array.isArray(s.plans) && isObj(s.plans[i]) && s.plans[i]) || d;
         return {
             id: d.id, // ids are fixed so accounts keep pointing at the right tier
             name: str(p.name, d.name, 40) || d.name,
@@ -86,15 +89,16 @@ function clean(input) {
             credits: Math.round(num(p.credits, d.credits)),
             creditPeriod: p.creditPeriod === 'day' ? 'day' : 'month',
             highlight: !!p.highlight,
-            features: Object.fromEntries(featureKeys.map((k) => [k, p.features?.[k] === undefined ? !!d.features[k] : !!p.features[k]])),
+            features: Object.fromEntries(featureKeys.map((k) => [k, !isObj(p.features) || p.features[k] === undefined ? !!d.features[k] : !!p.features[k]])),
             perks: (Array.isArray(p.perks) ? p.perks : d.perks).map((x) => str(x, '', 120)).filter(Boolean).slice(0, 12),
         };
     });
+    const freeMode = isObj(s.freeMode) ? s.freeMode : DEFAULTS.freeMode;
     return {
         freeMode: {
-            enabled: !!s.freeMode.enabled,
-            dailyCredits: Math.round(num(s.freeMode.dailyCredits, DEFAULTS.freeMode.dailyCredits)),
-            label: str(s.freeMode.label, DEFAULTS.freeMode.label, 80),
+            enabled: !!freeMode.enabled,
+            dailyCredits: Math.round(num(freeMode.dailyCredits, DEFAULTS.freeMode.dailyCredits)),
+            label: str(freeMode.label, DEFAULTS.freeMode.label, 80),
         },
         registration: ['open', 'campaign', 'closed'].includes(s.registration) ? s.registration : 'open',
         currency: str(s.currency, 'USD', 8).toUpperCase() || 'USD',

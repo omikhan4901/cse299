@@ -59,10 +59,11 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
     if (!pageWidth) return;
     const version = ++versionRef.current;
     const timer = setTimeout(async () => {
+      let task = null;
       try {
         const [pdfjs, buffer] = await Promise.all([loadPdfJs(), renderPdf(JSON.parse(json))]);
         if (version !== versionRef.current) return;
-        const task = pdfjs.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false });
+        task = pdfjs.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false });
         const doc = await task.promise;
         // Render resolution follows the zoom (capped so huge zooms stay fast).
         const dpr = Math.min((window.devicePixelRatio || 1) * Math.max(zoom, 1), 3);
@@ -82,7 +83,6 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
           if (version !== versionRef.current) return;
           canvases.push(canvas);
         }
-        task.destroy();
         if (version !== versionRef.current || !pagesRef.current) return;
         if (!pagesRef.current.childElementCount) {
           canvases.forEach((c, i) => c.animate?.([{ opacity: 0, transform: "translateY(12px)" }, { opacity: 1, transform: "none" }], { duration: 450, delay: i * 80, easing: "cubic-bezier(.22,1,.36,1)", fill: "backwards" }));
@@ -98,6 +98,10 @@ export default function PdfPreview({ resume, zoom = 1, onPageCount, delay = 450 
         setError(err.message || "Could not render the preview.");
         setStatus("error");
         setRenderedKey(`${json}|${pageWidth}`);
+      } finally {
+        // Always free the parsed document, including renders overtaken by newer edits
+        // (otherwise every keystroke leaks a PDF's worth of memory).
+        task?.destroy();
       }
     }, status === "loading" ? 0 : delay);
     return () => clearTimeout(timer);

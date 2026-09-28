@@ -23,11 +23,11 @@ const bareUrl = (text) => firstMatch(text, URL_TOKEN).replace(/^https?:\/\//i, '
 
 const lines = (bullets) => (Array.isArray(bullets) ? bullets : [bullets]).map(cleanBullet).filter(Boolean);
 
-function mapContacts(contacts = []) {
+function mapContacts(contacts) {
     const personal = { email: '', phone: '', city: '', linkedin: '', github: '', website: '' };
     const websites = [];
     const links = [];
-    for (const c of contacts) {
+    for (const c of Array.isArray(contacts) ? contacts : []) {
         const value = clean(c?.value);
         if (!value) continue;
         const type = String(c?.type || '').toLowerCase();
@@ -55,14 +55,14 @@ function splitProjectTitle(title) {
 
 const GPA_LINE = /\b(c?gpa|cgpa|grade|result)\b\s*[:\-]?\s*/i;
 
-function mapSections(sections = []) {
+function mapSections(sections) {
     const out = {
         experience: [], education: [], projects: [], certifications: [], skills: [], languages: [],
         volunteering: [], awards: [], publications: [], courses: [], references: [], interests: [], customSections: [],
     };
-    for (const section of sections) {
+    for (const section of Array.isArray(sections) ? sections : []) {
         const kind = String(section?.kind || '').toLowerCase();
-        const entries = Array.isArray(section?.entries) ? section.entries : [];
+        const entries = (Array.isArray(section?.entries) ? section.entries : []).filter((e) => e && typeof e === 'object');
         const items = lines(section?.items || []);
         if (kind === 'experience') {
             for (const e of entries) {
@@ -125,6 +125,12 @@ function mapSections(sections = []) {
         } else if (kind === 'interests') {
             out.interests.push(...items);
             for (const e of entries) out.interests.push(clean(e.title));
+        } else if (kind === 'skills') {
+            out.skills.push(...items);
+            for (const e of entries) out.skills.push(...lines(e.bullets));
+        } else if (kind === 'languages') {
+            out.languages.push(...items);
+            for (const e of entries) out.languages.push(clean(e.title));
         } else if (entries.length || items.length) {
             // Anything else keeps its own heading as a custom section.
             out.customSections.push({
@@ -137,11 +143,6 @@ function mapSections(sections = []) {
                     ...(items.length ? [{ title: '', subtitle: '', date: '', description: items.join('\n') }] : []),
                 ],
             });
-        } else if (kind === 'skills') {
-            out.skills.push(...items);
-            for (const e of entries) out.skills.push(...lines(e.bullets));
-        } else if (kind === 'languages') {
-            out.languages.push(...items);
         }
     }
     return out;
@@ -150,7 +151,8 @@ function mapSections(sections = []) {
 const unique = (list) => [...new Set(list.map((s) => s.trim()).filter(Boolean))];
 
 /** Maps the model's transcription (see TRANSCRIPT_SCHEMA) to the ResumeX resume shape. */
-function toResume(t = {}) {
+function toResume(transcript) {
+    const t = transcript && typeof transcript === 'object' ? transcript : {};
     const { personal, links } = mapContacts(t.contacts);
     const s = mapSections(t.sections);
     return {

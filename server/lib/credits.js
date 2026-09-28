@@ -18,10 +18,13 @@ const { limit, retryIn } = require('./rateLimit');
 const effectivePlanId = (user) =>
     user?.plan && user.plan !== 'free' && (!user.planExpiresAt || new Date(user.planExpiresAt) > new Date()) ? user.plan : 'free';
 
+/** A custom allowance applies until its end date (campaign allowances end with the campaign period). */
+const hasCustomAllowance = (user) => user?.creditLimit != null && (!user.creditLimitExpiresAt || new Date(user.creditLimitExpiresAt) > new Date());
+
 function allowanceFor(user, settings) {
     const plan = planById(settings, effectivePlanId(user));
     const paid = plan.id !== 'free';
-    if (user?.creditLimit != null) {
+    if (hasCustomAllowance(user)) {
         return { plan, limit: user.creditLimit, period: user.creditPeriod || (paid || !settings.freeMode.enabled ? plan.creditPeriod : 'day'), source: 'custom' };
     }
     if (!paid && settings.freeMode.enabled) return { plan, limit: settings.freeMode.dailyCredits, period: 'day', source: 'freeMode' };
@@ -38,7 +41,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'plan planExpiresAt creditLimit creditPeriod';
+const USER_FIELDS = 'plan planExpiresAt creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -70,6 +73,22 @@ const aiBurst = limit({
 });
 
 /**
+ * Atomically adds `cost` to this period's usage while there is room, creating the
+ * period's counter if needed. Returns the updated counter, or null when full.
+ */
+async function chargeCredits(userId, key, cost, allowance) {
+    const filter = { user: userId, day: key, ai: { $lte: allowance.limit - cost } };
+    const update = { $inc: { ai: cost } };
+    try {
+        return await Usage.findOneAndUpdate(filter, { ...update, $setOnInsert: { expiresAt: new Date(Date.now() + (allowance.period === 'month' ? 40 : 3) * 864e5) } }, { upsert: true, new: true });
+    } catch (err) {
+        if (err.code !== 11000) throw err;
+        // The counter already exists: either it's full, or a parallel request just created it.
+        return Usage.findOneAndUpdate(filter, update, { new: true });
+    }
+}
+
+/**
  * Route middleware for an AI feature: checks the plan allows it, then charges
  * its credit cost. Requests that fail (bad input, AI provider down) are refunded.
  */
@@ -94,17 +113,9 @@ function aiQuota(feature) {
                 const key = periodKey(a.period);
                 let doc = null;
                 if (cost > 0) {
-                    try {
-                        // Atomic: only increments while there is room; the upsert collides
-                        // (duplicate key) when the period's document exists but is full.
-                        doc = await Usage.findOneAndUpdate(
-                            { user: req.userId, day: key, ai: { $lte: a.limit - cost } },
-                            { $inc: { ai: cost }, $setOnInsert: { expiresAt: new Date(Date.now() + (a.period === 'month' ? 40 : 3) * 864e5) } },
-                            { upsert: true, new: true }
-                        );
-                    } catch (err) {
-                        if (err.code !== 11000) throw err;
-                    }
+                    // An insert ignores the "room left" condition, so a first request that
+                    // costs more than the whole allowance (e.g. an allowance of 0) is refused here.
+                    if (cost <= a.limit) doc = await chargeCredits(req.userId, key, cost, a);
                     if (!doc) {
                         const seconds = Math.ceil((periodEnd(a.period) - Date.now()) / 1000);
                         res.set('Retry-After', String(seconds));

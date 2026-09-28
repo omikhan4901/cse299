@@ -25,7 +25,7 @@ const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
-const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod role banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
+const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod creditLimitExpiresAt role banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
 
 /** Adds role, current plan, credit usage and resume counts to a page of users. */
 async function describeUsers(users) {
@@ -126,7 +126,11 @@ router.get('/users', wrap(async (req, res) => {
 
 router.get('/users/export.csv', wrap(async (req, res) => {
     const users = await describeUsers(await User.find().select(USER_FIELDS).sort({ createdAt: -1 }).lean());
-    const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // Names are typed by users: a leading = + - @ would run as a formula in Excel or Sheets.
+    const cell = (v) => {
+        const s = String(v ?? '');
+        return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    };
     const rows = [['Name', 'Email', 'Plan', 'Plan ends', 'Role', 'Banned', 'Credits used', 'Credit limit', 'Period', 'Resumes', 'Joined', 'Last login']];
     for (const u of users) {
         rows.push([u.name, u.email, u.effectivePlan, u.planExpiresAt ? dayKey(u.planExpiresAt) : '', u.role, u.banned ? 'yes' : '', u.credits.used, u.credits.limit, u.credits.period, u.resumes, u.createdAt ? dayKey(u.createdAt) : '', u.lastLoginAt ? dayKey(u.lastLoginAt) : '']);
@@ -172,7 +176,13 @@ async function applyUserFields(user, body, req) {
         user.plan = body.plan;
     }
     if (body.planExpiresAt !== undefined) user.planExpiresAt = body.planExpiresAt ? new Date(body.planExpiresAt) : null;
-    if (body.creditLimit !== undefined) user.creditLimit = body.creditLimit === null || body.creditLimit === '' ? null : Math.max(0, Math.round(Number(body.creditLimit) || 0));
+    if (body.creditLimit !== undefined) {
+        const next = body.creditLimit === null || body.creditLimit === '' ? null : Math.max(0, Math.round(Number(body.creditLimit) || 0));
+        // An allowance set by an admin has no end date (a campaign's one did). Saving the same
+        // value back unchanged keeps the campaign's end date.
+        if (next !== user.creditLimit) user.creditLimitExpiresAt = undefined;
+        user.creditLimit = next;
+    }
     if (body.creditPeriod !== undefined) user.creditPeriod = ['day', 'month'].includes(body.creditPeriod) ? body.creditPeriod : null;
     if (body.password) {
         if (passwordProblem(body.password)) fail(passwordProblem(body.password));

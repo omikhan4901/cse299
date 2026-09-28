@@ -58,12 +58,7 @@ function ForgotForm({ onBack }) {
             <Form.Item name="email" rules={[{ required: true, type: "email", message: "Please enter a valid email" }]}>
               <Input size="large" prefix={<Mail size={16} className="text-slate-400" />} placeholder="Email" autoComplete="email" autoFocus />
             </Form.Item>
-            {isRegister && showCode ? (
-          <Form.Item name="campaignCode" initialValue={authOptions?.campaignCode || ""} rules={registration === "campaign" ? [{ required: true, message: "Sign-ups need a campaign code right now" }] : []}>
-            <Input size="large" prefix={<Ticket size={16} className="text-slate-400" />} placeholder="Campaign code" autoComplete="off" className="uppercase" />
-          </Form.Item>
-        ) : null}
-        <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
               Send reset link
             </Button>
           </Form>
@@ -154,6 +149,15 @@ function AuthForm({ mode, onModeChange }) {
             ]}
           >
             <Input.Password size="large" prefix={<Lock size={16} className="text-slate-400" />} placeholder="Confirm password" autoComplete="new-password" />
+          </Form.Item>
+        ) : null}
+        {isRegister && showCode ? (
+          <Form.Item
+            name="campaignCode"
+            initialValue={authOptions?.campaignCode || ""}
+            rules={registration === "campaign" ? [{ required: true, message: "Sign-ups need a campaign code right now" }] : []}
+          >
+            <Input size="large" prefix={<Ticket size={16} className="text-slate-400" />} placeholder={registration === "campaign" ? "Campaign code" : "Campaign code (optional)"} autoComplete="off" className="uppercase" />
           </Form.Item>
         ) : null}
         <Button type="primary" htmlType="submit" size="large" block loading={loading}>
