@@ -233,7 +233,7 @@ function AtsChecker({ resume, token }) {
       const data = await api("/ai/audit", { token, method: "POST", body: { resumeData: aiResume(resume), jobDescription: job } });
       setAi({ loading: false, data: data.analysis, error: null });
     } catch (err) {
-      setAi({ loading: false, data: null, error: err.message });
+      setAi({ loading: false, data: null, error: err.code === "cancelled" ? null : err.message });
     }
   };
 

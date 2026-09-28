@@ -549,7 +549,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     try {
       return await api(path, { token, method: "POST", body });
     } catch (err) {
-      if (err.code !== "upgrade") message.error(err.message); // plan locks show the upgrade dialog instead
+      // Plan locks show the upgrade dialog instead, and a cancel is confirmed by the AI status card.
+      if (err.code !== "upgrade" && err.code !== "cancelled") message.error(err.message);
       return null;
     } finally {
       setRefiningId(null);
@@ -592,7 +593,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       setShowExample(false);
       message.success("Imported! Check each section and fix anything we missed.");
     } catch (err) {
-      if (err.code !== "upgrade") message.error(err.message);
+      if (err.code !== "upgrade" && err.code !== "cancelled") message.error(err.message);
     } finally {
       hide();
     }

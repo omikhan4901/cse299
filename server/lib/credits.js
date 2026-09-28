@@ -138,10 +138,10 @@ function aiQuota(feature) {
                 // work left running after a response can be paused until the next request, so a
                 // refund done afterwards could show up late or never.
                 let settled = false;
-                const settle = async () => {
+                const settle = async (ok) => {
                     if (settled) return;
                     settled = true;
-                    if (res.statusCode >= 400) {
+                    if (!ok) {
                         if (cost > 0) await Usage.updateOne({ user: req.userId, day: key }, { $inc: { ai: -cost } }).catch((err) => console.error('Credit refund failed:', err.message));
                     } else {
                         await AiEvent.create({ user: req.userId, feature, credits: cost }).catch(() => {});
@@ -149,11 +149,20 @@ function aiQuota(feature) {
                 };
                 const json = res.json.bind(res);
                 res.json = (body) => {
-                    settle().then(() => json(body));
+                    settle(res.statusCode < 400).then(() => json(body));
                     return res;
                 };
+                // The person gave up waiting (or lost their connection) before getting an answer:
+                // stop the AI call and give the credits back, since they never saw a result.
+                const controller = new AbortController();
+                req.aiSignal = controller.signal;
+                res.on('close', () => {
+                    if (res.writableFinished) return;
+                    controller.abort();
+                    settle(false);
+                });
                 // Responses sent some other way.
-                res.on('finish', () => settle());
+                res.on('finish', () => settle(res.statusCode < 400));
                 next();
             } catch (err) {
                 next(err);

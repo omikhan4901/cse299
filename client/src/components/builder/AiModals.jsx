@@ -60,7 +60,12 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
       const data = await api("/ai/chat", { token, method: "POST", body: { conversation, fullResume: aiResume(resume) } });
       setMessages((m) => [...m, { role: "assistant", content: data.response }]);
     } catch (err) {
-      setMessages((m) => [...m, { role: "assistant", content: err.message, error: true }]);
+      if (err.code === "cancelled") {
+        // Take the question back out of the chat and into the box, to edit or resend.
+        setMessages(messages);
+        setInput(text);
+      }
+      else setMessages((m) => [...m, { role: "assistant", content: err.message, error: true }]);
     } finally {
       setLoading(false);
     }
@@ -114,7 +119,7 @@ export function CoverLetterModal({ open, onClose, resume, token }) {
       const data = await api("/ai/cover-letter", { token, method: "POST", body: { resumeData: aiResume(resume), jobDescription: job } });
       setLetter(data.coverLetter);
     } catch (err) {
-      if (err.code !== "upgrade") message.error(err.message);
+      if (err.code !== "upgrade" && err.code !== "cancelled") message.error(err.message);
     } finally {
       setLoading(false);
     }

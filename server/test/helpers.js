@@ -16,10 +16,21 @@ const { resetLimits, setOverrides } = require('../lib/rateLimit');
 
 // ---- Gemini stub: tests decide what the "AI" answers ----
 const realFetch = globalThis.fetch;
-const ai = { reply: 'AI says hi', status: 200, calls: 0 };
+const ai = { reply: 'AI says hi', status: 200, calls: 0, delayMs: 0, aborted: 0 };
 globalThis.fetch = async (url, opts) => {
     if (String(url).includes('generativelanguage.googleapis.com')) {
         ai.calls += 1;
+        // A slow answer, which the caller can cancel like a real request.
+        if (ai.delayMs) {
+            await new Promise((resolve, reject) => {
+                const t = setTimeout(resolve, ai.delayMs);
+                opts?.signal?.addEventListener('abort', () => {
+                    clearTimeout(t);
+                    ai.aborted += 1;
+                    reject(opts.signal.reason || new Error('aborted'));
+                });
+            });
+        }
         if (ai.status !== 200) return new Response(JSON.stringify({ error: { message: 'stub failure' } }), { status: ai.status });
         const text = typeof ai.reply === 'function' ? ai.reply(JSON.parse(opts.body)) : ai.reply;
         return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
@@ -119,6 +130,12 @@ async function resetState() {
     ai.reply = 'AI says hi';
     ai.status = 200;
     ai.calls = 0;
+    ai.delayMs = 0;
+    ai.aborted = 0;
+    delete process.env.AI_TIMEOUT_MS;
 }
 
-module.exports = { needsRealMongo, start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai };
+/** The API's base URL (for raw fetch calls). */
+const baseUrl = () => base;
+
+module.exports = { baseUrl, needsRealMongo, start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai };

@@ -49,51 +49,64 @@ router.get('/usage', protect, async (req, res, next) => {
     }
 });
 
-// Retries server errors and rate limits with exponential backoff.
-const fetchWithRetry = async (url, options, maxRetries = 3) => {
-    let lastError;
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            const response = await fetch(url, options);
-            if (response.status < 500 && response.status !== 429) return response;
-            lastError = new AiError(`AI provider returned ${response.status}`);
-            lastError.response = response;
-        } catch (err) {
-            lastError = err;
-        }
-        if (attempt < maxRetries - 1) await new Promise((r) => setTimeout(r, 2 ** attempt * 1000));
-    }
-    throw lastError;
-};
-
 const BUSY_MESSAGE = 'The AI is very busy right now. Please try again in a minute.';
+const SLOW_MESSAGE = 'The AI took too long to answer. Please try again.';
+
+// Time allowed for one AI request, retries and fallback included. It has to end before
+// the builder stops waiting (60 s; 120 s for imports), so the person always gets an
+// answer, and a refund when it fails.
+const aiBudgetMs = (req) => Number(process.env.AI_TIMEOUT_MS) || (req?.aiLongTask ? 100_000 : 45_000);
+const PER_TRY_MS = 30_000;
+
+// Retries server errors and rate limits with backoff, within the time left.
+// Returns the last HTTP response (possibly an error); throws on timeout or a dropped client.
+const fetchWithRetry = async (url, options, { deadline, signal }, maxRetries = 3) => {
+    let lastResponse = null;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const left = deadline - Date.now();
+        if (left < 1000) break;
+        try {
+            const response = await fetch(url, { ...options, signal: AbortSignal.any([signal, AbortSignal.timeout(Math.min(left, PER_TRY_MS))].filter(Boolean)) });
+            if (response.status < 500 && response.status !== 429) return response;
+            lastResponse = response;
+        } catch (err) {
+            if (signal?.aborted) throw new AiError('The request was cancelled.', 499);
+            // Timed out or network error: try again while there's time.
+        }
+        const wait = 2 ** attempt * 1000;
+        if (attempt < maxRetries - 1 && deadline - Date.now() > wait + 2000) await new Promise((r) => setTimeout(r, wait));
+    }
+    if (lastResponse) return lastResponse;
+    throw new AiError(deadline - Date.now() < 1000 ? SLOW_MESSAGE : BUSY_MESSAGE, deadline - Date.now() < 1000 ? 504 : 502);
+};
 
 // Calls one model; returns the HTTP response even when it's an error.
-const callModel = async (model, payload) => {
-    try {
-        return await fetchWithRetry(`${API_BASE_URL}/${model}:generateContent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-            body: JSON.stringify(payload),
-        });
-    } catch (err) {
-        if (err.response) return err.response; // still 5xx/429 after retries
-        throw new AiError(BUSY_MESSAGE);
-    }
-};
+const callModel = (model, payload, limits) =>
+    fetchWithRetry(`${API_BASE_URL}/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+        body: JSON.stringify(payload),
+    }, limits);
 
-/** Calls Gemini and returns the generated text. Throws AiError on failure (never touches `res`). */
-const generate = async (systemInstruction, contents, generationConfig) => {
+/**
+ * Calls Gemini and returns the generated text. Throws AiError on failure (never touches `res`).
+ * Pass the request so the call stops when the person goes away, and keeps to the time budget.
+ */
+const generate = async (systemInstruction, contents, generationConfig, req) => {
     const payload = {
         contents,
         systemInstruction: { parts: [{ text: systemInstruction }] },
         ...(generationConfig ? { generationConfig } : {}),
     };
-    let response = await callModel(MODEL_NAME, payload);
-    // Overloaded, rate-limited or retired model: try the lighter fallback model once.
-    if ([404, 429, 500, 503].includes(response.status) && FALLBACK_MODEL && FALLBACK_MODEL !== MODEL_NAME) {
+    const limits = { deadline: Date.now() + aiBudgetMs(req), signal: req?.aiSignal };
+    let response = await callModel(MODEL_NAME, payload, limits);
+    // Overloaded, rate-limited or retired model: try the lighter fallback model once, if there's time.
+    if ([404, 429, 500, 503].includes(response.status) && FALLBACK_MODEL && FALLBACK_MODEL !== MODEL_NAME && limits.deadline - Date.now() > 3000) {
         console.warn(`Gemini ${MODEL_NAME} returned ${response.status}; trying ${FALLBACK_MODEL}`);
-        response = await callModel(FALLBACK_MODEL, payload);
+        response = await callModel(FALLBACK_MODEL, payload, limits).catch((err) => {
+            if (err.status === 499) throw err;
+            return response; // report the main model's error
+        });
     }
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -101,7 +114,7 @@ const generate = async (systemInstruction, contents, generationConfig) => {
         console.error('Gemini API error:', response.status, detail);
         // A used-up quota won't clear in a minute, unlike a busy model.
         if (response.status === 429 && /quota|billing|exceeded/i.test(detail)) {
-            console.error('Gemini quota reached: check the API key\'s quota and billing in Google AI Studio.');
+            console.error("Gemini quota reached: check the API key's quota and billing in Google AI Studio.");
             throw new AiError('The AI has reached its usage limit for now. Please try again later.');
         }
         throw new AiError(response.status === 429 || response.status >= 500 ? BUSY_MESSAGE : 'The AI service is unavailable right now. Please try again later.');
@@ -111,9 +124,11 @@ const generate = async (systemInstruction, contents, generationConfig) => {
     return text;
 };
 
+// Failed requests are refunded (lib/credits.js), so the message says so.
 const sendError = (res, err) => {
     console.error('AI route error:', err.message);
-    res.status(err.status || 500).json({ success: false, error: err instanceof AiError ? err.message : 'AI request failed.' });
+    const message = err instanceof AiError ? err.message : 'AI request failed.';
+    res.status(err.status || 500).json({ success: false, error: `${message} You weren't charged for this.` });
 };
 
 const clip = (text, max) => String(text || '').slice(0, max);
@@ -171,7 +186,7 @@ RULES:
 4. Reply with the rewritten text only — no quotes, labels, markdown or commentary.`;
 
     try {
-        const refinedText = await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, 4000) }] }]);
+        const refinedText = await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, 4000) }] }], undefined, req);
         res.status(200).json({ success: true, refinedText: refinedText.replace(/^["']|["']$/g, '') });
     } catch (err) {
         sendError(res, err);
@@ -214,7 +229,7 @@ RESUME:
 ${resumeJson(fullResume)}`;
 
     try {
-        const response = await generate(systemInstruction, contents);
+        const response = await generate(systemInstruction, contents, undefined, req);
         res.status(200).json({ success: true, response });
     } catch (err) {
         sendError(res, err);
@@ -247,7 +262,7 @@ Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 
         const text = await generate(systemInstruction, [{ role: 'user', parts: [{ text: resumeJson(resumeData) }] }], {
             responseMimeType: 'application/json',
             responseSchema: schema,
-        });
+        }, req);
         const analysis = JSON.parse(text);
         analysis.score = Math.max(0, Math.min(100, Math.round(Number(analysis.score) || 0)));
         res.status(200).json({ success: true, analysis });
@@ -262,6 +277,7 @@ Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 
 router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), async (req, res) => {
     const file = req.file;
     if (!file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
+    req.aiLongTask = true; // reading a whole PDF is slow; the builder waits up to 2 minutes
 
     try {
         let part;
@@ -278,7 +294,7 @@ router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), as
         const json = await generate(TRANSCRIBE_INSTRUCTION, [{ role: 'user', parts: [part, { text: 'Transcribe this resume.' }] }], {
             responseMimeType: 'application/json',
             responseSchema: TRANSCRIPT_SCHEMA,
-        });
+        }, req);
         res.status(200).json({ success: true, extractedData: toResume(fixNewlines(JSON.parse(json))) });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError('Could not read that resume. Please try another file.') : err);
@@ -307,7 +323,7 @@ GUIDELINES:
 4. Plain text only: no markdown, no square-bracket placeholders.`;
 
     try {
-        const coverLetter = await generate(systemInstruction, [{ role: 'user', parts: [{ text: 'Write my cover letter.' }] }]);
+        const coverLetter = await generate(systemInstruction, [{ role: 'user', parts: [{ text: 'Write my cover letter.' }] }], undefined, req);
         res.status(200).json({ success: true, coverLetter });
     } catch (err) {
         sendError(res, err);

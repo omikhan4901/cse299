@@ -6,6 +6,7 @@ import { AuthProvider } from "./AuthProvider";
 import AuthModal from "./AuthModal";
 import { BillingProvider } from "./BillingProvider";
 import { BuilderLauncherProvider } from "./BuilderLauncher";
+import AiStatus from "./AiStatus";
 
 const theme = {
   token: {
@@ -30,6 +31,7 @@ export default function Providers({ children }) {
             <BuilderLauncherProvider>
               {children}
               <AuthModal />
+              <AiStatus />
             </BuilderLauncherProvider>
           </BillingProvider>
         </AuthProvider>

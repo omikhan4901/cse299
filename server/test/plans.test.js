@@ -128,6 +128,37 @@ describe('refunds', () => {
         }
     });
 
+    it('a slow AI gets a "took too long" answer within the time budget, refunded', async () => {
+        process.env.AI_TIMEOUT_MS = '2500';
+        ai.delayMs = 60_000; // never answers in time
+        const { token } = await register();
+        const started = Date.now();
+        const r = await refine(token);
+        assert.ok(Date.now() - started < 6000, `answered in ${Date.now() - started} ms`);
+        assert.equal(r.status, 504);
+        assert.match(r.body.error, /took too long/);
+        assert.match(r.body.error, /weren't charged/);
+        assert.equal((await usage(token)).used, 0, 'refunded');
+    });
+
+    it('when the person gives up waiting, the AI call stops and the credit comes back', async () => {
+        ai.delayMs = 3000;
+        const { token } = await register();
+        const controller = new AbortController();
+        const pending = fetch(`${require('./helpers').baseUrl()}/ai/refine`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ resumeText: 'I did things' }),
+            signal: controller.signal,
+        }).catch(() => null);
+        await new Promise((r) => setTimeout(r, 500));
+        controller.abort(); // the browser's timeout
+        await pending;
+        await new Promise((r) => setTimeout(r, 300));
+        assert.equal(ai.aborted, 1, 'the AI call was cancelled');
+        assert.equal((await usage(token)).used, 0, 'refunded');
+    });
+
     it('a quota error says so instead of "try again in a minute"', async () => {
         const { token } = await register();
         const realFetch = globalThis.fetch;

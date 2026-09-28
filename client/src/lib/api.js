@@ -1,4 +1,5 @@
 import { API_URL } from "./config";
+import { trackAi } from "./aiActivity";
 
 export class ApiError extends Error {
   constructor(message, status, code, data) {
@@ -22,6 +23,14 @@ export const UPGRADE_NEEDED = "resumex:upgrade-needed";
 export async function api(path, { token, method = "GET", body, timeout = 60000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
+  // AI requests can be slow when the provider is busy: show them in the status card, with a
+  // Cancel button. The server gives up within its time budget (45 s; 100 s for imports) and
+  // refunds anything that doesn't finish, including cancelled requests.
+  const isAi = path.startsWith("/ai/") && method !== "GET" && typeof window !== "undefined";
+  let cancelled = false;
+  const untrack = isAi
+    ? trackAi({ path, startedAt: Date.now(), budgetMs: path === "/ai/parse" ? 100000 : 45000, cancel: () => ((cancelled = true), controller.abort()) })
+    : null;
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
@@ -43,10 +52,15 @@ export async function api(path, { token, method = "GET", body, timeout = 60000 }
     return data;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    if (err.name === "AbortError") throw new ApiError("The server took too long to respond. It may be waking up — please try again.", 0);
+    if (err.name === "AbortError") {
+      if (cancelled) throw new ApiError("Cancelled. You weren't charged for this.", 0, "cancelled");
+      if (isAi) throw new ApiError("The AI took too long to answer. You weren't charged for this. Please try again.", 0, "timeout");
+      throw new ApiError("The server took too long to respond. It may be waking up — please try again.", 0);
+    }
     throw new ApiError("Could not reach the server. Check your connection and try again.", 0);
   } finally {
     clearTimeout(timer);
+    untrack?.();
     // AI requests may have spent credits: let the credit meter refresh.
     if (path.startsWith("/ai/") && typeof window !== "undefined") window.dispatchEvent(new Event("resumex:credits-changed"));
   }
