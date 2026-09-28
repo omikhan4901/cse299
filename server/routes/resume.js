@@ -22,9 +22,19 @@ const EDITABLE = [
   "customSections", "skills", "languages", "interests", "template", "theme", "isMaster", "isPublic",
 ];
 
+// Photos are stored as data URLs: only allow real raster images of a sensible size.
+const PHOTO = /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+const MAX_PHOTO = 3 * 1024 * 1024;
+const validPhoto = (v) => !v || (typeof v === "string" && v.length <= MAX_PHOTO && PHOTO.test(v));
+
 const pickEditable = (body = {}) => {
   const out = {};
   for (const key of EDITABLE) if (body[key] !== undefined) out[key] = body[key];
+  if (out.personal && typeof out.personal === "object") {
+    for (const k of ["profilePic", "profilePicSource"]) {
+      if (!validPhoto(out.personal[k])) out.personal[k] = "";
+    }
+  }
   return out;
 };
 

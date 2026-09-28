@@ -7,6 +7,7 @@ import { Crown, Download, KeyRound, Sparkles, Trash2, UserRound } from "lucide-r
 import { api } from "@/lib/api";
 import { API_URL, AI_ENABLED } from "@/lib/config";
 import { useBilling, resetsIn } from "../BillingProvider";
+import AccountSecurity from "../security/AccountSecurity";
 import { useAuth } from "../AuthProvider";
 
 function Card({ icon: Icon, title, description, children, danger }) {
@@ -190,6 +191,8 @@ export default function AccountSettings() {
           </div>
         </Form>
       </Card>
+
+      <AccountSecurity />
 
       <Card icon={Download} title="Your data" description="Download everything we store about you — your account details and every resume — as a JSON file.">
         <Button icon={<Download size={15} />} loading={exporting} onClick={exportData}>Download my data</Button>

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { API_URL } from "./config";
+import { forwardedHeaders } from "./forwardedHeaders";
 import { normalizeResume } from "./resume";
 
 /**
@@ -11,6 +12,7 @@ export const getPublicResume = cache(async (id) => {
   if (!/^[\w-]{4,40}$/.test(id)) return { notFound: true };
   try {
     const res = await fetch(`${API_URL}/public/${encodeURIComponent(id)}`, {
+      headers: await forwardedHeaders(),
       // Always fetch the latest save, so a changed template or colour shows up straight away.
       cache: "no-store",
       signal: AbortSignal.timeout(25000),

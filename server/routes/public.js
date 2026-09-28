@@ -2,18 +2,23 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const Resume = require("../models/Resume");
+const User = require("../models/User");
+const { limit, clientIp } = require("../lib/rateLimit");
 
 // @route   GET /api/public/:id
 // @desc    A shared resume, by short id (or legacy Mongo id). Only works when isPublic is on.
-router.get("/:id", async (req, res) => {
+router.get("/:id", limit({ name: "public-ip", windowMs: 60 * 1000, max: 120, key: clientIp, message: "Too many requests." }), async (req, res) => {
   try {
     const { id } = req.params;
     // Never expose the owner, or the uncropped original photo.
-    const hidden = "-user -__v -personal.profilePicSource -personal.photoCrop";
+    const hidden = "-__v -personal.profilePicSource -personal.photoCrop";
     let resume = await Resume.findOne({ shortId: id }).select(hidden).lean();
     if (!resume && mongoose.isValidObjectId(id)) resume = await Resume.findById(id).select(hidden).lean();
 
-    if (!resume || !resume.isPublic) {
+    // Resumes of suspended accounts are hidden too.
+    const owner = resume?.isPublic ? await User.findById(resume.user).select("banned").lean() : null;
+    if (resume) delete resume.user;
+    if (!resume || !resume.isPublic || !owner || owner.banned) {
       // Same answer for missing and private resumes so ids can't be probed.
       return res.status(404).json({ success: false, error: "This resume doesn't exist or is private." });
     }

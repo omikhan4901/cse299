@@ -13,6 +13,7 @@ const publicRoutes = require('./routes/public');
 const billingRoutes = require('./routes/billing');
 const adminRoutes = require('./routes/admin');
 const { canSendMail } = require('./lib/mailer');
+const { limit, clientIp } = require('./lib/rateLimit');
 
 for (const key of ['MONGO_URI', 'JWT_SECRET']) {
     if (!process.env[key]) {
@@ -59,6 +60,9 @@ app.use((req, res, next) => {
 
 // CLIENT_ORIGIN can be a comma-separated list to restrict CORS; open by default.
 const origins = process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(',').map((o) => o.trim()) : null;
+if (!origins && process.env.NODE_ENV === 'production') {
+    console.warn('Warning: CLIENT_ORIGIN is not set, so any website can call this API from a browser. Set it to your site address.');
+}
 app.use(cors(origins ? { origin: origins } : undefined));
 
 // Resumes can carry a profile photo as a data URL, so allow larger JSON bodies.
@@ -76,6 +80,15 @@ const stripOperators = (value) => {
     }
     return value;
 };
+// Per-IP ceiling for the whole API (each route also has its own, stricter limits).
+app.use('/api', limit({ name: 'api-ip', windowMs: 60 * 1000, max: 600, key: clientIp, message: 'Too many requests.' }));
+
+// API responses carry personal data: never let browsers or proxies cache them unless a route says otherwise.
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
+
 app.use((req, res, next) => {
     if (req.body) stripOperators(req.body);
     if (req.query) for (const key of Object.keys(req.query)) if (key.startsWith('$')) delete req.query[key];

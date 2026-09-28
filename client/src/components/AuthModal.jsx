@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Modal, Form, Input, Button, Alert, Segmented } from "antd";
 import { Mail, Lock, User, ArrowLeft, MailCheck, Ticket } from "lucide-react";
 import { useBilling } from "./BillingProvider";
+import { MfaStep } from "./security/TwoFactor";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 import Logo from "./Logo";
@@ -80,10 +81,12 @@ function AuthForm({ mode, onModeChange }) {
   const billing = useBilling();
   const registration = billing?.config?.registration || "open";
   const [showCode, setShowCode] = useState(!!authOptions?.campaignCode || registration === "campaign");
+  const [mfaToken, setMfaToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const isRegister = mode === "register";
   if (mode === "forgot") return <ForgotForm onBack={() => onModeChange("login")} />;
+  if (mfaToken) return <MfaStep mfaToken={mfaToken} onDone={(data) => login(data, "login")} onCancel={() => setMfaToken(null)} />;
 
   const submit = async (values) => {
     setLoading(true);
@@ -93,7 +96,8 @@ function AuthForm({ mode, onModeChange }) {
         ? { name: values.name, email: values.email, password: values.password, campaignCode: values.campaignCode || undefined }
         : { email: values.email, password: values.password };
       const data = await api(`/auth/${isRegister ? "register" : "login"}`, { method: "POST", body: payload });
-      login(data, mode);
+      if (data.mfaRequired) setMfaToken(data.mfaToken);
+      else login(data, mode);
     } catch (err) {
       setError(err.message);
     } finally {

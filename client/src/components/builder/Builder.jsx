@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button, Dropdown, Segmented, Tooltip, App, Input, Result, Spin } from "antd";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, Eraser,
-  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass,
+  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
@@ -50,6 +50,7 @@ export default function Builder() {
   const id = params.get("id");
   const isNew = params.get("new");
   const template = params.get("template");
+  const priv = params.get("private");
   const [state, setState] = useState({ status: "loading" });
   const openId = useRef(null);
   const markSaved = useCallback((newId) => {
@@ -61,6 +62,13 @@ export default function Builder() {
     // ?template=X (from the templates page) applies a design to the new resume or current draft.
     /* eslint-disable react-hooks/set-state-in-effect -- the editor's content follows the URL */
     const withTemplate = (r) => (template && TEMPLATES.some((t) => t.id === template) ? { ...r, template } : r);
+    if (priv) {
+      // Private session: starts empty, and nothing is stored anywhere.
+      localStorage.removeItem(DRAFT_KEY);
+      openId.current = null;
+      setState({ status: "ready", resume: withTemplate(normalizeResume(blankResume())), key: `private-${Date.now()}`, private: true });
+      return;
+    }
     if (isNew || template) {
       const draft = isNew ? null : readDraft();
       if (isNew) localStorage.removeItem(DRAFT_KEY);
@@ -90,7 +98,7 @@ export default function Builder() {
       .catch((err) => setState({ status: "error", error: err.message }));
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isNew, template, token, authLoading]);
+  }, [id, isNew, template, token, authLoading, priv]);
 
   if (state.status === "login") {
     return (
@@ -123,10 +131,22 @@ export default function Builder() {
       </div>
     );
   }
-  return <Editor key={state.key} initial={state.resume} example={state.example} onSaved={markSaved} />;
+  return <Editor key={state.key} initial={state.resume} example={state.example} onSaved={markSaved} startPrivate={!!state.private} />;
 }
 
-function Editor({ initial, example, onSaved }) {
+/** Downloads the resume as a .json file the user keeps (works in private sessions too). */
+function saveToFile(resume) {
+  const data = { app: "resumex", version: 1, savedAt: new Date().toISOString(), resume: toPayload(resume) };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  const name = (resume.personal.name || "resume").replace(/[^\w-]+/g, "-").replace(/^-|-$/g, "") || "resume";
+  a.href = url;
+  a.download = `${name}.resumex.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function Editor({ initial, example, onSaved, startPrivate = false }) {
   const { token, isAuthenticated, openAuth } = useAuth();
   const { message, modal } = App.useApp();
   const editor = useResumeEditor(initial);
@@ -144,6 +164,8 @@ function Editor({ initial, example, onSaved }) {
   const [gallery, setGallery] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  // Private session: no autosave, no browser draft, no sharing. Only for resumes that aren't saved to an account.
+  const [privateMode, setPrivateMode] = useState(startPrivate);
 
   // The builder fills the window and its panels scroll on their own, so the page itself never needs to.
   useEffect(() => {
@@ -164,7 +186,7 @@ function Editor({ initial, example, onSaved }) {
 
   // Unsaved (guest or new) resumes live in localStorage so nothing is lost on refresh.
   useEffect(() => {
-    if (resume._id) return;
+    if (resume._id || privateMode) return;
     const t = setTimeout(() => {
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(resume));
@@ -173,7 +195,7 @@ function Editor({ initial, example, onSaved }) {
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [resume]);
+  }, [resume, privateMode]);
 
   const saveNow = useCallback(async () => {
     if (!resume._id || !token) return;
@@ -199,16 +221,49 @@ function Editor({ initial, example, onSaved }) {
 
   useEffect(() => {
     const warn = (e) => {
-      if (dirty) {
+      if (dirty || privateMode) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [dirty, privateMode]);
+
+  const startPrivateSession = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    setPrivateMode(true);
+    message.success("Private session on. Nothing is saved to our servers or this browser.");
+  };
+  const endPrivateSession = () => {
+    setPrivateMode(false);
+    message.info("Private session off. Your draft is kept in this browser again.");
+  };
+  const openFromFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      if (file.size > 12 * 1024 * 1024) throw new Error("too large");
+      const data = JSON.parse(await file.text());
+      if (data?.app !== "resumex" || !data.resume) throw new Error("not a resume file");
+      setResume((r) => ({ ...normalizeResume(data.resume), _id: r._id, shortId: r.shortId, nickname: r.nickname, isMaster: r.isMaster, isPublic: r.isPublic }));
+      setShowExample(false);
+      message.success("Resume opened from file");
+    } catch {
+      message.error("That isn't a ResumeX file. Choose a .resumex.json file you saved earlier.");
+    }
+  };
 
   const handleSave = useCallback(() => {
+    if (privateMode) {
+      message.info("This is a private session, so nothing is saved to our servers. Use “Save to file” to keep a copy on your device.");
+      return;
+    }
     if (!isAuthenticated) {
       message.info("Create a free account to save your resume. Your work stays here while you sign up.");
       openAuth("register", "/builder");
@@ -216,7 +271,7 @@ function Editor({ initial, example, onSaved }) {
     }
     if (resume._id) saveNow();
     else setSaveOpen(true);
-  }, [isAuthenticated, resume._id, saveNow, openAuth, message]);
+  }, [isAuthenticated, resume._id, saveNow, openAuth, message, privateMode]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -263,6 +318,10 @@ function Editor({ initial, example, onSaved }) {
   };
 
   const handleShare = () => {
+    if (privateMode) {
+      message.info("Share links need the resume to be saved to your account, so they aren't available in a private session.");
+      return;
+    }
     if (!isAuthenticated || !resume._id) {
       message.info("Save your resume first to get a shareable link.");
       handleSave();
@@ -432,6 +491,9 @@ function Editor({ initial, example, onSaved }) {
   const moreMenu = {
     items: [
       { key: "ats", icon: <ScanSearch size={15} />, label: "ATS check", onClick: () => openAi("audit") },
+      { key: "file-save", icon: <FileDown size={15} />, label: "Save to file", onClick: () => saveToFile(resume) },
+      { key: "file-open", icon: <FolderOpen size={15} />, label: "Open file", onClick: () => document.getElementById("resume-open-file")?.click() },
+      ...(!resume._id ? [{ key: "private", icon: <EyeOff size={15} />, label: privateMode ? "End private session" : "Private session", onClick: privateMode ? endPrivateSession : startPrivateSession }] : []),
       { key: "guide", icon: <BookOpen size={15} />, label: "How to write a good resume", onClick: () => setGuideOpen(true) },
       { type: "group", label: "AI tools", children: [
         aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
@@ -451,7 +513,9 @@ function Editor({ initial, example, onSaved }) {
   };
 
   const tpl = templateById(resume.template);
-  const status = !isAuthenticated
+  const status = privateMode
+    ? { icon: <EyeOff size={13} />, text: "Private session — nothing is saved", tone: "text-violet-600" }
+    : !isAuthenticated
     ? { icon: <CloudOff size={13} />, text: "Not saved to an account", tone: "text-slate-400" }
     : !resume._id
       ? { icon: <CloudOff size={13} />, text: "Draft — not saved yet", tone: "text-slate-400" }
@@ -466,6 +530,7 @@ function Editor({ initial, example, onSaved }) {
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
       <input id="resume-import" type="file" accept=".pdf,.docx" className="hidden" onChange={importFile} />
+      <input id="resume-open-file" type="file" accept=".json,application/json" className="hidden" onChange={openFromFile} />
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2 md:px-5">
@@ -526,6 +591,19 @@ function Editor({ initial, example, onSaved }) {
               </Button>
             </Tooltip>
           ) : null}
+          {privateMode ? (
+            <Tooltip title="Download this resume as a file you can open again later">
+              <Button icon={<FileDown size={15} />} onClick={() => saveToFile(resume)}>
+                <span className="hidden xl:inline">Save to file</span>
+              </Button>
+            </Tooltip>
+          ) : !resume._id ? (
+            <Tooltip title="Work without saving anything to our servers or this browser">
+              <Button icon={<EyeOff size={15} />} onClick={startPrivateSession}>
+                <span className="hidden xl:inline">Private</span>
+              </Button>
+            </Tooltip>
+          ) : null}
           <Tooltip title="Empty every section (you can undo)">
             <Button danger icon={<Eraser size={15} />} onClick={clearAllContent} aria-label="Clear all content">
               <span className="hidden xl:inline">Clear</span>
@@ -560,6 +638,20 @@ function Editor({ initial, example, onSaved }) {
             />
           </div>
           <div className="px-4 pb-10">
+            {privateMode ? (
+              <div className="mb-3 rounded-2xl border border-violet-200 bg-violet-50 p-3.5 text-sm">
+                <p className="flex items-center gap-2 font-semibold text-violet-900"><EyeOff size={16} /> Private session</p>
+                <p className="mt-1 text-violet-900/80">
+                  Nothing is stored on our servers or in this browser. When you close this tab, it&apos;s gone. Download your PDF, or save a file to continue later.
+                  AI features send your text to our AI provider only to answer; it isn&apos;t kept.
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <Button size="small" icon={<FileDown size={13} />} onClick={() => saveToFile(resume)}>Save to file</Button>
+                  <Button size="small" icon={<FolderOpen size={13} />} onClick={() => document.getElementById("resume-open-file")?.click()}>Open file</Button>
+                  <Button size="small" type="text" onClick={endPrivateSession}>End private session</Button>
+                </div>
+              </div>
+            ) : null}
             {showExample && tab === "content" ? (
               <div className="mb-3 flex items-start gap-3 rounded-2xl border border-brand-200 bg-brand-50 p-3.5">
                 <Sparkles size={18} className="mt-0.5 shrink-0 text-brand" />

@@ -1,4 +1,5 @@
 import { API_URL } from "./config";
+import { forwardedHeaders } from "./forwardedHeaders";
 
 /** Plans and prices from the admin settings (server-side fetch, always fresh). */
 export async function getPlans() {
@@ -14,7 +15,7 @@ export async function getPlans() {
 /** Public details of a campaign code, or { error }. */
 export async function getCampaign(code) {
   try {
-    const res = await fetch(`${API_URL}/billing/campaign/${encodeURIComponent(code)}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const res = await fetch(`${API_URL}/billing/campaign/${encodeURIComponent(code)}`, { cache: "no-store", headers: await forwardedHeaders(), signal: AbortSignal.timeout(15000) });
     const body = await res.json().catch(() => ({}));
     return res.ok ? { campaign: body.data } : { error: body.error || "That campaign code isn't valid." };
   } catch {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { App, Alert, Button, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag } from "antd";
-import { Ban, Download, KeyRound, RotateCcw, Search, Trash2, UserPlus } from "lucide-react";
+import { Ban, Download, KeyRound, RotateCcw, Search, ShieldOff, Trash2, UserPlus } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { useAuth } from "../AuthProvider";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
@@ -71,6 +71,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
             <Tag color={PLAN_COLOR[u.effectivePlan]}>{u.effectivePlan}</Tag>
             {u.role !== "user" ? <Tag color="purple">{u.role}</Tag> : null}
             {u.banned ? <Tag color="red">banned</Tag> : null}
+            {u.twoFactor?.enabled ? <Tag color="green">2FA on</Tag> : <Tag>2FA off</Tag>}
           </div>
           <p className="text-xs text-slate-500">
             Joined {fmtDate(u.createdAt)} · last login {fmtDate(u.lastLoginAt)} · {u.resumes} resume{u.resumes === 1 ? "" : "s"}
@@ -192,6 +193,17 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
             ) : null}
           </div>
           {u.banned ? <Alert type="error" showIcon title={`Banned${u.bannedReason ? `: ${u.bannedReason}` : ""}`} /> : null}
+          {isSuper && u.twoFactor?.enabled && u.role !== "superadmin" ? (
+            <Popconfirm
+              title="Reset two-factor authentication?"
+              description="Use this only if they've lost their phone and recovery codes. They'll be signed out."
+              okText="Reset"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => action(() => call(`/users/${id}/reset-2fa`, { method: "POST" }).then((d) => setData({ ...u, ...d.data })), "Two-factor authentication reset")}
+            >
+              <Button icon={<ShieldOff size={14} />}>Reset two-factor authentication</Button>
+            </Popconfirm>
+          ) : null}
 
           <div>
             <p className="mb-2 font-medium text-ink">Resumes</p>

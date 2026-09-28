@@ -19,7 +19,8 @@ export default function PrivacyPage() {
           <li><b>Usage counters:</b> how many AI requests your account makes each day, so we can apply fair-use limits. These are deleted after a few days.</li>
           <li><b>Technical data:</b> our hosting providers keep standard server logs (such as IP address and browser type) for security and troubleshooting.</li>
         </ul>
-        <p className="mt-3">You can use the builder without an account. In that case your draft stays in your own browser and is never sent to us unless you save it, use an AI feature or run a check that needs our server.</p>
+        <p className="mt-3">You can use the builder without an account. In that case your draft stays in your own browser and is never sent to us unless you save it or use an AI feature.</p>
+        <p className="mt-3"><b>Private sessions</b> go further: nothing is saved on our servers or in your browser, and the resume disappears when you close the tab. You can download your PDF, or save a file to your own device and open it again later. The PDF and the ATS check are created entirely in your browser.</p>
       </section>
 
       <section>
@@ -69,7 +70,7 @@ export default function PrivacyPage() {
 
       <section>
         <h2>Security</h2>
-        <p>Passwords are hashed, connections are encrypted in transit, sign-in attempts are rate-limited and changing your password signs out every other device. No system is perfectly secure, so please use a strong, unique password.</p>
+        <p>Passwords are hashed with bcrypt, connections are encrypted in transit, every part of the service is rate-limited, and changing your password signs out every other device. You can turn on two-factor authentication with an authenticator app; admin accounts must use it, and admin actions are recorded in an audit log. Two-factor secrets are encrypted at rest. No system is perfectly secure, so please use a strong, unique password.</p>
       </section>
 
       <section>

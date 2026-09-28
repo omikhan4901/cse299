@@ -3,6 +3,7 @@ const Campaign = require('../models/Campaign');
 const { protect, campaignProblem } = require('./auth');
 const { getSettings, planById, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
 const { usageSummary } = require('../lib/credits');
+const { limit, clientIp } = require('../lib/rateLimit');
 
 const router = express.Router();
 
@@ -39,7 +40,8 @@ router.get('/me', protect, async (req, res, next) => {
 });
 
 // @route GET /api/billing/campaign/:code — what a campaign code gives (for the join page)
-router.get('/campaign/:code', async (req, res, next) => {
+// Tight limit so campaign codes can't be guessed by brute force.
+router.get('/campaign/:code', limit({ name: 'campaign-ip', windowMs: 15 * 60 * 1000, max: 40, key: clientIp, message: 'Too many attempts.' }), async (req, res, next) => {
     try {
         const code = String(req.params.code || '').trim().toUpperCase();
         const campaign = /^[A-Z0-9_-]{3,32}$/.test(code) ? await Campaign.findOne({ code }).lean() : null;

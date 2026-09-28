@@ -6,24 +6,35 @@ import { Lock } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "../AuthProvider";
 import Logo from "../Logo";
+import { MfaStep } from "../security/TwoFactor";
 
 export default function ResetPasswordForm({ token }) {
   const { login, openAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(token ? null : "This reset link is incomplete. Please request a new one.");
+  const [mfaToken, setMfaToken] = useState(null);
 
   const submit = async ({ password }) => {
     setLoading(true);
     setError(null);
     try {
       const data = await api("/auth/reset-password", { method: "POST", body: { token, password } });
-      login(data, "login");
+      if (data.mfaRequired) setMfaToken(data.mfaToken);
+      else login(data, "login");
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  if (mfaToken) {
+    return (
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+        <MfaStep mfaToken={mfaToken} onDone={(data) => login(data, "login")} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">

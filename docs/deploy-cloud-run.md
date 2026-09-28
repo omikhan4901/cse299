@@ -25,6 +25,9 @@ The front end stays on Vercel and the database on MongoDB Atlas.
    | `GEMINI_API_KEY` | your Gemini key |
    | `CLIENT_ORIGIN` | your site, e.g. `https://resumex.vercel.app` |
    | `TRUST_PROXY` | `1` |
+   | `SUPERADMIN_EMAILS` | your email |
+   | `ENCRYPTION_KEY` | `openssl rand -hex 32` (never change it afterwards) |
+   | `INTERNAL_API_KEY` | `openssl rand -hex 32`; set the same value on Vercel as `INTERNAL_API_KEY` |
    | `SMTP_URL`, `MAIL_FROM`, `APP_URL` | when email is set up |
 
    For extra safety, store `MONGO_URI`, `JWT_SECRET` and `GEMINI_API_KEY` in **Secret Manager** and choose "Reference a secret".

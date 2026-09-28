@@ -74,8 +74,13 @@ export default function HomePage() {
                 Browse templates
               </Link>
             </StaggerItem>
+            <StaggerItem as="p" className="mt-3 text-sm text-slate-500">
+              Privacy first?{" "}
+              <Link href="/builder?private=1" className="font-medium text-brand hover:underline">Start a private session</Link>{" "}
+              — nothing is saved on our servers or in your browser.
+            </StaggerItem>
             <StaggerItem as="ul" className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
-              {["10 professional templates", "Pixel-perfect PDF", "A4 & US Letter"].map((t) => (
+              {["50 professional templates", "Pixel-perfect PDF", "Private mode: nothing saved"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <CheckCircle2 size={16} className="text-brand" /> {t}
                 </li>

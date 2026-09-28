@@ -49,6 +49,22 @@ function limit({ name, windowMs, max, key, message }) {
     };
 }
 
-const clientIp = (req) => req.ip || req.socket?.remoteAddress || 'unknown';
+const crypto = require('crypto');
+
+/**
+ * The visitor's IP. Pages rendered by the Next.js server (share links, invite
+ * pages) call the API from Vercel's IPs, so that server forwards the visitor's
+ * IP in X-Client-IP together with the shared INTERNAL_API_KEY; only then is
+ * the header trusted.
+ */
+function clientIp(req) {
+    const key = process.env.INTERNAL_API_KEY;
+    const sent = req.get?.('x-internal-key');
+    if (key && sent && sent.length === key.length && crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(key))) {
+        const forwarded = String(req.get('x-client-ip') || '').split(',')[0].trim();
+        if (forwarded) return `fwd:${forwarded}`;
+    }
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+}
 
 module.exports = { limit, clientIp, retryIn };

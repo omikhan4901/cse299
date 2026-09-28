@@ -87,7 +87,16 @@ Browser ──► Next.js (Vercel)                 ──► Express API (Cloud 
 | AI | Google Gemini (Flash, automatic fallback model) |
 | Infra | Vercel (web), Google Cloud Run (API, `Dockerfile`), MongoDB Atlas |
 
-**Security:** hashed passwords; sessions invalidated on password change; per-account AI quotas (per minute and per day, stored in MongoDB); brute-force limits on sign-in and reset; MongoDB operator stripping; security headers; a data export and delete-account flow; privacy policy and terms.
+**Security:**
+- **Two-factor authentication:** authenticator apps (TOTP). It's mandatory for admins, and super admins must also verify their email. Two-factor secrets are AES-256-GCM encrypted at rest; recovery codes are hashed and single-use; used codes can't be replayed.
+- **Sessions:** 14 days for users and 12 hours for admins, with pinned JWT algorithms. Password changes, 2FA changes, bans and "sign out everywhere" revoke every other session.
+- **Rate limits** on every route (per IP and per account), including login, 2FA, password reset, campaign lookups, public pages, AI and admin.
+- **Private sessions:** nothing is stored on the server or in the browser. You can save to or open from a local `.resumex.json` file.
+- **Admin audit log:** every admin action and admin security event is recorded (secrets masked).
+- **Hardening:**
+  - A strict Content Security Policy, HSTS, `frame-ancestors 'none'` and `no-store` on API responses.
+  - MongoDB operator stripping on all input, and uploads checked by content (PDF/DOCX magic bytes).
+  - Photos restricted to PNG/JPEG/WebP data URLs, and timing-safe login.
 
 ---
 
@@ -117,6 +126,8 @@ npm run dev               # http://localhost:3000
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Shown on the privacy and terms pages |
 
 All server settings (Gemini, SMTP, rate limits, CORS) are documented in [`server/.env.example`](server/.env.example).
+
+Production security settings on the API: `SUPERADMIN_EMAILS` (your email), `ENCRYPTION_KEY` (32+ random characters, set once and never change it), and `INTERNAL_API_KEY` (also set on Vercel as a server-only variable so share and invite pages rate-limit per visitor).
 
 ## Deploying
 

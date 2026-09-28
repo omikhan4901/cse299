@@ -5,7 +5,10 @@ const Resume = require('../models/Resume');
 const Usage = require('../models/Usage');
 const AiEvent = require('../models/AiEvent');
 const Campaign = require('../models/Campaign');
-const { protect, requireAdmin, roleOf, isSuperadmin, hashPassword } = require('./auth');
+const { protect, requireAdmin, roleOf, isSuperadmin, hashPassword, passwordProblem } = require('./auth');
+const AdminLog = require('../models/AdminLog');
+const { audit } = require('../lib/audit');
+const { limit } = require('../lib/rateLimit');
 const { getSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 
@@ -14,7 +17,7 @@ const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
  * (SUPERADMIN_EMAILS). Only super admins can change who is an admin.
  */
 const router = express.Router();
-router.use(protect, requireAdmin);
+router.use(protect, requireAdmin, limit({ name: 'admin', windowMs: 60 * 1000, max: 240, key: (req) => req.userId, message: 'Too many admin requests.' }));
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const bad = (res, error, status = 400) => res.status(status).json({ success: false, error });
@@ -22,7 +25,7 @@ const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
-const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod role banned bannedReason campaign createdAt lastLoginAt';
+const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod role banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
 
 /** Adds role, current plan, credit usage and resume counts to a page of users. */
 async function describeUsers(users) {
@@ -148,8 +151,22 @@ router.get('/users/:id', wrap(async (req, res) => {
 
 /** Applies the editable fields from an admin request to a user document. */
 async function applyUserFields(user, body, req) {
+    const fail = (message, status = 400) => {
+        throw Object.assign(new Error(message), { status });
+    };
+    // Admin accounts can only be edited by super admins, and super admins only by themselves.
+    const targetRole = roleOf(user);
+    if (targetRole === 'superadmin' && String(user._id) !== req.userId) fail("Super admin accounts can't be edited here.", 403);
+    if (targetRole === 'admin' && req.role !== 'superadmin') fail('Only super admins can edit admin accounts.', 403);
     if (body.name !== undefined) user.name = String(body.name).trim();
-    if (body.email !== undefined) user.email = String(body.email).trim().toLowerCase();
+    if (body.email !== undefined) {
+        const email = String(body.email).trim().toLowerCase();
+        if (email !== user.email) {
+            if (isSuperadmin({ email })) fail("That email is reserved for a super admin.", 403);
+            user.email = email;
+            user.emailVerifiedAt = undefined;
+        }
+    }
     if (body.plan !== undefined) {
         if (!PLAN_IDS.includes(body.plan)) throw Object.assign(new Error('Unknown plan.'), { status: 400 });
         user.plan = body.plan;
@@ -158,7 +175,7 @@ async function applyUserFields(user, body, req) {
     if (body.creditLimit !== undefined) user.creditLimit = body.creditLimit === null || body.creditLimit === '' ? null : Math.max(0, Math.round(Number(body.creditLimit) || 0));
     if (body.creditPeriod !== undefined) user.creditPeriod = ['day', 'month'].includes(body.creditPeriod) ? body.creditPeriod : null;
     if (body.password) {
-        if (String(body.password).length < 8) throw Object.assign(new Error('Passwords need at least 8 characters.'), { status: 400 });
+        if (passwordProblem(body.password)) fail(passwordProblem(body.password));
         user.password = await hashPassword(body.password);
         user.sessionVersion = (user.sessionVersion || 0) + 1;
     }
@@ -186,14 +203,21 @@ router.post('/users', wrap(async (req, res) => {
     const { name, email, password } = req.body || {};
     if (!name || !email || !password) return bad(res, 'Name, email and password are required.');
     if (await User.exists({ email: String(email).trim().toLowerCase() })) return bad(res, 'An account with that email already exists.');
+    if (isSuperadmin({ email: String(email).trim().toLowerCase() })) return bad(res, 'That email is reserved for a super admin.', 403);
     const user = new User({ name, email, password: 'placeholder' });
-    await applyUserFields(user, { ...req.body, name, email, password }, req);
+    try {
+        await applyUserFields(user, { ...req.body, name, email, password }, req);
+    } catch (err) {
+        if (err.status) return bad(res, err.message, err.status);
+        throw err;
+    }
     try {
         await user.save();
     } catch (err) {
         if (err.name === 'ValidationError') return bad(res, Object.values(err.errors)[0].message);
         throw err;
     }
+    audit(req, 'user.create', user.email, { plan: user.plan });
     await sendUser(res, user, 201);
 }));
 
@@ -204,6 +228,7 @@ router.patch('/users/:id', wrap(async (req, res) => {
     try {
         await applyUserFields(user, req.body || {}, req);
         await user.save();
+        audit(req, 'user.update', user.email, req.body);
     } catch (err) {
         if (err.status) return bad(res, err.message, err.status);
         if (err.name === 'ValidationError') return bad(res, Object.values(err.errors)[0].message);
@@ -220,6 +245,21 @@ router.post('/users/:id/reset-credits', wrap(async (req, res) => {
     if (!user) return bad(res, 'User not found.', 404);
     const a = allowanceFor(user, await getSettings());
     await Usage.deleteOne({ user: user._id, day: periodKey(a.period) });
+    audit(req, 'user.restore_credits', user.email);
+    await sendUser(res, user);
+}));
+
+// Turns off 2FA for someone locked out of their authenticator (super admins only).
+router.post('/users/:id/reset-2fa', wrap(async (req, res) => {
+    if (req.role !== 'superadmin') return bad(res, 'Only super admins can reset two-factor authentication.', 403);
+    if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'User not found.', 404);
+    const user = await User.findById(req.params.id);
+    if (!user) return bad(res, 'User not found.', 404);
+    if (String(user._id) === req.userId) return bad(res, "You can't reset your own two-factor authentication here.");
+    user.twoFactor = { enabled: false };
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
+    await user.save();
+    audit(req, 'user.reset_2fa', user.email);
     await sendUser(res, user);
 }));
 
@@ -228,9 +268,23 @@ router.delete('/users/:id', wrap(async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return bad(res, 'User not found.', 404);
     if (String(user._id) === req.userId || isSuperadmin(user)) return bad(res, "You can't delete yourself or a super admin.");
+    if (roleOf(user) === 'admin' && req.role !== 'superadmin') return bad(res, 'Only super admins can delete admin accounts.', 403);
     await Promise.all([Resume.deleteMany({ user: user._id }), Usage.deleteMany({ user: user._id }), AiEvent.deleteMany({ user: user._id })]);
     await user.deleteOne();
+    audit(req, 'user.delete', user.email);
     res.json({ success: true });
+}));
+
+// ---------- Audit log ----------
+
+router.get('/audit', wrap(async (req, res) => {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const filter = typeof req.query.action === 'string' && req.query.action ? { action: new RegExp(`^${escapeRe(req.query.action)}`) } : {};
+    const [total, entries] = await Promise.all([
+        AdminLog.countDocuments(filter),
+        AdminLog.find(filter).sort({ at: -1 }).skip((page - 1) * 50).limit(50).lean(),
+    ]);
+    res.json({ success: true, data: { total, page, entries } });
 }));
 
 // ---------- Settings (plans, prices, credit costs, free mode) ----------
@@ -241,6 +295,7 @@ router.get('/settings', wrap(async (req, res) => {
 
 router.put('/settings', wrap(async (req, res) => {
     const settings = await updateSettings(req.body || {}, req.adminEmail);
+    audit(req, 'settings.update', null, req.body);
     res.json({ success: true, data: { settings, aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES } });
 }));
 
@@ -270,7 +325,9 @@ router.get('/campaigns', wrap(async (req, res) => {
 
 router.post('/campaigns', wrap(async (req, res) => {
     try {
-        res.status(201).json({ success: true, data: await Campaign.create(pickCampaign(req.body)) });
+        const campaign = await Campaign.create(pickCampaign(req.body));
+        audit(req, 'campaign.create', campaign.code, pickCampaign(req.body));
+        res.status(201).json({ success: true, data: campaign });
     } catch (err) {
         campaignError(res, err);
     }
@@ -283,6 +340,7 @@ router.patch('/campaigns/:id', wrap(async (req, res) => {
     Object.assign(campaign, pickCampaign(req.body));
     try {
         await campaign.save();
+        audit(req, 'campaign.update', campaign.code, pickCampaign(req.body));
         res.json({ success: true, data: campaign });
     } catch (err) {
         campaignError(res, err);
@@ -292,7 +350,8 @@ router.patch('/campaigns/:id', wrap(async (req, res) => {
 router.delete('/campaigns/:id', wrap(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'Campaign not found.', 404);
     // Members keep what they were given; the code just stops working.
-    await Campaign.deleteOne({ _id: req.params.id });
+    const gone = await Campaign.findByIdAndDelete(req.params.id);
+    audit(req, 'campaign.delete', gone?.code);
     res.json({ success: true });
 }));
 

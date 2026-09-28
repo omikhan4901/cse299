@@ -8,7 +8,11 @@ const { aiQuota, usageSummary } = require('../lib/credits');
 
 const router = express.Router();
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 5 } });
+
+// File type by content, not by name: PDF starts with "%PDF-", DOCX is a ZIP ("PK\x03\x04").
+const isPdf = (buf) => buf.length > 5 && buf.subarray(0, 5).toString('latin1') === '%PDF-';
+const isZip = (buf) => buf.length > 4 && buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04;
 
 /**
  * AI routes (Gemini). Switched off unless GEMINI_API_KEY is set, and can be
@@ -240,9 +244,9 @@ router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), as
 
     try {
         let part;
-        if (file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname)) {
+        if (isPdf(file.buffer)) {
             part = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } };
-        } else if (/\.docx$/i.test(file.originalname)) {
+        } else if (isZip(file.buffer) && /\.docx$/i.test(file.originalname)) {
             const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
             if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
             part = { text: clip(text, 30000) };
