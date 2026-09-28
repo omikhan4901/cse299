@@ -41,5 +41,5 @@ If a connection is a real product decision (pricing, what's free, legal wording)
 - Work on and push to `main` (Cloud Build deploys the API and Vercel the site from it).
 - Never commit secrets: API keys, database passwords, SMTP passwords, Paddle keys or
   webhook secrets.
-- Leave `client/AGENTS.md` and `client/CLAUDE.md` uncommitted (Next.js regenerates them).
+- `client/AGENTS.md` and `client/CLAUDE.md` are written by `next dev`; commit them when they change.
 - Before pushing: `npm test` in `server/`, and `npx eslint src` plus `npx next build` in `client/`.
