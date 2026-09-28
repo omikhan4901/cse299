@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
       .then((data) => setUser(data.user))
       .catch((err) => {
         // Only forget the token when the server rejects it, not when it is unreachable.
-        if (err.status === 401 || err.status === 404) {
+        if (err.status === 401 || err.status === 404 || err.code === "banned") {
           localStorage.removeItem(TOKEN_KEY);
           setToken(null);
         }

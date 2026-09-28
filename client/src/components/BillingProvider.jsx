@@ -66,6 +66,17 @@ export function BillingProvider({ children }) {
     else refreshUsage();
   }, [token, refreshUsage]);
 
+  // An admin may change the plan or credits while this page is open: re-check on return.
+  useEffect(() => {
+    const onVisible = () => document.visibilityState === "visible" && refreshUsage();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refreshUsage]);
+
   useEffect(() => {
     let timer;
     const onChange = () => {

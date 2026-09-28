@@ -224,10 +224,19 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const [savedJson, setSavedJson] = useState(resume._id ? payloadJson : null);
   const dirty = !!resume._id && savedJson !== payloadJson;
 
-  const onSaveFailed = useCallback((err) => {
-    setSaveError(err.message);
-    if (err.status === 401) setSessionExpired(true);
-  }, []);
+  // The account was suspended while this page was open: saving can't work, so stop retrying.
+  const [suspended, setSuspended] = useState(false);
+  const onSaveFailed = useCallback(
+    (err) => {
+      setSaveError(err.message);
+      if (err.status === 401) setSessionExpired(true);
+      if (err.code === "banned") {
+        setSuspended(true);
+        message.error(err.message, 10);
+      }
+    },
+    [message]
+  );
   const onSaveSucceeded = useCallback(() => {
     setSaveError(null);
     setSessionExpired(false);
@@ -344,13 +353,13 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   // Saved resumes autosave shortly after you stop typing.
   useEffect(() => {
-    if (!dirty || !token || sessionExpired || conflict) return;
+    if (!dirty || !token || sessionExpired || suspended || conflict) return;
     const t = setTimeout(saveNow, 1500);
     return () => clearTimeout(t);
-  }, [dirty, token, saveNow, sessionExpired, conflict, retryTick]);
+  }, [dirty, token, saveNow, sessionExpired, suspended, conflict, retryTick]);
 
   // Signed in: a new resume goes into the account as soon as it has content, so it can't get lost.
-  const wantsAccountCopy = isAuthenticated && !!token && !resume._id && !privateMode && !sessionExpired && hasRealContent(resume) && (!showExample || edited);
+  const wantsAccountCopy = isAuthenticated && !!token && !resume._id && !privateMode && !sessionExpired && !suspended && hasRealContent(resume) && (!showExample || edited);
   useEffect(() => {
     if (!wantsAccountCopy) return;
     const t = setTimeout(() => createResume({ nickname: defaultNickname(resume) }, { auto: true }), 1500);
@@ -360,10 +369,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   // A failed save really does retry (until the session has expired, which needs a new login).
   useEffect(() => {
-    if (!saveError || sessionExpired) return;
+    if (!saveError || sessionExpired || suspended) return;
     const t = setTimeout(() => setRetryTick((n) => n + 1), 8000);
     return () => clearTimeout(t);
-  }, [saveError, sessionExpired, retryTick]);
+  }, [saveError, sessionExpired, suspended, retryTick]);
 
   const needsLogin = sessionExpired || (!!resume._id && !token);
   const logInAgain = () => openAuth("login", `${window.location.pathname}${window.location.search}`);
@@ -662,6 +671,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     ? { icon: <EyeOff size={13} />, text: "Private session · nothing is saved", tone: "text-violet-600" }
     : !isAuthenticated
       ? { icon: <CloudOff size={13} />, text: "Saved in this browser only", tone: "text-slate-400" }
+      : suspended
+        ? { icon: <CloudOff size={13} />, text: "Account suspended · changes aren't saved", tone: "text-red-500" }
       : needsLogin
         ? { icon: <LogIn size={13} />, text: "Signed out · log in to keep saving", tone: "text-red-500", action: "login" }
         : conflict
