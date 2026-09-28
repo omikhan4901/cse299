@@ -3,7 +3,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, SETTINGS_CHANGED, UPGRADE_NEEDED } from "@/lib/api";
 import { CONTACT_EMAIL } from "@/lib/config";
+import { App } from "antd";
 import { useAuth } from "./AuthProvider";
+import { openCheckout } from "@/lib/paddle";
 import UpgradeModal from "./billing/UpgradeModal";
 
 /**
@@ -21,7 +23,8 @@ import { PLAN_ORDER, templateById, templateTier } from "@/pdf/registry";
 import { canUseFeature, canUseTemplate } from "@/lib/access";
 
 export function BillingProvider({ children }) {
-  const { token } = useAuth();
+  const { token, user, openAuth } = useAuth();
+  const { message, modal } = App.useApp();
   const [config, setConfig] = useState(null);
   const [usage, setUsage] = useState(null);
   // The locked feature someone just tried to use: { feature, what } (shows the upgrade dialog).
@@ -112,6 +115,65 @@ export function BillingProvider({ children }) {
     return () => window.removeEventListener(UPGRADE_NEEDED, onUpgrade);
   }, [refreshConfig]);
 
+  /**
+   * Starts paying for a plan: Paddle's checkout, or a plan switch when there's already a
+   * subscription (a second checkout would charge twice). Signed-out visitors sign up first
+   * and come back to the checkout. Without Paddle set up, it falls back to email.
+   */
+  const checkout = useCallback(
+    async (planId, interval = "month") => {
+      const cfg = config?.paddle;
+      const plan = config?.plans?.find((p) => p.id === planId);
+      const name = plan?.name || "a paid plan";
+      if (!cfg?.prices?.[planId]?.[interval]) {
+        window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${name}`)}`;
+        return;
+      }
+      if (!token) {
+        openAuth("register", `/pricing?checkout=${planId}-${interval}`);
+        return;
+      }
+      const sub = usage?.subscription;
+      if (sub?.active) {
+        if (sub.plan === planId && sub.interval === interval) {
+          message.info(`You're already on ${name}.`);
+          return;
+        }
+        modal.confirm({
+          title: `Switch to ${name}, billed ${interval === "year" ? "yearly" : "monthly"}?`,
+          content: "Your subscription changes straight away. You're charged, or credited, the difference for the rest of this billing period.",
+          okText: "Switch plan",
+          onOk: async () => {
+            try {
+              await api("/billing/change-plan", { token, method: "POST", body: { plan: planId, interval } });
+              await refreshUsage();
+              message.success(`You're now on ${name}.`);
+            } catch (err) {
+              message.error(err.message);
+            }
+          },
+        });
+        return;
+      }
+      try {
+        await openCheckout(cfg, { priceId: cfg.prices[planId][interval], email: user?.email, userId: user?.id });
+      } catch (err) {
+        message.error(err.message);
+      }
+    },
+    [config, token, user, usage, openAuth, message, modal, refreshUsage]
+  );
+
+  /** Opens Paddle's customer portal: payment method, invoices, cancelling. */
+  const openPortal = useCallback(async () => {
+    try {
+      const { url } = await api("/billing/portal", { token, method: "POST" });
+      window.location.href = url;
+    } catch (err) {
+      message.error(err.message);
+    }
+  }, [token, message]);
+
   const value = useMemo(() => {
     const freeMode = config?.freeMode?.enabled ?? true;
     const planId = usage?.plan?.id || "free";
@@ -159,9 +221,13 @@ export function BillingProvider({ children }) {
         return false;
       },
       planRank: (id) => PLAN_ORDER.indexOf(id),
-      upgradeHref: (p) => `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${p?.name || "a paid plan"}`)}`,
+      checkout,
+      openPortal,
+      /** True when paying goes through Paddle (otherwise upgrades are by email). */
+      canCheckout: !!config?.paddle,
+      subscription: usage?.subscription || null,
     };
-  }, [config, usage, refreshUsage, refreshConfig]);
+  }, [config, usage, refreshUsage, refreshConfig, checkout, openPortal]);
 
   return (
     <BillingContext.Provider value={value}>

@@ -8,6 +8,13 @@ const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { start, stop, api, register, superadmin, resetState, ai } = require('./helpers');
 
+// With payments configured, so the Paddle webhook and billing routes are fuzzed too
+// (their API calls go to the stub in helpers.js).
+Object.assign(process.env, {
+    PADDLE_ENV: 'sandbox', PADDLE_API_KEY: 'fuzz', PADDLE_WEBHOOK_SECRET: 'fuzz', PADDLE_CLIENT_TOKEN: 'test_fuzz',
+    PADDLE_PRICE_PRO_MONTH: 'pri_a', PADDLE_PRICE_PRO_YEAR: 'pri_b', PADDLE_PRICE_PREMIUM_MONTH: 'pri_c', PADDLE_PRICE_PREMIUM_YEAR: 'pri_d',
+});
+
 const HUGE = 'x'.repeat(200_000);
 const WEIRD = [null, [], {}, '', 'x', HUGE, 0, -1, 1e308, true, { $gt: '' }, { $where: 'sleep(100)' }, ['a', { $ne: 1 }], { __proto__: { admin: true } }, { a: { b: { c: { d: { e: {} } } } } }, '<script>x</script>', '../../etc/passwd', '\u0000', 'NaN'];
 // Field names used across the API; a fuzzed body sets all of them to one odd value.

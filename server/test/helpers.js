@@ -35,8 +35,15 @@ globalThis.fetch = async (url, opts) => {
         const text = typeof ai.reply === 'function' ? ai.reply(JSON.parse(opts.body)) : ai.reply;
         return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
     }
+    // Paddle's API: tests set paddleApi.handler(url, opts) to answer like Paddle would.
+    if (/paddle\.com/.test(String(url))) {
+        paddleApi.calls.push({ url: String(url), method: opts?.method || 'GET', body: opts?.body ? JSON.parse(opts.body) : undefined });
+        const reply = paddleApi.handler ? await paddleApi.handler(String(url), opts) : null;
+        return new Response(JSON.stringify(reply?.body ?? { error: { code: 'not_found', detail: 'stub' } }), { status: reply?.status ?? (reply ? 200 : 404), headers: { 'Content-Type': 'application/json' } });
+    }
     return realFetch(url, opts);
 };
+const paddleApi = { handler: null, calls: [] };
 
 let server;
 let base;
@@ -132,10 +139,13 @@ async function resetState() {
     ai.calls = 0;
     ai.delayMs = 0;
     ai.aborted = 0;
+    paddleApi.handler = null;
+    paddleApi.calls = [];
+    require('../lib/paddle').resetPaddleCache();
     delete process.env.AI_TIMEOUT_MS;
 }
 
 /** The API's base URL (for raw fetch calls). */
 const baseUrl = () => base;
 
-module.exports = { baseUrl, needsRealMongo, start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai };
+module.exports = { paddleApi, baseUrl, needsRealMongo, start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai };

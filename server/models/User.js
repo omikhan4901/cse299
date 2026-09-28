@@ -25,6 +25,9 @@ const UserSchema = new mongoose.Schema({
     // Plan tier (ids from the admin settings: free | pro | premium). Paid plans end at planExpiresAt (null = no end).
     plan: { type: String, enum: ['free', 'pro', 'premium'], default: 'free' },
     planExpiresAt: { type: Date },
+    // "paddle" while the plan comes from a Paddle subscription (so ending it only undoes that).
+    planSource: { type: String },
+    paddleCustomerId: { type: String, index: true, sparse: true },
     // Custom AI credit allowance (set by an admin or a campaign); null uses the plan's.
     creditLimit: { type: Number, default: null, min: 0 },
     creditPeriod: { type: String, enum: ['day', 'month', null], default: null },

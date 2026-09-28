@@ -12,6 +12,7 @@ const publicRoutes = require('./routes/public');
 const billingRoutes = require('./routes/billing');
 const adminRoutes = require('./routes/admin');
 const atsRoutes = require('./routes/ats');
+const paddleRoutes = require('./routes/paddle');
 const { canSendMail } = require('./lib/mailer');
 const { limit, clientIp } = require('./lib/rateLimit');
 
@@ -47,6 +48,9 @@ if (!origins && process.env.NODE_ENV === 'production') {
     console.warn('Warning: CLIENT_ORIGIN is not set, so any website can call this API from a browser. Set it to your site address.');
 }
 app.use(cors(origins ? { origin: origins } : undefined));
+
+// Paddle webhooks need the raw body for their signature, so they're handled before any JSON parsing.
+app.use('/api/paddle', paddleRoutes);
 
 // Resumes can carry a profile photo as a data URL, so only resume saves get large
 // bodies; AI requests carry a resume without photos; everything else is small.

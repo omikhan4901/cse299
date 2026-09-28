@@ -119,6 +119,20 @@ cp .env.example .env.local
 npm run dev               # http://localhost:3000
 ```
 
+### Payments (Paddle)
+
+Set these on the **API** (Cloud Run). The site gets the public parts (environment, client token, price IDs) from the API, so Vercel needs nothing extra.
+
+| API variable | Purpose |
+| --- | --- |
+| `PADDLE_ENV` | `sandbox` or `production`. Required; never assumed |
+| `PADDLE_API_KEY` | Server-side API key (Developer tools › Authentication) |
+| `PADDLE_WEBHOOK_SECRET` | Signing secret of the notification destination pointing at `https://<api>/api/paddle/webhook` |
+| `PADDLE_CLIENT_TOKEN` | Client-side token for Paddle.js (`test_…` for sandbox, `live_…` for production) |
+| `PADDLE_PRICE_PRO_MONTH`, `PADDLE_PRICE_PRO_YEAR`, `PADDLE_PRICE_PREMIUM_MONTH`, `PADDLE_PRICE_PREMIUM_YEAR` | The `pri_…` IDs of the four prices |
+
+Webhooks mirror subscriptions into MongoDB and set each account's plan: active, trialing and past-due subscriptions give access; paused and canceled ones end it (a cancellation scheduled for the end of the period keeps access until then). Going live means creating the same products in the live account and switching these variables.
+
 | Client variable | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | API base URL, including `/api` |

@@ -1,18 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Segmented } from "antd";
 import { Check, Crown, Minus, Sparkles, Zap } from "lucide-react";
-import { formatPrice } from "../BillingProvider";
-import { CONTACT_EMAIL } from "@/lib/config";
+import { formatPrice, useBilling } from "../BillingProvider";
+import { previewPrices } from "@/lib/paddle";
 import { TEMPLATES, planIncludes } from "@/pdf/registry";
 import { BuilderLink } from "@/components/BuilderLauncher";
 
-/** The three plans from the admin settings, with a monthly / yearly switch. */
+/**
+ * The three plans from the admin settings, with a monthly / yearly switch. With Paddle
+ * connected, prices are Paddle's own totals in the visitor's currency, and the buttons
+ * open checkout (or switch an existing subscription).
+ */
 export default function PricingPlans({ config }) {
   const [yearly, setYearly] = useState(false);
   const { plans, currency, freeMode, aiFeatures, appFeatures = [], featureCosts } = config;
   const hasYearly = plans.some((p) => p.yearlyPrice > 0);
+  const billing = useBilling();
+  const paddle = config.paddle;
+  const sub = billing?.subscription;
+  // Biggest yearly saving, for the switch's label.
+  const saving = Math.max(0, ...plans.filter((p) => p.price > 0 && p.yearlyPrice > 0).map((p) => Math.round((1 - p.yearlyPrice / (p.price * 12)) * 100)));
+
+  // Paddle's formatted totals ({ [priceId]: "€6.49" }): shown exactly as Paddle returns them.
+  // (The preview runs in the visitor's browser, so Paddle locates them by IP.)
+  const [local, setLocal] = useState({});
+  useEffect(() => {
+    if (!paddle) return;
+    const ids = Object.values(paddle.prices).flatMap((p) => Object.values(p)).filter(Boolean);
+    previewPrices(paddle, ids).then(setLocal).catch(() => {}); // falls back to the plan prices
+  }, [paddle]);
+  const shown = (p) => local[paddle?.prices?.[p.id]?.[yearly ? "year" : "month"]] || formatPrice(yearly ? p.yearlyPrice : p.price, currency);
+
+  // Back from signing up with ?checkout=pro-month: continue to the checkout they picked.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || !billing?.config || !billing.usage) return;
+    const want = new URLSearchParams(window.location.search).get("checkout");
+    const [planId, interval] = String(want || "").split("-");
+    if (!planId) return;
+    resumed.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-off read of the URL after signing up
+    if (interval === "year") setYearly(true);
+    billing.checkout(planId, interval === "year" ? "year" : "month");
+  }, [billing]);
 
   return (
     <>
@@ -30,15 +63,16 @@ export default function PricingPlans({ config }) {
           <Segmented
             value={yearly ? "yearly" : "monthly"}
             onChange={(v) => setYearly(v === "yearly")}
-            options={[{ label: "Monthly", value: "monthly" }, { label: "Yearly · save more", value: "yearly" }]}
+            options={[{ label: "Monthly", value: "monthly" }, { label: saving > 0 ? `Yearly · save ${saving}%` : "Yearly", value: "yearly" }]}
           />
         </div>
       ) : null}
 
       <div className="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-3">
         {plans.map((p) => {
-          const price = yearly ? p.yearlyPrice : p.price;
           const paid = p.price > 0;
+          const interval = yearly ? "year" : "month";
+          const current = sub?.active && sub.plan === p.id;
           return (
             <div
               key={p.id}
@@ -52,7 +86,7 @@ export default function PricingPlans({ config }) {
               <h2 className="font-display text-xl font-bold text-ink">{p.name}</h2>
               <p className="mt-1 min-h-10 text-sm text-slate-500">{p.tagline}</p>
               <p className="mt-5 flex items-baseline gap-1">
-                <span className="font-display text-4xl font-extrabold text-ink">{formatPrice(price, currency)}</span>
+                <span className="font-display text-4xl font-extrabold text-ink">{shown(p)}</span>
                 {paid ? <span className="text-sm text-slate-500">/ {yearly ? "year" : "month"}</span> : null}
               </p>
               <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-slate-600">
@@ -71,13 +105,21 @@ export default function PricingPlans({ config }) {
                 </BuilderLink>
               ) : freeMode.enabled ? (
                 <span className="mt-7 block rounded-xl bg-emerald-50 py-2.5 text-center font-semibold text-emerald-700">Free right now</span>
+              ) : current && sub.interval === interval ? (
+                <div className="mt-7 text-center">
+                  <span className="block rounded-xl bg-brand-50 py-2.5 font-semibold text-brand">Your plan</span>
+                  <button type="button" onClick={billing.openPortal} className="mt-2 text-sm font-medium text-slate-500 hover:text-brand">
+                    Manage billing
+                  </button>
+                </div>
               ) : (
-                <a
-                  href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${p.name}`)}`}
-                  className={`mt-7 block rounded-xl py-2.5 text-center font-semibold transition ${p.highlight ? "bg-brand text-white hover:bg-brand/90" : "bg-ink text-white hover:bg-ink/90"}`}
+                <button
+                  type="button"
+                  onClick={() => billing.checkout(p.id, interval)}
+                  className={`mt-7 block w-full rounded-xl py-2.5 text-center font-semibold transition ${p.highlight ? "bg-brand text-white hover:bg-brand/90" : "bg-ink text-white hover:bg-ink/90"}`}
                 >
-                  Get {p.name}
-                </a>
+                  {current ? `Switch to ${yearly ? "yearly" : "monthly"}` : sub?.active ? `Switch to ${p.name}` : `Get ${p.name}`}
+                </button>
               )}
             </div>
           );

@@ -82,10 +82,33 @@ export default function UpgradeModal({ request, onClose, billing }) {
             <Link href="/pricing" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
               Compare plans
             </Link>
-            <a href={billing.upgradeHref(plan)} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark">
-              <Crown size={15} /> Get {plan?.name || "a paid plan"}
-            </a>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                billing.checkout(plan?.id || "pro", "month");
+              }}
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark"
+            >
+              <Crown size={15} /> {billing.subscription?.active ? `Switch to ${plan?.name || "a paid plan"}` : `Get ${plan?.name || "a paid plan"}`}
+            </button>
           </div>
+          {billing.canCheckout && plan?.yearlyPrice > 0 && !billing.subscription?.active ? (
+            <p className="mt-3 text-right text-xs text-slate-500">
+              Or{" "}
+              <button
+                type="button"
+                className="font-medium text-brand hover:underline"
+                onClick={() => {
+                  onClose();
+                  billing.checkout(plan.id, "year");
+                }}
+              >
+                pay yearly for {price(plan.yearlyPrice, currency)}
+              </button>
+              {plan.price > 0 ? ` and save ${Math.round((1 - plan.yearlyPrice / (plan.price * 12)) * 100)}%` : ""}.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </Modal>

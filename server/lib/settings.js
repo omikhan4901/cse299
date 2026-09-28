@@ -53,13 +53,13 @@ const DEFAULTS = {
         },
         {
             id: 'pro', name: 'Pro', tagline: 'For an active job search.',
-            price: 9, yearlyPrice: 72, credits: 300, creditPeriod: 'month', highlight: true,
+            price: 6.99, yearlyPrice: 75.49, credits: 300, creditPeriod: 'month', highlight: true,
             features: { ...allOn },
             perks: ['All 50 templates', 'Import your old resume', 'Cover letters and AI rewrites', '300 AI credits a month'],
         },
         {
             id: 'premium', name: 'Premium', tagline: 'For power users and career switchers.',
-            price: 19, yearlyPrice: 152, credits: 1000, creditPeriod: 'month', highlight: false,
+            price: 12.99, yearlyPrice: 140.29, credits: 1000, creditPeriod: 'month', highlight: false,
             features: { ...allOn },
             perks: ['Everything in Pro', '1,000 AI credits a month', 'Priority support'],
         },

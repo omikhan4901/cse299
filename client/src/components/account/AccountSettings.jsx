@@ -3,12 +3,56 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert, App, Button, Form, Input, Modal, Progress, Result, Skeleton } from "antd";
-import { Crown, Download, KeyRound, Sparkles, Trash2, UserRound } from "lucide-react";
+import { CreditCard, Crown, Download, KeyRound, Sparkles, Trash2, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { API_URL, AI_ENABLED } from "@/lib/config";
 import { useBilling, resetsIn } from "../BillingProvider";
 import AccountSecurity from "../security/AccountSecurity";
 import { useAuth } from "../AuthProvider";
+
+const day = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+
+/** The Paddle subscription: plan, renewal or end date, and the billing portal. */
+function BillingCard({ billing }) {
+  const sub = billing.subscription;
+  const planName = (id) => billing.config?.plans?.find((p) => p.id === id)?.name || "Paid";
+  if (!sub?.active) {
+    return (
+      <Card icon={CreditCard} title="Plan & billing">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">
+            {sub?.status === "canceled" ? `Your ${planName(sub.plan)} subscription has ended. ` : sub?.status === "paused" ? `Your ${planName(sub.plan)} subscription is paused. ` : ""}
+            Upgrade for more templates and AI credits. Cancel any time.
+          </p>
+          <div className="flex gap-2">
+            {sub ? <Button onClick={billing.openPortal}>Billing history</Button> : null}
+            <Link href="/pricing"><Button type="primary">See plans</Button></Link>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+  const cancelling = sub.scheduledChange?.action === "cancel";
+  return (
+    <Card icon={CreditCard} title="Plan & billing">
+      <p className="text-sm text-slate-700">
+        <b className="text-ink">{planName(sub.plan)}</b>, billed {sub.interval === "year" ? "yearly" : "monthly"}
+      </p>
+      {sub.status === "past_due" ? (
+        <Alert className="!mt-3" type="warning" showIcon title="Your last payment didn't go through" description={`Paddle will try again. Update your card in Manage billing to keep ${planName(sub.plan)}.`} />
+      ) : cancelling ? (
+        <p className="mt-1 text-sm text-amber-700">Cancels on {day(sub.scheduledChange.effectiveAt)}. You keep {planName(sub.plan)} until then.</p>
+      ) : sub.currentPeriodEnd ? (
+        <p className="mt-1 text-sm text-slate-500">Renews on {day(sub.currentPeriodEnd)}.</p>
+      ) : null}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button type="primary" onClick={billing.openPortal}>Manage billing</Button>
+        <Link href="/pricing"><Button>Change plan</Button></Link>
+      </div>
+      <p className="mt-3 text-xs text-slate-400">Payments, invoices and cancelling are handled by Paddle, our reseller.</p>
+    </Card>
+  );
+}
 
 function Card({ icon: Icon, title, description, children, danger }) {
   return (
@@ -116,7 +160,9 @@ export default function AccountSettings() {
     }
   };
 
-  const pro = user.plan && user.plan !== "free";
+  // The live plan (it changes when a payment or cancellation comes through), else the one from sign-in.
+  const planId = usage?.plan?.id || user.plan;
+  const pro = planId && planId !== "free";
 
   return (
     <div className="container-x max-w-3xl space-y-6 py-10">
@@ -136,11 +182,13 @@ export default function AccountSettings() {
         </Form>
         <div className="mt-4 flex items-center gap-2 text-sm">
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${pro ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
-            {pro ? <Crown size={12} /> : null} {billing?.config?.plans?.find((p) => p.id === user.plan)?.name || (pro ? "Pro" : "Free")} plan
+            {pro ? <Crown size={12} /> : null} {billing?.config?.plans?.find((p) => p.id === planId)?.name || (pro ? "Pro" : "Free")} plan
           </span>
-          {pro && user.planExpiresAt ? <span className="text-slate-500">until {new Date(user.planExpiresAt).toLocaleDateString()}</span> : null}
+          {pro && user.planExpiresAt && !billing?.subscription?.active ? <span className="text-slate-500">until {new Date(user.planExpiresAt).toLocaleDateString()}</span> : null}
         </div>
       </Card>
+
+      {billing?.canCheckout || billing?.subscription ? <BillingCard billing={billing} /> : null}
 
       {usage && AI_ENABLED ? (
         <Card

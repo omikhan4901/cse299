@@ -3,6 +3,7 @@
 import { Alert, Input, InputNumber, Select, Skeleton, Switch, Tooltip } from "antd";
 import { Crown, Info } from "lucide-react";
 import { useSettingsDraft } from "./useSettingsDraft";
+import { useBilling } from "../BillingProvider";
 import SaveBar from "./SaveBar";
 
 function Field({ label, hint, children }) {
@@ -20,6 +21,7 @@ function Field({ label, hint, children }) {
 /** Edit the three tiers: names, prices, credits, features and the perks shown on /pricing. */
 export default function PlansTab() {
   const { settings, meta, error, loading, update, save, saving, dirty, discard } = useSettingsDraft();
+  const paddleOn = !!useBilling()?.canCheckout;
   if (loading && !settings) return <Skeleton active paragraph={{ rows: 10 }} />;
   if (error) return <Alert type="error" showIcon title={error} />;
   const features = [...meta.aiFeatures, ...meta.appFeatures];
@@ -44,6 +46,14 @@ export default function PlansTab() {
           <Switch checked={settings.showPricing} onChange={(v) => update((s) => ((s.showPricing = v), s))} />
         </Field>
       </div>
+      {paddleOn ? (
+        <Alert
+          type="info"
+          showIcon
+          title="Prices come from Paddle"
+          description="Payments are connected, so the pricing page shows (and customers pay) the prices set in Paddle. To change a price, edit it in Paddle under Catalog › Products; the site picks it up within 10 minutes."
+        />
+      ) : null}
       <div className="grid gap-5 lg:grid-cols-3">
         {settings.plans.map((p, i) => (
           <div key={p.id} className={`rounded-2xl border bg-white p-5 ${p.highlight ? "border-brand ring-1 ring-brand" : "border-slate-200"}`}>
@@ -59,8 +69,8 @@ export default function PlansTab() {
               <Field label="Name"><Input value={p.name} onChange={(e) => setPlan(i, (x) => (x.name = e.target.value))} /></Field>
               <Field label="Tagline"><Input value={p.tagline} onChange={(e) => setPlan(i, (x) => (x.tagline = e.target.value))} /></Field>
               <div className="grid grid-cols-2 gap-2">
-                <Field label={`Monthly price (${settings.currency})`}><InputNumber min={0} step={1} className="!w-full" value={p.price} onChange={(v) => setPlan(i, (x) => (x.price = v ?? 0))} /></Field>
-                <Field label={`Yearly price (${settings.currency})`} hint="0 hides the yearly option for this plan"><InputNumber min={0} step={1} className="!w-full" value={p.yearlyPrice} onChange={(v) => setPlan(i, (x) => (x.yearlyPrice = v ?? 0))} /></Field>
+                <Field label={`Monthly price (${settings.currency})`}><InputNumber min={0} step={0.01} disabled={paddleOn && p.id !== "free"} className="!w-full" value={p.price} onChange={(v) => setPlan(i, (x) => (x.price = v ?? 0))} /></Field>
+                <Field label={`Yearly price (${settings.currency})`} hint="0 hides the yearly option for this plan"><InputNumber min={0} step={0.01} disabled={paddleOn && p.id !== "free"} className="!w-full" value={p.yearlyPrice} onChange={(v) => setPlan(i, (x) => (x.yearlyPrice = v ?? 0))} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="AI credits"><InputNumber min={0} className="!w-full" value={p.credits} onChange={(v) => setPlan(i, (x) => (x.credits = v ?? 0))} /></Field>
