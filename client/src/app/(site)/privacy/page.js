@@ -36,6 +36,8 @@ export default function PrivacyPage() {
       <section>
         <h2>AI features</h2>
         <p>When you use an AI feature (the assistant, rewrites, cover letters or importing a resume), the relevant resume content is sent to Google&apos;s Gemini API to generate the answer and is handled under Google&apos;s API terms. We send only what the feature needs and never your password or photo. The ATS check itself runs in your browser and does not use AI.</p>
+        <h2>The ATS checker</h2>
+        <p>When you upload a PDF to the <Link href="/ats-checker">ATS checker</Link>, it&apos;s sent over an encrypted connection to our API, which extracts its text and returns it to your browser, where the checks run. The file is held in memory only while it&apos;s read. It isn&apos;t saved, logged or used for anything else, and no AI is involved. We count checks per network address to keep the free checker fair, and those counts expire within the hour.</p>
       </section>
 
       <section>

@@ -11,6 +11,7 @@ const resumeRoutes = require('./routes/resume');
 const publicRoutes = require('./routes/public');
 const billingRoutes = require('./routes/billing');
 const adminRoutes = require('./routes/admin');
+const atsRoutes = require('./routes/ats');
 const { canSendMail } = require('./lib/mailer');
 const { limit, clientIp } = require('./lib/rateLimit');
 
@@ -89,6 +90,7 @@ app.use('/api/resumes', resumeRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ats', atsRoutes);
 
 app.get('/api/health', (req, res) => {
     res.json({ success: true, db: mongoose.connection.readyState === 1, ai: aiRoutes.aiEnabled(), email: canSendMail() });

@@ -7,8 +7,8 @@
  * `pdfText` is the text extracted from the real PDF (what an ATS reads);
  * `resume` is the structured data used for content checks.
  */
-import { SKILLS, SOFT_SKILLS, ACTION_VERBS, WEAK_PHRASES, CLICHES, PRONOUNS, STANDARD_HEADINGS, DEGREE_LEVELS, STOPWORDS } from "./dictionary";
-import { splitBullets, splitList } from "../resume";
+import { SKILLS, SOFT_SKILLS, ACTION_VERBS, WEAK_PHRASES, CLICHES, PRONOUNS, STANDARD_HEADINGS, DEGREE_LEVELS, STOPWORDS } from "./dictionary.js";
+import { splitBullets, splitList } from "../resume.js";
 
 // ---------- text helpers ----------
 
@@ -94,7 +94,11 @@ const list = (items, max = 4) => {
 
 // ---------- 1. Parsing: what an ATS actually extracts from the PDF ----------
 
-function parsingChecks({ resume, pdfText, pageCount, template }) {
+/**
+ * `upload` is set for a PDF uploaded to the ATS checker page: { columns, images, garbled,
+ * sections } describe the file itself, since there's no builder template to go by.
+ */
+function parsingChecks({ resume, pdfText, pageCount, template, upload }) {
   const checks = [];
   const text = squash(pdfText);
   const despaced = text.replace(/\b(\p{L}) (?=\p{L}\b)/gu, "$1"); // "E X P E R I E N C E" -> "EXPERIENCE"
@@ -135,6 +139,45 @@ function parsingChecks({ resume, pdfText, pageCount, template }) {
   checks.push(
     check("phone", "Phone number is readable", !phoneDigits ? WARN : textDigits.includes(phoneDigits) ? PASS : WARN, !phoneDigits ? "Add a phone number." : textDigits.includes(phoneDigits) ? `Found ${p.phone}.` : "Your phone number didn't come through cleanly.", 1)
   );
+
+  // An uploaded PDF: sections are only known through their headings.
+  if (upload) {
+    const main = ["experience", "education", "skills"];
+    const missing = main.filter((s) => !upload.sections?.has(s));
+    checks.push(
+      check(
+        "headings",
+        "Standard section headings",
+        missing.length === main.length ? FAIL : missing.length ? WARN : PASS,
+        missing.length
+          ? `We couldn't find a standard heading for: ${missing.join(", ")}. If your resume has ${missing.length > 1 ? "these sections" : "this section"}, title ${missing.length > 1 ? "them" : "it"} “${missing.map((m) => m[0].toUpperCase() + m.slice(1)).join("”, “")}” so an ATS can find ${missing.length > 1 ? "them" : "it"}.`
+          : "Experience, Education and Skills use headings ATS recognise.",
+        2
+      )
+    );
+    const garbled = upload.garbled || 0;
+    checks.push(
+      check("fidelity", "Characters come through cleanly", garbled > 3 ? FAIL : garbled ? WARN : PASS, garbled ? `${garbled} character${garbled === 1 ? "" : "s"} couldn't be read (special fonts, icons or symbols). An ATS may drop or garble them.` : "Every character in your PDF can be read.", 2)
+    );
+    checks.push(
+      check(
+        "layout",
+        "Single-column layout",
+        upload.columns ? WARN : PASS,
+        upload.columns
+          ? "Your PDF uses columns. Modern ATS usually handle it, but older ones can mix the columns together. For online applications, a single-column layout is the safest."
+          : "One column: every ATS reads this top to bottom.",
+        2
+      )
+    );
+    checks.push(
+      check("photo", "No photo or graphics", upload.images ? WARN : PASS, upload.images ? "Your PDF contains an image (a photo, logo or graphic). ATS ignore images, so any text inside them is lost, and employers in the US, UK and Canada often prefer no photo." : "No images — the safest choice for ATS.", 1)
+    );
+    checks.push(
+      check("pages", "Length", pageCount <= 2 ? PASS : pageCount === 3 ? WARN : FAIL, pageCount <= 2 ? `${pageCount} page${pageCount > 1 ? "s" : ""} — ideal.` : `${pageCount} pages. Recruiters expect one page, or two with long experience.`, 1)
+    );
+    return checks;
+  }
 
   // Headings: each section the resume has should be introduced by a heading ATS know.
   const need = ["experience", "education", "skills"].filter((s) => (s === "skills" ? splitList(resume.skills).length : resume[s]?.length));
@@ -493,8 +536,8 @@ export function gradeFor(score) {
   return { label: "Poor", tone: "red" };
 }
 
-export function analyzeResume({ resume, pdfText = "", pageCount = 1, template, jobDescription = "" }) {
-  const parsing = parsingChecks({ resume, pdfText, pageCount, template });
+export function analyzeResume({ resume, pdfText = "", pageCount = 1, template, jobDescription = "", upload = null }) {
+  const parsing = parsingChecks({ resume, pdfText, pageCount, template, upload });
   const content = contentChecks({ resume });
   const hasJob = String(jobDescription).trim().length > 40;
   const match = hasJob ? matchChecks({ resume, jobDescription }) : null;

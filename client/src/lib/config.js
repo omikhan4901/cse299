@@ -17,4 +17,4 @@ export const SITE_DESCRIPTION =
 
 /** Shown on the privacy and terms pages (fixed, so a stray environment variable can't change it). */
 export const CONTACT_EMAIL = "support@resumex.cc";
-export const LEGAL_UPDATED = "27 September 2026";
+export const LEGAL_UPDATED = "28 September 2026";

@@ -3,9 +3,9 @@ name: API tests
 on:
   push:
     branches: [main]
-    paths: ["server/**", "shared/**", "client/src/lib/access.js", "client/src/pdf/**", ".github/workflows/api-tests.yml"]
+    paths: ["server/**", "shared/**", "client/src/lib/access.js", "client/src/lib/ats/**", "client/src/lib/resume.js", "client/src/pdf/**", ".github/workflows/api-tests.yml"]
   pull_request:
-    paths: ["server/**", "shared/**", "client/src/lib/access.js", "client/src/pdf/**", ".github/workflows/api-tests.yml"]
+    paths: ["server/**", "shared/**", "client/src/lib/access.js", "client/src/lib/ats/**", "client/src/lib/resume.js", "client/src/pdf/**", ".github/workflows/api-tests.yml"]
 
 jobs:
   test:
