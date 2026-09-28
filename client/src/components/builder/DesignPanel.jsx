@@ -11,7 +11,7 @@ import { FONT_OPTIONS } from "@/pdf/fonts";
  * Design tab: the current template with quick picks from its category (the
  * full 50 live in the TemplateGallery dialog), then colour, font and paper.
  */
-export default function DesignPanel({ resume, onTemplate, setTheme, onBrowse, onHelp }) {
+export default function DesignPanel({ resume, onTemplate, setTheme, onBrowse, onHelp, isLocked }) {
   const tpl = templateById(resume.template);
   const category = categoryById(tpl.category);
   const siblings = templatesIn(tpl.category);
@@ -61,6 +61,9 @@ export default function DesignPanel({ resume, onTemplate, setTheme, onBrowse, on
                     className={`relative aspect-[1/1.414] w-[74px] shrink-0 overflow-hidden rounded-md border bg-slate-100 transition duration-200 ${active ? "border-brand ring-2 ring-brand" : "border-slate-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"}`}
                   >
                     <Image src={`/templates/${t.id}.jpg`} alt="" fill sizes="74px" className="object-cover object-top" />
+                    {isLocked?.(t.id) ? (
+                      <span className="absolute bottom-1 left-1 rounded-full bg-amber-400 px-1.5 text-[9px] font-bold text-amber-950 shadow">PRO</span>
+                    ) : null}
                     {active ? (
                       <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-white shadow">
                         <Check size={10} />

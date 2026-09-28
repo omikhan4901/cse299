@@ -6,10 +6,10 @@ import {
   Palette, PenLine, BookOpen, ZoomIn, ZoomOut, Maximize2, MessageSquare, ScanSearch, Mail, Upload, Save, Share2, Download, Loader2, Lock, Check,
 } from "lucide-react";
 import { AI_LOCKED_MESSAGE } from "./ai";
+import { CreditTooltip } from "../Credits";
 
-function DockButton({ title, onClick, children, className = "", disabled, badge, tour }) {
-  return (
-    <Tooltip title={title} placement="left">
+function DockButton({ title, onClick, children, className = "", disabled, badge, tour, feature }) {
+  const button = (
       <motion.button
         type="button"
         onClick={onClick}
@@ -23,7 +23,11 @@ function DockButton({ title, onClick, children, className = "", disabled, badge,
         {children}
         {badge}
       </motion.button>
-    </Tooltip>
+  );
+  return feature ? (
+    <CreditTooltip feature={feature} title={title} placement="left">{button}</CreditTooltip>
+  ) : (
+    <Tooltip title={title} placement="left">{button}</Tooltip>
   );
 }
 
@@ -82,16 +86,16 @@ export default function ActionDock({
         ) : null}
 
         <Divider />
-        <DockButton title={aiTitle("AI assistant")} tour="dock-ai" onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={lock}>
+        <DockButton title={aiTitle("AI assistant")} feature={aiEnabled ? "chat" : undefined} tour="dock-ai" onClick={() => onAi("chat")} className="bg-gradient-to-br from-teal-50 to-brand-100 text-brand shadow-sm" badge={lock}>
           <MessageSquare size={18} />
         </DockButton>
-        <DockButton title="ATS check" tour="dock-ats" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm">
+        <DockButton title="ATS check · always free" tour="dock-ats" onClick={() => onAi("audit")} className="bg-violet-50 text-violet-600 shadow-sm">
           <ScanSearch size={18} />
         </DockButton>
-        <DockButton title={aiTitle("Cover letter")} onClick={() => onAi("cover")} className="bg-pink-50 text-pink-600 shadow-sm" badge={lock}>
+        <DockButton title={aiTitle("Cover letter")} feature={aiEnabled ? "coverLetter" : undefined} onClick={() => onAi("cover")} className="bg-pink-50 text-pink-600 shadow-sm" badge={lock}>
           <Mail size={18} />
         </DockButton>
-        <DockButton title={aiTitle("Import PDF / DOCX")} onClick={() => onAi("import")} className="bg-amber-50 text-amber-600 shadow-sm" badge={lock}>
+        <DockButton title={aiTitle("Import PDF / DOCX")} feature={aiEnabled ? "parse" : undefined} onClick={() => onAi("import")} className="bg-amber-50 text-amber-600 shadow-sm" badge={lock}>
           <Upload size={18} />
         </DockButton>
 

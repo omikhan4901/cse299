@@ -2,8 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Modal, Input, Button, App } from "antd";
-import { Send, Sparkles, Copy } from "lucide-react";
+import { Send, Sparkles, Copy, Zap } from "lucide-react";
 import { api } from "@/lib/api";
+import { CreditTooltip } from "../Credits";
+import { useBilling } from "../BillingProvider";
+
+/** "Each message uses 1 credit · 38 left today" */
+function CostHint({ feature, verb }) {
+  const billing = useBilling();
+  const cost = billing?.costOf(feature);
+  const usage = billing?.usage;
+  if (cost == null) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+      <Zap size={11} className="fill-amber-400 text-amber-500" />
+      {verb} {cost === 0 ? "is free" : `uses ${cost} credit${cost === 1 ? "" : "s"}`}
+      {usage ? ` · ${usage.remaining} left ${usage.period === "month" ? "this month" : "today"}` : ""}
+    </span>
+  );
+}
 
 const { TextArea } = Input;
 
@@ -68,13 +85,16 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
         <Input size="large" value={input} onChange={(e) => setInput(e.target.value)} onPressEnter={send} placeholder="e.g. What skills am I missing for a data analyst role?" disabled={loading} />
         <Button size="large" type="primary" icon={<Send size={16} />} onClick={send} loading={loading} />
       </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <CostHint feature="chat" verb="Each message" />
       {onOpenGuide ? (
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="text-xs text-slate-400">
           Answers follow our{" "}
           <button type="button" onClick={onOpenGuide} className="font-medium text-brand hover:underline">How to write a good resume</button>{" "}
           guide.
         </p>
       ) : null}
+      </div>
     </Modal>
   );
 }
@@ -104,9 +124,12 @@ export function CoverLetterModal({ open, onClose, resume, token }) {
         <div>
           <p className="mb-3 text-sm text-slate-500">We&apos;ll write a letter that connects your experience to this job.</p>
           <TextArea rows={8} value={job} onChange={(e) => setJob(e.target.value)} placeholder="Paste the full job description" />
-          <Button type="primary" size="large" block className="!mt-4" loading={loading} onClick={generate}>
-            Write my cover letter
-          </Button>
+          <CreditTooltip feature="coverLetter">
+            <Button type="primary" size="large" block className="!mt-4" loading={loading} onClick={generate}>
+              Write my cover letter
+            </Button>
+          </CreditTooltip>
+          <p className="mt-2 text-center"><CostHint feature="coverLetter" verb="A cover letter" /></p>
         </div>
       ) : (
         <div>

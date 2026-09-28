@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
 import { loadPdfJs } from "./PdfPreview";
 import { aiResume } from "./AiModals";
+import { CreditTooltip } from "../Credits";
 
 const { TextArea } = Input;
 
@@ -347,9 +348,11 @@ function AtsChecker({ resume, token }) {
         <div className="rounded-xl border border-brand-100 bg-brand-50/40 p-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-slate-600"><b className="text-ink">Want rewrite ideas?</b> Get an AI opinion — it isn&apos;t part of the score.</p>
-            <Button icon={<Sparkles size={14} />} loading={ai.loading} onClick={askAi} disabled={!token}>
-              AI suggestions
-            </Button>
+            <CreditTooltip feature="audit">
+              <Button icon={<Sparkles size={14} />} loading={ai.loading} onClick={askAi} disabled={!token}>
+                AI suggestions
+              </Button>
+            </CreditTooltip>
           </div>
           {!token ? <p className="mt-2 text-xs text-slate-500">Log in to use AI suggestions.</p> : null}
           {ai.error ? <p className="mt-2 text-sm text-red-600">{ai.error}</p> : null}

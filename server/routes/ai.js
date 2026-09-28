@@ -4,7 +4,7 @@ const mammoth = require('mammoth');
 const { protect } = require('./auth');
 const { toResume, TRANSCRIPT_SCHEMA, TRANSCRIBE_INSTRUCTION } = require('../lib/resumeImport');
 const { loadResumeGuide } = require('../lib/resumeGuide');
-const { aiQuota, aiUsage } = require('../lib/rateLimit');
+const { aiQuota, usageSummary } = require('../lib/credits');
 
 const router = express.Router();
 
@@ -39,7 +39,7 @@ router.use((req, res, next) => {
 // How many AI requests the signed-in account has left today.
 router.get('/usage', protect, async (req, res, next) => {
     try {
-        res.json({ success: true, usage: await aiUsage(req.userId) });
+        res.json({ success: true, usage: await usageSummary(req.userId) });
     } catch (err) {
         next(err);
     }
@@ -123,7 +123,7 @@ const fixNewlines = (value) => {
 };
 
 // --- 1. Context-aware refinement ---
-router.post('/refine', protect, aiQuota(1), async (req, res) => {
+router.post('/refine', protect, aiQuota('refine'), async (req, res) => {
     const { resumeText, fullResume, sectionType } = req.body;
     if (!resumeText || !String(resumeText).trim()) return res.status(400).json({ success: false, error: 'No text provided.' });
 
@@ -158,7 +158,7 @@ RULES:
 });
 
 // --- 2. Context-aware chat ---
-router.post('/chat', protect, aiQuota(1), async (req, res) => {
+router.post('/chat', protect, aiQuota('chat'), async (req, res) => {
     const { conversation, fullResume } = req.body;
     if (!Array.isArray(conversation) || conversation.length === 0) {
         return res.status(400).json({ success: false, error: 'No conversation history.' });
@@ -198,7 +198,7 @@ ${JSON.stringify(cleanResume(fullResume))}`;
 });
 
 // --- 3. ATS audit (structured JSON) ---
-router.post('/audit', protect, aiQuota(1), async (req, res) => {
+router.post('/audit', protect, aiQuota('audit'), async (req, res) => {
     const { resumeData, jobDescription } = req.body;
     if (!resumeData) return res.status(400).json({ success: false, error: 'Missing resume.' });
     const targeted = !!String(jobDescription || '').trim();
@@ -234,7 +234,7 @@ Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 
 // --- 4. Import an existing resume (PDF / DOCX) ---
 // Step 1: the model makes an exact JSON transcription (PDFs are sent as-is so
 // Gemini can read the real layout). Step 2: lib/resumeImport maps it to our format.
-router.post('/parse', protect, aiQuota(3), upload.single('resumeFile'), async (req, res) => {
+router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), async (req, res) => {
     const file = req.file;
     if (!file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
 
@@ -261,7 +261,7 @@ router.post('/parse', protect, aiQuota(3), upload.single('resumeFile'), async (r
 });
 
 // --- 5. Cover letter ---
-router.post('/cover-letter', protect, aiQuota(2), async (req, res) => {
+router.post('/cover-letter', protect, aiQuota('coverLetter'), async (req, res) => {
     const { resumeData, jobDescription } = req.body;
     if (!resumeData || !String(jobDescription || '').trim()) {
         return res.status(400).json({ success: false, error: 'Missing resume or job description.' });

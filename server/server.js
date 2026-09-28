@@ -10,6 +10,8 @@ const authRoutes = require('./routes/auth');
 const aiRoutes = require('./routes/ai');
 const resumeRoutes = require('./routes/resume');
 const publicRoutes = require('./routes/public');
+const billingRoutes = require('./routes/billing');
+const adminRoutes = require('./routes/admin');
 const { canSendMail } = require('./lib/mailer');
 
 for (const key of ['MONGO_URI', 'JWT_SECRET']) {
@@ -84,6 +86,8 @@ app.use('/api/auth', authRoutes.router);
 app.use('/api/public', publicRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/api/health', (req, res) => {
     res.json({ success: true, db: mongoose.connection.readyState === 1, ai: aiRoutes.aiEnabled(), email: canSendMail() });

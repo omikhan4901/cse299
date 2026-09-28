@@ -34,5 +34,7 @@ export async function api(path, { token, method = "GET", body, timeout = 60000 }
     throw new ApiError("Could not reach the server. Check your connection and try again.", 0);
   } finally {
     clearTimeout(timer);
+    // AI requests may have spent credits: let the credit meter refresh.
+    if (path.startsWith("/ai/") && typeof window !== "undefined") window.dispatchEvent(new Event("resumex:credits-changed"));
   }
 }

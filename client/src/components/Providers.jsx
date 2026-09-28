@@ -4,6 +4,7 @@ import { ConfigProvider, App } from "antd";
 import { MotionConfig } from "motion/react";
 import { AuthProvider } from "./AuthProvider";
 import AuthModal from "./AuthModal";
+import { BillingProvider } from "./BillingProvider";
 
 const theme = {
   token: {
@@ -24,8 +25,10 @@ export default function Providers({ children }) {
     <ConfigProvider theme={theme}>
       <App>
         <AuthProvider>
-          {children}
-          <AuthModal />
+          <BillingProvider>
+            {children}
+            <AuthModal />
+          </BillingProvider>
         </AuthProvider>
       </App>
     </ConfigProvider>

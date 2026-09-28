@@ -6,6 +6,7 @@ import { Alert, App, Button, Form, Input, Modal, Progress, Result, Skeleton } fr
 import { Crown, Download, KeyRound, Sparkles, Trash2, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { API_URL, AI_ENABLED } from "@/lib/config";
+import { useBilling, resetsIn } from "../BillingProvider";
 import { useAuth } from "../AuthProvider";
 
 function Card({ icon: Icon, title, description, children, danger }) {
@@ -25,24 +26,22 @@ function Card({ icon: Icon, title, description, children, danger }) {
   );
 }
 
-const hoursUntil = (iso) => Math.max(1, Math.ceil((new Date(iso) - Date.now()) / 3600000));
 
 export default function AccountSettings() {
   const { user, token, loading, openAuth, updateSession, logout } = useAuth();
   const { message } = App.useApp();
-  const [usage, setUsage] = useState(null);
   const [savingName, setSavingName] = useState(false);
   const [pw, setPw] = useState({ loading: false, error: null });
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState({ open: false, loading: false, error: null });
   const [pwForm] = Form.useForm();
 
+  const billing = useBilling();
+  const usage = billing?.usage;
   useEffect(() => {
-    if (!token || !AI_ENABLED) return;
-    api("/ai/usage", { token })
-      .then((d) => setUsage(d.usage))
-      .catch(() => {});
-  }, [token]);
+    billing?.refreshUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -116,7 +115,7 @@ export default function AccountSettings() {
     }
   };
 
-  const pro = user.plan === "pro";
+  const pro = user.plan && user.plan !== "free";
 
   return (
     <div className="container-x max-w-3xl space-y-6 py-10">
@@ -136,18 +135,31 @@ export default function AccountSettings() {
         </Form>
         <div className="mt-4 flex items-center gap-2 text-sm">
           <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${pro ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>
-            {pro ? <Crown size={12} /> : null} {pro ? "Pro" : "Free"} plan
+            {pro ? <Crown size={12} /> : null} {billing?.config?.plans?.find((p) => p.id === user.plan)?.name || (pro ? "Pro" : "Free")} plan
           </span>
           {pro && user.planExpiresAt ? <span className="text-slate-500">until {new Date(user.planExpiresAt).toLocaleDateString()}</span> : null}
         </div>
       </Card>
 
-      {usage ? (
-        <Card icon={Sparkles} title="AI usage today" description="AI requests reset every day at midnight UTC. Importing a PDF counts as 3, a cover letter as 2.">
-          <Progress percent={Math.round((usage.used / usage.limit) * 100)} showInfo={false} strokeColor={usage.remaining ? undefined : "#dc2626"} />
+      {usage && AI_ENABLED ? (
+        <Card
+          icon={Sparkles}
+          title={`AI credits ${usage.period === "month" ? "this month" : "today"}`}
+          description={usage.source === "freeMode" ? "Free during early access. Credits refresh every day at midnight UTC." : `Your ${usage.plan?.name} plan allowance. Credits refresh ${usage.period === "month" ? "on the 1st of each month" : "every day at midnight UTC"}.`}
+        >
+          <Progress percent={Math.round((usage.used / Math.max(1, usage.limit)) * 100)} showInfo={false} strokeColor={usage.remaining ? undefined : "#dc2626"} />
           <p className="mt-1 text-sm text-slate-600">
-            <b className="text-ink">{usage.used}</b> of {usage.limit} used · {usage.remaining} left · resets in about {hoursUntil(usage.resetsAt)} h
+            <b className="text-ink">{usage.used}</b> of {usage.limit} used · {usage.remaining} left · refreshes {resetsIn(usage.resetsAt)}
           </p>
+          {billing?.config ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {billing.config.aiFeatures.map((f) => (
+                <span key={f.key} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                  {f.name} <b className="text-ink">{billing.costOf(f.key)}</b>
+                </span>
+              ))}
+            </div>
+          ) : null}
         </Card>
       ) : null}
 

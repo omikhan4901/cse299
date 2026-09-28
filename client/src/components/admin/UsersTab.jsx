@@ -1,0 +1,367 @@
+"use client";
+
+import { useState } from "react";
+import { App, Alert, Button, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag } from "antd";
+import { Ban, Download, KeyRound, RotateCcw, Search, Trash2, UserPlus } from "lucide-react";
+import { API_URL } from "@/lib/config";
+import { useAuth } from "../AuthProvider";
+import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
+
+const PLAN_OPTIONS = [
+  { value: "free", label: "Free" },
+  { value: "pro", label: "Pro" },
+  { value: "premium", label: "Premium" },
+];
+const PLAN_COLOR = { free: "default", pro: "cyan", premium: "gold" };
+const periodLabel = (p) => (p === "month" ? "/ month" : "/ day");
+
+function Credits({ c }) {
+  const pct = c.limit ? Math.min(100, Math.round((c.used / c.limit) * 100)) : 100;
+  return (
+    <div className="w-36">
+      <div className="flex justify-between text-xs text-slate-500">
+        <span className="tabular-nums"><b className="text-ink">{c.used}</b> / {c.limit} {periodLabel(c.period)}</span>
+        {c.source === "custom" ? <span className="text-amber-600">custom</span> : null}
+      </div>
+      <Progress percent={pct} showInfo={false} size="small" strokeColor={pct >= 100 ? "#dc2626" : "#0d9488"} />
+    </div>
+  );
+}
+
+/** Edit drawer for one user: plan, credits, role, ban, password, delete. */
+function UserDrawer({ id, onClose, onChanged, isSuper }) {
+  const { message, modal } = App.useApp();
+  const { data, loading, call, setData } = useAdmin(id ? `/users/${id}` : null);
+  const [saving, setSaving] = useState(false);
+  const [form] = Form.useForm();
+
+  const save = async (patch) => {
+    setSaving(true);
+    try {
+      const d = await call(`/users/${id}`, { method: "PATCH", body: patch });
+      setData({ ...data, ...d.data });
+      onChanged();
+      message.success("Saved");
+      return true;
+    } catch (err) {
+      message.error(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const action = async (fn, done) => {
+    try {
+      await fn();
+      message.success(done);
+      onChanged();
+    } catch (err) {
+      message.error(err.message);
+    }
+  };
+
+  const u = data;
+  return (
+    <Drawer open={!!id} onClose={onClose} size={560} title={u ? u.name : "User"} destroyOnHidden>
+      {loading && !u ? null : u ? (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            <span>{u.email}</span>
+            <Tag color={PLAN_COLOR[u.effectivePlan]}>{u.effectivePlan}</Tag>
+            {u.role !== "user" ? <Tag color="purple">{u.role}</Tag> : null}
+            {u.banned ? <Tag color="red">banned</Tag> : null}
+          </div>
+          <p className="text-xs text-slate-500">
+            Joined {fmtDate(u.createdAt)} · last login {fmtDate(u.lastLoginAt)} · {u.resumes} resume{u.resumes === 1 ? "" : "s"}
+            {u.campaign ? <> · campaign <b>{u.campaign.code}</b></> : null}
+          </p>
+
+          <Form
+            form={form}
+            layout="vertical"
+            requiredMark={false}
+            initialValues={{
+              name: u.name,
+              email: u.email,
+              plan: u.plan || "free",
+              planExpiresAt: toDateInput(u.planExpiresAt),
+              customCredits: u.creditLimit != null,
+              creditLimit: u.creditLimit ?? u.credits.limit,
+              creditPeriod: u.creditPeriod || u.credits.period,
+              role: u.role === "admin" ? "admin" : "user",
+            }}
+            onFinish={(v) =>
+              save({
+                name: v.name,
+                email: v.email,
+                plan: v.plan,
+                planExpiresAt: v.planExpiresAt || null,
+                creditLimit: v.customCredits ? v.creditLimit : null,
+                creditPeriod: v.customCredits ? v.creditPeriod : null,
+                ...(isSuper && u.role !== "superadmin" ? { role: v.role } : {}),
+              })
+            }
+          >
+            <div className="grid grid-cols-2 gap-x-3">
+              <Form.Item name="name" label="Name"><Input /></Form.Item>
+              <Form.Item name="email" label="Email"><Input /></Form.Item>
+              <Form.Item name="plan" label="Plan"><Select options={PLAN_OPTIONS} /></Form.Item>
+              <Form.Item name="planExpiresAt" label="Plan ends" extra="Leave empty for no end date"><Input type="date" /></Form.Item>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-ink">Custom credit allowance</p>
+                  <p className="text-xs text-slate-500">Overrides the plan (and free mode) for this user.</p>
+                </div>
+                <Form.Item name="customCredits" valuePropName="checked" noStyle><Switch /></Form.Item>
+              </div>
+              <Form.Item noStyle shouldUpdate={(a, b) => a.customCredits !== b.customCredits}>
+                {({ getFieldValue }) =>
+                  getFieldValue("customCredits") ? (
+                    <div className="grid grid-cols-2 gap-x-3">
+                      <Form.Item name="creditLimit" label="Credits" className="!mb-0"><InputNumber min={0} className="!w-full" /></Form.Item>
+                      <Form.Item name="creditPeriod" label="Per" className="!mb-0"><Select options={[{ value: "day", label: "Day" }, { value: "month", label: "Month" }]} /></Form.Item>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">Using {u.credits.limit} credits {periodLabel(u.credits.period)} ({u.credits.source === "freeMode" ? "free mode" : "plan"}).</p>
+                  )
+                }
+              </Form.Item>
+            </div>
+            {isSuper && u.role !== "superadmin" ? (
+              <Form.Item name="role" label="Role" className="!mt-4" extra="Admins can open this console. Only super admins change roles.">
+                <Select options={[{ value: "user", label: "User" }, { value: "admin", label: "Admin" }]} />
+              </Form.Item>
+            ) : null}
+            <Button type="primary" htmlType="submit" loading={saving} className="!mt-4">Save changes</Button>
+          </Form>
+
+          <div className="rounded-xl border border-slate-200 p-4">
+            <p className="font-medium text-ink">This {u.credits.period}&apos;s credits</p>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <Credits c={u.credits} />
+              <Button icon={<RotateCcw size={14} />} onClick={() => action(() => call(`/users/${id}/reset-credits`, { method: "POST" }).then((d) => setData({ ...u, ...d.data })), "Credits restored")}>
+                Restore full allowance
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              icon={<KeyRound size={14} />}
+              onClick={() => {
+                let pw = "";
+                modal.confirm({
+                  title: `Set a new password for ${u.name}`,
+                  content: <Input.Password placeholder="At least 8 characters" onChange={(e) => (pw = e.target.value)} className="!mt-2" />,
+                  okText: "Set password",
+                  onOk: () => save({ password: pw }),
+                });
+              }}
+            >
+              Set password
+            </Button>
+            {u.role !== "superadmin" ? (
+              u.banned ? (
+                <Button onClick={() => save({ banned: false })}>Lift ban</Button>
+              ) : (
+                <Button
+                  danger
+                  icon={<Ban size={14} />}
+                  onClick={() => {
+                    let reason = "";
+                    modal.confirm({
+                      title: `Ban ${u.name}?`,
+                      content: (
+                        <>
+                          <p className="mb-2 text-sm text-slate-600">They&apos;ll be signed out and can&apos;t log in. Their data is kept.</p>
+                          <Input placeholder="Reason (shown to them)" onChange={(e) => (reason = e.target.value)} />
+                        </>
+                      ),
+                      okText: "Ban",
+                      okButtonProps: { danger: true },
+                      onOk: () => save({ banned: true, bannedReason: reason }),
+                    });
+                  }}
+                >
+                  Ban user
+                </Button>
+              )
+            ) : null}
+          </div>
+          {u.banned ? <Alert type="error" showIcon title={`Banned${u.bannedReason ? `: ${u.bannedReason}` : ""}`} /> : null}
+
+          <div>
+            <p className="mb-2 font-medium text-ink">Resumes</p>
+            {u.resumesList.length ? (
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-sm">
+                {u.resumesList.map((r) => (
+                  <li key={r._id} className="flex items-center justify-between px-3 py-2">
+                    <span className="font-medium text-ink">{r.nickname}</span>
+                    <span className="text-xs text-slate-500">
+                      {r.template} · {fmtDate(r.updatedAt)}
+                      {r.isPublic ? <> · <a href={`/view/${r.shortId || r._id}`} target="_blank" rel="noreferrer" className="text-brand">public</a></> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="text-sm text-slate-500">No resumes.</p>}
+          </div>
+
+          <div>
+            <p className="mb-2 font-medium text-ink">Recent AI activity</p>
+            {u.events.length ? (
+              <ul className="max-h-60 divide-y divide-slate-100 overflow-auto rounded-xl border border-slate-200 text-sm">
+                {u.events.map((e) => (
+                  <li key={e._id} className="flex justify-between px-3 py-1.5">
+                    <span className="text-slate-700">{e.feature}</span>
+                    <span className="text-xs text-slate-500 tabular-nums">{e.credits} cr · {new Date(e.at).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="text-sm text-slate-500">No AI usage yet.</p>}
+          </div>
+
+          {u.role !== "superadmin" ? (
+            <Popconfirm
+              title="Delete this account?"
+              description="Their resumes and share links are deleted too. This can't be undone."
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => action(() => call(`/users/${id}`, { method: "DELETE" }).then(onClose), "Account deleted")}
+            >
+              <Button danger type="text" icon={<Trash2 size={14} />}>Delete account</Button>
+            </Popconfirm>
+          ) : null}
+        </div>
+      ) : null}
+    </Drawer>
+  );
+}
+
+function AddUserModal({ open, onClose, onCreated }) {
+  const { message } = App.useApp();
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { call } = useAdmin(null);
+  const submit = async (v) => {
+    setLoading(true);
+    try {
+      await call("/users", { method: "POST", body: { ...v, creditLimit: v.creditLimit ?? null, planExpiresAt: v.planExpiresAt || null } });
+      message.success(`Created ${v.email}`);
+      onCreated();
+      onClose();
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <Modal open={open} onCancel={onClose} footer={null} title="Add a user" destroyOnHidden>
+      {token ? (
+        <Form layout="vertical" requiredMark={false} onFinish={submit} initialValues={{ plan: "free" }}>
+          <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="email" label="Email" rules={[{ required: true, type: "email" }]}><Input /></Form.Item>
+          <Form.Item name="password" label="Temporary password" rules={[{ required: true, min: 8 }]} extra="Share it with them; they can change it in Account settings."><Input.Password /></Form.Item>
+          <div className="grid grid-cols-2 gap-x-3">
+            <Form.Item name="plan" label="Plan"><Select options={PLAN_OPTIONS} /></Form.Item>
+            <Form.Item name="planExpiresAt" label="Plan ends"><Input type="date" /></Form.Item>
+          </div>
+          <Button type="primary" htmlType="submit" loading={loading} block>Create account</Button>
+        </Form>
+      ) : null}
+    </Modal>
+  );
+}
+
+export default function UsersTab({ isSuper }) {
+  const { token } = useAuth();
+  const [query, setQuery] = useState({ q: "", plan: "", status: "", page: 1 });
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const params = new URLSearchParams({ q: query.q, plan: query.plan, status: query.status, page: String(query.page), limit: "20" });
+  const { data, loading, error, reload } = useAdmin(`/users?${params}`);
+
+  const exportCsv = async () => {
+    const res = await fetch(`${API_URL}/admin/users/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "resumex-users.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const columns = [
+    {
+      title: "User",
+      key: "user",
+      render: (_, u) => (
+        <div>
+          <p className="font-medium text-ink">{u.name}</p>
+          <p className="text-xs text-slate-500">{u.email}</p>
+        </div>
+      ),
+    },
+    {
+      title: "Plan",
+      key: "plan",
+      render: (_, u) => (
+        <div className="flex flex-wrap gap-1">
+          <Tag color={PLAN_COLOR[u.effectivePlan]}>{u.effectivePlan}</Tag>
+          {u.role !== "user" ? <Tag color="purple">{u.role}</Tag> : null}
+          {u.banned ? <Tag color="red">banned</Tag> : null}
+        </div>
+      ),
+    },
+    { title: "Credits", key: "credits", render: (_, u) => <Credits c={u.credits} /> },
+    { title: "Resumes", dataIndex: "resumes", key: "resumes", align: "right" },
+    { title: "Joined", dataIndex: "createdAt", key: "createdAt", render: fmtDate },
+    { title: "Last login", dataIndex: "lastLoginAt", key: "lastLoginAt", render: fmtDate },
+  ];
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Input
+          allowClear
+          prefix={<Search size={15} className="text-slate-400" />}
+          placeholder="Search name or email"
+          className="!w-64"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            if (!e.target.value) setQuery((q) => ({ ...q, q: "", page: 1 }));
+          }}
+          onPressEnter={() => setQuery((q) => ({ ...q, q: search, page: 1 }))}
+        />
+        <Select className="!w-36" value={query.plan} onChange={(plan) => setQuery((q) => ({ ...q, plan, page: 1 }))} options={[{ value: "", label: "All plans" }, ...PLAN_OPTIONS]} />
+        <Select
+          className="!w-36"
+          value={query.status}
+          onChange={(status) => setQuery((q) => ({ ...q, status, page: 1 }))}
+          options={[{ value: "", label: "Everyone" }, { value: "active", label: "Active" }, { value: "banned", label: "Banned" }, { value: "admin", label: "Admins" }]}
+        />
+        <div className="flex-1" />
+        <Button icon={<Download size={15} />} onClick={exportCsv}>Export CSV</Button>
+        <Button type="primary" icon={<UserPlus size={15} />} onClick={() => setAdding(true)}>Add user</Button>
+      </div>
+      {error ? <Alert type="error" showIcon title={error} className="mb-4" /> : null}
+      <Table
+        rowKey="_id"
+        loading={loading}
+        columns={columns}
+        dataSource={data?.users || []}
+        onRow={(u) => ({ onClick: () => setSelected(u._id), className: "cursor-pointer" })}
+        pagination={{ current: query.page, pageSize: 20, total: data?.total || 0, showSizeChanger: false, onChange: (page) => setQuery((q) => ({ ...q, page })) }}
+        scroll={{ x: 800 }}
+      />
+      <UserDrawer id={selected} onClose={() => setSelected(null)} onChanged={reload} isSuper={isSuper} />
+      <AddUserModal open={adding} onClose={() => setAdding(false)} onCreated={reload} />
+    </div>
+  );
+}

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Modal, Form, Input, Button, Alert, Segmented } from "antd";
-import { Mail, Lock, User, ArrowLeft, MailCheck } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, MailCheck, Ticket } from "lucide-react";
+import { useBilling } from "./BillingProvider";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 import Logo from "./Logo";
@@ -56,7 +57,12 @@ function ForgotForm({ onBack }) {
             <Form.Item name="email" rules={[{ required: true, type: "email", message: "Please enter a valid email" }]}>
               <Input size="large" prefix={<Mail size={16} className="text-slate-400" />} placeholder="Email" autoComplete="email" autoFocus />
             </Form.Item>
-            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+            {isRegister && showCode ? (
+          <Form.Item name="campaignCode" initialValue={authOptions?.campaignCode || ""} rules={registration === "campaign" ? [{ required: true, message: "Sign-ups need a campaign code right now" }] : []}>
+            <Input size="large" prefix={<Ticket size={16} className="text-slate-400" />} placeholder="Campaign code" autoComplete="off" className="uppercase" />
+          </Form.Item>
+        ) : null}
+        <Button type="primary" htmlType="submit" size="large" block loading={loading}>
               Send reset link
             </Button>
           </Form>
@@ -70,7 +76,10 @@ function ForgotForm({ onBack }) {
 }
 
 function AuthForm({ mode, onModeChange }) {
-  const { login } = useAuth();
+  const { login, authOptions } = useAuth();
+  const billing = useBilling();
+  const registration = billing?.config?.registration || "open";
+  const [showCode, setShowCode] = useState(!!authOptions?.campaignCode || registration === "campaign");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const isRegister = mode === "register";
@@ -80,7 +89,9 @@ function AuthForm({ mode, onModeChange }) {
     setLoading(true);
     setError(null);
     try {
-      const payload = isRegister ? { name: values.name, email: values.email, password: values.password } : { email: values.email, password: values.password };
+      const payload = isRegister
+        ? { name: values.name, email: values.email, password: values.password, campaignCode: values.campaignCode || undefined }
+        : { email: values.email, password: values.password };
       const data = await api(`/auth/${isRegister ? "register" : "login"}`, { method: "POST", body: payload });
       login(data, mode);
     } catch (err) {
@@ -145,6 +156,14 @@ function AuthForm({ mode, onModeChange }) {
           {isRegister ? "Create account" : "Log in"}
         </Button>
       </Form>
+      {isRegister && !showCode ? (
+        <button type="button" onClick={() => setShowCode(true)} className="mx-auto mt-3 flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-brand">
+          <Ticket size={13} /> Have a campaign code?
+        </button>
+      ) : null}
+      {isRegister && registration === "closed" ? (
+        <Alert type="info" showIcon className="mt-3" title="Sign-ups are closed right now. You can still log in." />
+      ) : null}
       {isRegister ? (
         <p className="mt-4 text-center text-xs text-slate-500">
           By creating an account you agree to our{" "}

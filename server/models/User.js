@@ -22,9 +22,17 @@ const UserSchema = new mongoose.Schema({
         minlength: 6,  
         select: false  
     },
-    // Billing plan. "pro" raises limits (e.g. the daily AI allowance) until planExpiresAt.
-    plan: { type: String, enum: ['free', 'pro'], default: 'free' },
+    // Plan tier (ids from the admin settings: free | pro | premium). Paid plans end at planExpiresAt (null = no end).
+    plan: { type: String, enum: ['free', 'pro', 'premium'], default: 'free' },
     planExpiresAt: { type: Date },
+    // Custom AI credit allowance (set by an admin or a campaign); null uses the plan's.
+    creditLimit: { type: Number, default: null, min: 0 },
+    creditPeriod: { type: String, enum: ['day', 'month', null], default: null },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    banned: { type: Boolean, default: false },
+    bannedReason: { type: String, default: '' },
+    campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },
+    lastLoginAt: { type: Date },
     // Bumped on password change/reset; tokens carrying an older version stop working.
     sessionVersion: { type: Number, default: 0 },
     passwordChangedAt: { type: Date },

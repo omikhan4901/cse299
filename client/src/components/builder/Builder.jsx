@@ -24,6 +24,8 @@ import { ChatModal, CoverLetterModal, aiResume } from "./AiModals";
 import AtsModal from "./AtsModal";
 import TemplateGallery from "./TemplateGallery";
 import BuilderTour from "./BuilderTour";
+import { CreditMeter, CreditTooltip } from "../Credits";
+import { useBilling, FREE_TEMPLATE_CATEGORIES } from "../BillingProvider";
 import ResumeGuideModal from "./ResumeGuideModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
@@ -380,7 +382,35 @@ function Editor({ initial, example, onSaved }) {
     }
   };
 
+  const billing = useBilling();
+  // Plan locks (only active when free mode is off in the admin settings).
+  const FEATURE_OF = { audit: "atsCheck", chat: "chat", cover: "coverLetter", import: "parse" };
+  const upgradeNotice = (feature, what) => {
+    const plan = billing?.upgradePlanFor(feature);
+    message.info({
+      content: (
+        <span>
+          {what} is included in the {plan?.name || "paid"} plan.{" "}
+          <Link href="/pricing" className="font-medium text-brand underline">See plans</Link>
+        </span>
+      ),
+      duration: 6,
+    });
+  };
+  const templateLocked = (id) => {
+    const t = templateById(id);
+    return !!billing && !billing.canUse("premiumTemplates") && !FREE_TEMPLATE_CATEGORIES.includes(t.category);
+  };
+  const pickTemplate = (id) => {
+    if (templateLocked(id)) return upgradeNotice("premiumTemplates", `The ${templateById(id).name} template`);
+    editor.setField("template", id);
+    return true;
+  };
+
   const openAi = (key) => {
+    if (billing && FEATURE_OF[key] && !billing.canUse(FEATURE_OF[key])) {
+      return upgradeNotice(FEATURE_OF[key], { audit: "The ATS check", chat: "The AI assistant", cover: "The cover letter writer", import: "Importing a resume" }[key]);
+    }
     // The ATS check is rule-based and runs locally, so it works without AI or an account.
     if (key === "audit") return setAiModal("audit");
     if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
@@ -466,11 +496,14 @@ function Editor({ initial, example, onSaved }) {
             Share
           </Button>
         </div>
-        <Tooltip title="Upload an existing PDF or Word resume and we'll fill in every section">
+        <div className="hidden sm:block">
+          <CreditMeter />
+        </div>
+        <CreditTooltip feature="parse" title="Import your resume" description="Upload an existing PDF or Word resume and we'll fill in every section for you." placement="bottom">
           <Button icon={<Upload size={15} />} onClick={() => openAi("import")} data-tour="import">
             <span className="hidden md:inline">Import resume</span>
           </Button>
-        </Tooltip>
+        </CreditTooltip>
         <Tooltip title="Take a quick tour of the builder">
           <Button
             icon={<Compass size={15} />}
@@ -543,7 +576,7 @@ function Editor({ initial, example, onSaved }) {
             {tab === "content" ? (
               <ContentPanel editor={editor} onRefineSummary={refineSummary} onRefineItem={refineItem} refiningId={refiningId} onHelp={() => setGuideOpen(true)} />
             ) : (
-              <DesignPanel resume={resume} onTemplate={(t) => editor.setField("template", t)} setTheme={editor.setTheme} onBrowse={setGallery} onHelp={() => setGuideOpen(true)} />
+              <DesignPanel resume={resume} onTemplate={pickTemplate} isLocked={templateLocked} setTheme={editor.setTheme} onBrowse={setGallery} onHelp={() => setGuideOpen(true)} />
             )}
           </div>
         </aside>
@@ -593,9 +626,9 @@ function Editor({ initial, example, onSaved }) {
         initialCategory={gallery}
         current={resume.template}
         onClose={() => setGallery(null)}
+        isLocked={templateLocked}
         onPick={(t) => {
-          editor.setField("template", t);
-          message.success(`Switched to ${templateById(t).name}`);
+          if (pickTemplate(t)) message.success(`Switched to ${templateById(t).name}`);
         }}
       />
       <ResumeGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />

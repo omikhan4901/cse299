@@ -7,7 +7,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Resume = require('../models/Resume');
 const Usage = require('../models/Usage');
-const { limit, clientIp, isPro } = require('../lib/rateLimit');
+const Campaign = require('../models/Campaign');
+const { limit, clientIp } = require('../lib/rateLimit');
+const { effectivePlanId } = require('../lib/credits');
+const { getSettings } = require('../lib/settings');
 const { sendMail, canSendMail } = require('../lib/mailer');
 
 const MIN_PASSWORD = 8;
@@ -31,8 +34,9 @@ const protect = async (req, res, next) => {
     }
 
     try {
-        const user = await User.findById(decoded.id).select('sessionVersion').lean();
+        const user = await User.findById(decoded.id).select('sessionVersion banned bannedReason').lean();
         if (!user) return res.status(401).json({ success: false, error: 'This account no longer exists.' });
+        if (user.banned) return res.status(403).json({ success: false, code: 'banned', error: bannedMessage(user) });
         if ((decoded.v || 0) !== (user.sessionVersion || 0)) {
             return res.status(401).json({ success: false, error: 'Your session has expired. Please log in again.' });
         }
@@ -50,14 +54,37 @@ const emailQuery = (email) =>
 
 const getSignedJwtToken = (user) => jwt.sign({ id: user._id, v: user.sessionVersion || 0 }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
+// Super admins are set by email in SUPERADMIN_EMAILS (comma-separated). They can
+// do everything, including making other people admins.
+const superadminEmails = () => (process.env.SUPERADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+const isSuperadmin = (user) => !!user?.email && superadminEmails().includes(String(user.email).toLowerCase());
+const roleOf = (user) => (isSuperadmin(user) ? 'superadmin' : user?.role || 'user');
+
+const bannedMessage = (user) => `This account has been suspended${user.bannedReason ? `: ${user.bannedReason}` : '.'} Contact support if you think this is a mistake.`;
+
 const publicUser = (user) => ({
     id: user._id,
     name: user.name,
     email: user.email,
-    plan: isPro(user) ? 'pro' : 'free',
+    plan: effectivePlanId(user),
     planExpiresAt: user.planExpiresAt || null,
+    role: roleOf(user),
     createdAt: user.createdAt,
 });
+
+/** For /api/admin: the signed-in account must be an admin or a super admin. */
+const requireAdmin = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.userId).select('email role').lean();
+        const role = roleOf(user);
+        if (role !== 'admin' && role !== 'superadmin') return res.status(403).json({ success: false, error: 'Admins only.' });
+        req.role = role;
+        req.adminEmail = user.email;
+        next();
+    } catch (err) {
+        next(err);
+    }
+};
 
 const hashPassword = async (password) => bcrypt.hash(String(password), await bcrypt.genSalt(10));
 
@@ -80,6 +107,7 @@ const sensitiveByUser = limit({ name: 'account', windowMs: 15 * 60 * 1000, max: 
 // @route   POST /api/auth/register
 router.post('/register', registerByIp, async (req, res) => {
     const { name, email, password } = req.body;
+    const code = typeof req.body.campaignCode === 'string' ? req.body.campaignCode.trim().toUpperCase() : '';
 
     if (!name || !email || !password) {
         return res.status(400).json({ success: false, error: 'Please enter all fields.' });
@@ -93,7 +121,45 @@ router.post('/register', registerByIp, async (req, res) => {
         if (user) {
             return res.status(400).json({ success: false, error: 'User already exists.' });
         }
-        user = await User.create({ name: String(name), email: String(email), password: await hashPassword(password) });
+
+        const settings = await getSettings();
+        const lowerEmail = String(email).trim().toLowerCase();
+        if (settings.registration === 'closed' && !isSuperadmin({ email: lowerEmail })) {
+            return res.status(403).json({ success: false, error: 'Sign-ups are closed right now. Please check back soon.' });
+        }
+        // A campaign code gives the campaign's plan and credits. Claiming a place is atomic,
+        // so a campaign never goes over its limit.
+        let campaign = null;
+        if (code) {
+            campaign = await Campaign.findOne({ code }).lean();
+            const problem = campaignProblem(campaign, lowerEmail);
+            if (problem) return res.status(400).json({ success: false, error: problem });
+            campaign = await Campaign.findOneAndUpdate({ _id: campaign._id, uses: { $lt: campaign.maxUses } }, { $inc: { uses: 1 } }, { new: true });
+            if (!campaign) return res.status(400).json({ success: false, error: 'This campaign is full.' });
+        } else if (settings.registration === 'campaign' && !isSuperadmin({ email: lowerEmail })) {
+            return res.status(403).json({ success: false, error: 'Sign-ups need a campaign code right now.' });
+        }
+
+        try {
+            user = await User.create({
+                name: String(name),
+                email: String(email),
+                password: await hashPassword(password),
+                lastLoginAt: new Date(),
+                ...(campaign
+                    ? {
+                          campaign: campaign._id,
+                          plan: campaign.plan,
+                          planExpiresAt: campaign.plan !== 'free' ? new Date(Date.now() + campaign.durationDays * 864e5) : undefined,
+                          creditLimit: campaign.creditLimit,
+                          creditPeriod: campaign.creditPeriod,
+                      }
+                    : {}),
+            });
+        } catch (err) {
+            if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
+            throw err;
+        }
         res.status(201).json({ success: true, token: getSignedJwtToken(user), user: publicUser(user) });
     } catch (err) {
         if (err.name === 'ValidationError') {
@@ -119,6 +185,8 @@ router.post('/login', loginByIp, loginByEmail, async (req, res) => {
         if (!user || !(await bcrypt.compare(String(password), user.password))) {
             return res.status(401).json({ success: false, error: 'Invalid credentials.' });
         }
+        if (user.banned) return res.status(403).json({ success: false, code: 'banned', error: bannedMessage(user) });
+        User.updateOne({ _id: user._id }, { lastLoginAt: new Date() }).catch(() => {});
         res.status(200).json({ success: true, token: getSignedJwtToken(user), user: publicUser(user) });
     } catch (err) {
         console.error(err);
@@ -280,7 +348,24 @@ router.post('/reset-password', resetByIp, async (req, res) => {
     }
 });
 
+/** Why a campaign code can't be used by this email, or null if it can. */
+function campaignProblem(campaign, email) {
+    if (!campaign || !campaign.active) return "That campaign code isn't valid.";
+    if (campaign.expiresAt && new Date(campaign.expiresAt) < new Date()) return 'That campaign has ended.';
+    if (campaign.uses >= campaign.maxUses) return 'This campaign is full.';
+    if (campaign.emailDomain && email && !email.endsWith(`@${campaign.emailDomain}`) && !email.endsWith(`.${campaign.emailDomain}`)) {
+        return `This campaign is for @${campaign.emailDomain} email addresses.`;
+    }
+    return null;
+}
+
 module.exports = {
     router,
-    protect
+    protect,
+    requireAdmin,
+    publicUser,
+    roleOf,
+    isSuperadmin,
+    campaignProblem,
+    hashPassword,
 };

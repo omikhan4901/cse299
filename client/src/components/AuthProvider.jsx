@@ -24,6 +24,8 @@ export function AuthProvider({ children }) {
   const [authModal, setAuthModal] = useState(null);
   // Where to go after a successful sign-in from the modal.
   const [afterAuth, setAfterAuth] = useState(null);
+  // Extra sign-up options, e.g. { campaignCode } from a /join link.
+  const [authOptions, setAuthOptions] = useState({});
 
   useEffect(() => {
     const stored = readToken();
@@ -46,8 +48,9 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const openAuth = useCallback((mode = "login", redirectTo = null) => {
+  const openAuth = useCallback((mode = "login", redirectTo = null, options = {}) => {
     setAfterAuth(redirectTo);
+    setAuthOptions(options);
     setAuthModal(mode);
   }, []);
 
@@ -81,8 +84,8 @@ export function AuthProvider({ children }) {
   }, [router]);
 
   const value = useMemo(
-    () => ({ token, user, loading, isAuthenticated: !!user, login, logout, updateSession, authModal, setAuthModal, openAuth }),
-    [token, user, loading, login, logout, updateSession, authModal, openAuth]
+    () => ({ token, user, loading, isAuthenticated: !!user, login, logout, updateSession, authModal, setAuthModal, openAuth, authOptions }),
+    [token, user, loading, login, logout, updateSession, authModal, openAuth, authOptions]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

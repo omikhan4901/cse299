@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Input, Modal } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, LayoutGrid, Search, ShieldCheck, Columns2, Image as ImageIcon, X } from "lucide-react";
+import { Check, Crown, LayoutGrid, Search, ShieldCheck, Columns2, Image as ImageIcon, X } from "lucide-react";
 import { CATEGORIES, TEMPLATES } from "@/pdf/registry";
 
 const FILTERS = [
@@ -14,7 +14,7 @@ const FILTERS = [
   { id: "photo", label: "With photo", icon: ImageIcon, test: (t) => t.tags.includes("Photo") },
 ];
 
-function Card({ t, active, onPick }) {
+function Card({ t, active, onPick, locked }) {
   return (
     <motion.button
       layout
@@ -28,6 +28,11 @@ function Card({ t, active, onPick }) {
     >
       <div className="relative aspect-[1/1.414] overflow-hidden bg-slate-100">
         <Image src={`/templates/${t.id}.jpg`} alt={`${t.name} resume template`} fill sizes="(min-width: 1024px) 190px, 45vw" className="object-cover object-top transition duration-500 group-hover:scale-[1.04]" />
+        {locked ? (
+          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow">
+            <Crown size={10} /> PRO
+          </span>
+        ) : null}
         {active ? (
           <span className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow">
             <Check size={14} />
@@ -50,7 +55,7 @@ function Card({ t, active, onPick }) {
  * Full template browser: categories down the side, search and layout filters
  * on top. Picking a template applies it and closes the dialog.
  */
-export default function TemplateGallery({ open, onClose, current, onPick, initialCategory }) {
+export default function TemplateGallery({ open, onClose, current, onPick, initialCategory, isLocked }) {
   const [category, setCategory] = useState(initialCategory || "all");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState([]);
@@ -144,7 +149,7 @@ export default function TemplateGallery({ open, onClose, current, onPick, initia
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
                     <AnimatePresence mode="popLayout">
                       {shown.filter((t) => t.category === c.id).map((t) => (
-                        <Card key={t.id} t={t} active={t.id === current} onPick={pick} />
+                        <Card key={t.id} t={t} active={t.id === current} onPick={pick} locked={!!isLocked?.(t.id)} />
                       ))}
                     </AnimatePresence>
                   </div>

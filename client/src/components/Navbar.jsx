@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button, Dropdown } from "antd";
 import { motion } from "motion/react";
-import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings, ShieldCheck } from "lucide-react";
+import { useBilling } from "./BillingProvider";
 import Logo from "./Logo";
 import { useAuth } from "./AuthProvider";
 
@@ -19,14 +20,18 @@ export default function Navbar({ compact = false }) {
   const { isAuthenticated, user, loading, logout, openAuth } = useAuth();
   const [open, setOpen] = useState(false);
 
-  const links = isAuthenticated ? [...LINKS, { href: "/dashboard", label: "My Resumes" }] : LINKS;
-  const mobileLinks = isAuthenticated ? [...links, { href: "/account", label: "Account settings" }] : links;
+  const billing = useBilling();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+  const base = billing?.config?.showPricing ? [...LINKS, { href: "/pricing", label: "Pricing" }] : LINKS;
+  const links = isAuthenticated ? [...base, { href: "/dashboard", label: "My Resumes" }] : base;
+  const mobileLinks = isAuthenticated ? [...links, { href: "/account", label: "Account settings" }, ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])] : links;
 
   const userMenu = {
     items: [
       { key: "dash", icon: <LayoutDashboard size={15} />, label: <Link href="/dashboard">My resumes</Link> },
       { key: "new", icon: <FilePlus2 size={15} />, label: <Link href="/builder?new=1">New resume</Link> },
       { key: "account", icon: <Settings size={15} />, label: <Link href="/account">Account settings</Link> },
+      ...(isAdmin ? [{ key: "admin", icon: <ShieldCheck size={15} />, label: <Link href="/admin">Admin console</Link> }] : []),
       { type: "divider" },
       { key: "logout", icon: <LogOut size={15} />, label: "Log out", danger: true, onClick: logout },
     ],

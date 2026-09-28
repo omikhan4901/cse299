@@ -43,6 +43,16 @@ A **How to Write a Good Resume** guide lives in the builder. The same Markdown f
 
 ![Resume guide](docs/screenshots/guide.jpg)
 
+### Plans, credits and an admin console
+Every AI feature costs credits, and each account has a daily or monthly allowance. A super admin (set with `SUPERADMIN_EMAILS`) runs everything from **/admin** without a deploy:
+- **Overview:** users, sign-ups, resumes and AI credit usage per day and per feature.
+- **Users:** search, change plan and plan end date, set a custom credit allowance, restore credits, reset passwords, ban, add, delete and export to CSV.
+- **Plans & pricing:** names, monthly and yearly prices, credits and included features for the three tiers, plus the perks shown on `/pricing`.
+- **Credits & access:** the credit cost of each AI feature, **free mode** (everything open with a daily allowance, on by default), and who can sign up (anyone, campaign codes only, or nobody).
+- **Campaigns:** invite codes like `/join/NSU2026` that give a plan and credits to a limited number of people, optionally limited to one email domain.
+
+Users see what each AI action costs in its tooltip, and their balance in the builder's top bar.
+
 ### Everything else
 - **Photo cropper**: drag, zoom and re-crop at any time.
 - **Every section**: experience, education, projects, skills, certifications, languages, volunteering, awards, publications, courses, interests and custom sections. References can carry signature lines for printed copies.
