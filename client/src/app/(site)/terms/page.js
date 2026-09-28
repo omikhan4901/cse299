@@ -1,6 +1,6 @@
 import Link from "next/link";
 import LegalPage, { Contact } from "@/components/LegalPage";
-import { SITE_NAME } from "@/lib/config";
+import { SITE_NAME, SELLER_NAME } from "@/lib/config";
 
 export const metadata = {
   title: "Terms of Service",
@@ -11,6 +11,11 @@ export const metadata = {
 export default function TermsPage() {
   return (
     <LegalPage title="Terms of Service" intro={`These terms apply when you use ${SITE_NAME}. By creating an account or using the builder, you agree to them.`}>
+      <section>
+        <h2>Who we are</h2>
+        <p>{SITE_NAME} is operated by {SELLER_NAME}. In these terms, &quot;we&quot; and &quot;us&quot; means {SELLER_NAME}, trading as {SITE_NAME}.</p>
+      </section>
+
       <section>
         <h2>The service</h2>
         <p>{SITE_NAME} helps you write, design, check and share resumes. We may improve, change or discontinue features over time, and we&apos;ll try to give reasonable notice of major changes.</p>
@@ -47,7 +52,12 @@ export default function TermsPage() {
 
       <section>
         <h2>Paid plans</h2>
-        <p>Some features may require a paid plan. The price, what&apos;s included, the billing period and the refund terms will be shown clearly before you pay, and form part of these terms.</p>
+        <p>Some features need a paid plan. The price, what&apos;s included and the billing period are shown before you pay.</p>
+        <ul>
+          <li>Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our orders. Paddle provides all customer service inquiries and handles returns.</li>
+          <li>Plans renew automatically each month or year until you cancel. You can cancel any time from Account › Manage billing and keep the plan until the end of the period you&apos;ve paid for.</li>
+          <li>Refunds follow our <Link className="text-brand hover:underline" href="/refunds">Refund Policy</Link>, which forms part of these terms.</li>
+        </ul>
       </section>
 
       <section>

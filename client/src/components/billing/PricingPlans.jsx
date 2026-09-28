@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Segmented } from "antd";
 import { Check, Crown, Minus, Sparkles, Zap } from "lucide-react";
 import { formatPrice, useBilling } from "../BillingProvider";
@@ -125,6 +126,14 @@ export default function PricingPlans({ config }) {
           );
         })}
       </div>
+
+      {paddle && !freeMode.enabled ? (
+        <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-slate-500">
+          Prices include VAT or sales tax where it applies. Plans renew automatically; cancel any time. Payments are handled by Paddle. By subscribing you agree to our{" "}
+          <Link href="/terms" className="font-medium text-brand hover:underline">Terms</Link> and{" "}
+          <Link href="/refunds" className="font-medium text-brand hover:underline">Refund Policy</Link>, including a 14-day refund on your first payment.
+        </p>
+      ) : null}
 
       {/* Generated from the plan settings, so it always matches what's actually locked. */}
       <div className="mx-auto mt-14 max-w-5xl overflow-x-auto rounded-2xl border border-slate-200 bg-white">

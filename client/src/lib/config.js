@@ -17,4 +17,6 @@ export const SITE_DESCRIPTION =
 
 /** Shown on the privacy and terms pages (fixed, so a stray environment variable can't change it). */
 export const CONTACT_EMAIL = "support@resumex.cc";
+/** The legal seller, exactly as registered with Paddle (it must match the terms and refund policy). */
+export const SELLER_NAME = "Mehboob Ehsan Khan Omi";
 export const LEGAL_UPDATED = "28 September 2026";

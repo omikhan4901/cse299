@@ -21,5 +21,6 @@ export default function sitemap() {
     page("/about", 0.5, "yearly"),
     page("/privacy", 0.2, "yearly"),
     page("/terms", 0.2, "yearly"),
+    page("/refunds", 0.2, "yearly"),
   ];
 }

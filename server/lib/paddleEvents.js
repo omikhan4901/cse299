@@ -118,12 +118,37 @@ async function onTransaction(event) {
     }
 }
 
+/**
+ * Refunds and chargebacks. Paddle doesn't cancel a subscription when it refunds it, so an
+ * approved full refund or a chargeback cancels it here, straight away: the plan ends
+ * with the money (partial refunds, e.g. a goodwill credit, leave it running).
+ */
+async function onAdjustment(event) {
+    const a = event.data;
+    const fullRefund = a.action === 'refund' && a.type === 'full' && a.status === 'approved';
+    if (!(fullRefund || a.action === 'chargeback') || !a.subscriptionId) return;
+    const sub = await Subscription.findOne({ subscriptionId: a.subscriptionId }).lean();
+    if (sub?.status === 'canceled') return;
+    try {
+        const canceled = await paddle().subscriptions.cancel(a.subscriptionId, { effectiveFrom: 'immediately' });
+        await applySubscription(canceled, new Date());
+    } catch (err) {
+        // Already canceled in Paddle: its subscription.canceled webhook ends the plan.
+        console.error(`Could not cancel ${a.subscriptionId} after ${a.action} ${a.id}:`, err.message);
+        if (sub?.user) {
+            await Subscription.updateOne({ subscriptionId: a.subscriptionId }, { status: 'canceled' });
+            await syncPlan(sub.user);
+        }
+    }
+}
+
 /** Routes a verified event. Unknown types are ignored (Paddle only needs a 2xx). */
 async function handleEvent(event) {
     const type = event.eventType || '';
     if (type.startsWith('subscription.')) return onSubscription(event);
     if (type === 'customer.created' || type === 'customer.updated') return onCustomer(event);
     if (type === 'transaction.completed') return onTransaction(event);
+    if (type === 'adjustment.created' || type === 'adjustment.updated') return onAdjustment(event);
     return null;
 }
 

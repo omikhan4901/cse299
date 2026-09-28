@@ -198,6 +198,53 @@ describe('subscriptions and access', () => {
     });
 });
 
+describe('refunds and chargebacks', () => {
+    const adjustment = (fields) => ({
+        id: `adj_${++seq}`, transaction_id: 'txn_1', subscription_id: 'sub_1', customer_id: 'ctm_1', reason: 'test', credit_applied_to_balance: false,
+        currency_code: 'USD', items: [], totals: { subtotal: '699', tax: '0', total: '699', fee: '0', earnings: '0', currency_code: 'USD' }, payout_totals: null,
+        created_at: iso(Date.now()), updated_at: iso(Date.now()), ...fields,
+    });
+    const setup = async () => {
+        const u = await register();
+        await deliver(event('subscription.created', subscriptionData({ userId: u.user.id }), Date.now() - 5000));
+        paddleApi.handler = (url, opts) => (url.endsWith('/subscriptions/sub_1/cancel') && opts.method === 'POST' ? { body: { data: subscriptionData({ userId: u.user.id, status: 'canceled' }) } } : null);
+        return u;
+    };
+    const cancels = () => paddleApi.calls.filter((c) => c.url.endsWith('/cancel'));
+
+    it('an approved full refund ends the plan straight away', async () => {
+        const u = await setup();
+        assert.equal(await planOf(u.email), 'pro');
+        await deliver(event('adjustment.created', adjustment({ action: 'refund', type: 'full', status: 'approved' })));
+        assert.equal(cancels().length, 1);
+        assert.deepEqual(cancels()[0].body, { effective_from: 'immediately' });
+        assert.equal(await planOf(u.email), 'free');
+    });
+
+    it('a refund waiting for approval does nothing until it is approved', async () => {
+        const u = await setup();
+        const pending = adjustment({ action: 'refund', type: 'full', status: 'pending_approval' });
+        await deliver(event('adjustment.created', pending));
+        assert.equal(cancels().length, 0);
+        assert.equal(await planOf(u.email), 'pro');
+        await deliver(event('adjustment.updated', { ...pending, status: 'approved' }));
+        assert.equal(await planOf(u.email), 'free');
+    });
+
+    it('a partial refund (e.g. a goodwill credit) keeps the plan', async () => {
+        const u = await setup();
+        await deliver(event('adjustment.created', adjustment({ action: 'refund', type: 'partial', status: 'approved' })));
+        assert.equal(cancels().length, 0);
+        assert.equal(await planOf(u.email), 'pro');
+    });
+
+    it('a chargeback ends the plan', async () => {
+        const u = await setup();
+        await deliver(event('adjustment.created', adjustment({ action: 'chargeback', type: 'full', status: 'approved' })));
+        assert.equal(await planOf(u.email), 'free');
+    });
+});
+
 describe('billing endpoints', () => {
     it('/billing/plans gives the browser what checkout needs, with the prices Paddle charges', async () => {
         paddleApi.handler = (url) => {
