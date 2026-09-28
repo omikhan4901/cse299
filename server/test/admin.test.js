@@ -76,6 +76,23 @@ describe('admin actions', () => {
         assert.ok(logs.includes('[hidden]'));
     });
 
+    it('editing a user validates the name and email, and catches duplicates in any case', async () => {
+        const boss = await superadmin();
+        const a = await register();
+        const b = await register();
+        const id = (await User().findOne({ email: a.email }))._id;
+        for (const body of [{ name: null }, { name: { x: 1 } }, { name: '  ' }, { email: 'a\u0000b@x.com' }, { email: 'nope' }, { email: b.email.toUpperCase() }]) {
+            const r = await api('PATCH', `/admin/users/${id}`, { token: boss.token, body });
+            assert.equal(r.status, 400, `${JSON.stringify(body)} -> ${r.status} ${JSON.stringify(r.body)}`);
+        }
+        const dup = await api('POST', '/admin/users', { token: boss.token, body: { name: 'C', email: a.email.toUpperCase(), password: 'password123' } });
+        assert.equal(dup.status, 400);
+        for (const q of ['%00', 'a%00b', '((((', '.*']) {
+            assert.equal((await api('GET', `/admin/users?q=${q}`, { token: boss.token })).status, 200, `search ${q}`);
+            assert.equal((await api('GET', `/admin/audit?action=${q}`, { token: boss.token })).status, 200, `audit ${q}`);
+        }
+    });
+
     it('the users CSV neutralises spreadsheet formulas', async () => {
         const boss = await superadmin();
         await register({ name: '=HYPERLINK("http://evil","x")' });

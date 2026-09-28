@@ -146,3 +146,21 @@ describe('two-factor authentication', () => {
         assert.equal(r.body.token, undefined);
     });
 });
+
+describe('email input', () => {
+    it('rejects malformed emails with a 4xx instead of crashing the lookup', async () => {
+        for (const email of ['a\u0000b@x.com', '\u0000', 'no-at-sign', 'x'.repeat(300) + '@a.com', { $gt: '' }, ['a@b.co'], 42]) {
+            const reg = await api('POST', '/auth/register', { body: { name: 'N', email, password: 'password123' } });
+            assert.equal(reg.status, 400, `register ${JSON.stringify(email)}`);
+            const login = await api('POST', '/auth/login', { body: { email, password: 'password123' } });
+            assert.ok([400, 401].includes(login.status), `login ${JSON.stringify(email)} -> ${login.status}`);
+            const reset = await api('POST', '/auth/forgot-password', { body: { email } });
+            assert.ok(reset.status < 500 || reset.status === 503, `reset ${JSON.stringify(email)} -> ${reset.status}`);
+        }
+    });
+
+    it('a name must be text', async () => {
+        const r = await api('POST', '/auth/register', { body: { name: { first: 'A' }, email: uniqueEmail(), password: 'password123' } });
+        assert.equal(r.status, 400);
+    });
+});

@@ -8,6 +8,7 @@ const Campaign = require('../models/Campaign');
 const { protect, requireAdmin, roleOf, isSuperadmin, hashPassword, passwordProblem } = require('./auth');
 const AdminLog = require('../models/AdminLog');
 const { audit } = require('../lib/audit');
+const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email');
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { getSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
@@ -21,7 +22,6 @@ router.use(protect, requireAdmin, limit({ name: 'admin', windowMs: 60 * 1000, ma
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const bad = (res, error, status = 400) => res.status(status).json({ success: false, error });
-const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
@@ -107,7 +107,8 @@ router.get('/overview', wrap(async (req, res) => {
 // ---------- Users ----------
 
 router.get('/users', wrap(async (req, res) => {
-    const { q = '', plan = '', status = '', campaign = '' } = req.query;
+    const { plan = '', status = '', campaign = '' } = req.query;
+    const q = searchText(req.query.q);
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(5, Number(req.query.limit) || 25));
     const filter = {};
@@ -162,11 +163,17 @@ async function applyUserFields(user, body, req) {
     const targetRole = roleOf(user);
     if (targetRole === 'superadmin' && String(user._id) !== req.userId) fail("Super admin accounts can't be edited here.", 403);
     if (targetRole === 'admin' && req.role !== 'superadmin') fail('Only super admins can edit admin accounts.', 403);
-    if (body.name !== undefined) user.name = String(body.name).trim();
+    if (body.name !== undefined) {
+        if (typeof body.name !== 'string' || !body.name.trim()) fail('Please enter a name.');
+        user.name = body.name.trim();
+    }
     if (body.email !== undefined) {
-        const email = String(body.email).trim().toLowerCase();
+        if (!validEmail(body.email)) fail('Please enter a valid email.');
+        const email = validEmail(body.email).toLowerCase();
         if (email !== user.email) {
             if (isSuperadmin({ email })) fail("That email is reserved for a super admin.", 403);
+            // Case-insensitive, so it also catches older accounts stored with capitals.
+            if (await User.exists({ email: emailQuery(email), _id: { $ne: user._id } })) fail('Another account already uses that email.');
             user.email = email;
             user.emailVerifiedAt = undefined;
         }
@@ -212,9 +219,10 @@ const sendUser = async (res, user, status = 200) => {
 router.post('/users', wrap(async (req, res) => {
     const { name, email, password } = req.body || {};
     if (!name || !email || !password) return bad(res, 'Name, email and password are required.');
-    if (await User.exists({ email: String(email).trim().toLowerCase() })) return bad(res, 'An account with that email already exists.');
-    if (isSuperadmin({ email: String(email).trim().toLowerCase() })) return bad(res, 'That email is reserved for a super admin.', 403);
-    const user = new User({ name, email, password: 'placeholder' });
+    if (!validEmail(email)) return bad(res, 'Please enter a valid email.');
+    if (await User.exists({ email: emailQuery(validEmail(email)) })) return bad(res, 'An account with that email already exists.');
+    if (isSuperadmin({ email: validEmail(email).toLowerCase() })) return bad(res, 'That email is reserved for a super admin.', 403);
+    const user = new User({ name: 'placeholder', email: validEmail(email).toLowerCase(), password: 'placeholder' });
     try {
         await applyUserFields(user, { ...req.body, name, email, password }, req);
     } catch (err) {
@@ -289,7 +297,8 @@ router.delete('/users/:id', wrap(async (req, res) => {
 
 router.get('/audit', wrap(async (req, res) => {
     const page = Math.max(1, Number(req.query.page) || 1);
-    const filter = typeof req.query.action === 'string' && req.query.action ? { action: new RegExp(`^${escapeRe(req.query.action)}`) } : {};
+    const action = searchText(req.query.action);
+    const filter = action ? { action: new RegExp(`^${escapeRe(action)}`) } : {};
     const [total, entries] = await Promise.all([
         AdminLog.countDocuments(filter),
         AdminLog.find(filter).sort({ at: -1 }).skip((page - 1) * 50).limit(50).lean(),

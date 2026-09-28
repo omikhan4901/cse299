@@ -1,4 +1,5 @@
 const express = require('express');
+const { validEmail, emailQuery } = require('../lib/email');
 const router = express.Router();
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
@@ -64,16 +65,6 @@ const protect = async (req, res, next) => {
         next(err);
     }
 };
-
-// Matches an email case-insensitively, so accounts created before emails were
-// lowercased can still log in.
-const emailQuery = (email) =>
-    new RegExp(`^${String(email).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-
-// A plausible email (a string, no spaces or control characters, a sane length), or
-// null. Checked before any lookup: MongoDB rejects a regex with a null byte in it.
-const EMAIL_RE = /^[^\s@\x00-\x1f\x7f]+@[^\s@\x00-\x1f\x7f]+\.[^\s@\x00-\x1f\x7f]{2,}$/;
-const validEmail = (email) => (typeof email === 'string' && email.trim().length <= 254 && EMAIL_RE.test(email.trim()) ? email.trim() : null);
 
 // Sessions: 14 days for users, 12 hours for admins. `mfa` marks a session that passed two-factor.
 const getSignedJwtToken = (user, { mfa = false } = {}) =>

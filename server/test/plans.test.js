@@ -106,3 +106,36 @@ describe('campaigns', () => {
         assert.equal((await join('NOPE')).status, 400);
     });
 });
+
+describe('AI input', () => {
+    it('junk or empty input is refused before calling the AI, and costs nothing', async () => {
+        require('../lib/rateLimit').setOverrides({ 'ai-minute': { max: 100, windowMs: 60e3 } });
+        const { token } = await register();
+        const cases = [
+            ['/ai/audit', { resumeData: 'x' }],
+            ['/ai/audit', { resumeData: {} }],
+            ['/ai/audit', { resumeData: { personal: { fullName: '' }, experience: [{}] } }],
+            ['/ai/audit', { resumeData: { summary: 'A dev' }, jobDescription: { a: 1 } }],
+            ['/ai/cover-letter', { resumeData: { summary: 'A dev' }, jobDescription: ['a job'] }],
+            ['/ai/cover-letter', { resumeData: [], jobDescription: 'A job' }],
+            ['/ai/refine', { resumeText: { text: 'hi' } }],
+            ['/ai/refine', { resumeText: '   ' }],
+            ['/ai/chat', { conversation: [{ role: 'user', content: { a: 1 } }] }],
+            ['/ai/chat', { conversation: 'hi' }],
+        ];
+        for (const [path, body] of cases) {
+            const r = await api('POST', path, { token, body });
+            assert.equal(r.status, 400, `${path} ${JSON.stringify(body)} -> ${r.status}`);
+        }
+        assert.equal(ai.calls, 0, 'the AI was never called');
+        assert.equal((await usage(token)).used, 0, 'no credits spent');
+    });
+
+    it('a resume with real content is audited', async () => {
+        ai.reply = '{"score":140,"summary":"ok","strengths":[],"improvements":[],"missingKeywords":[]}';
+        const { token } = await register();
+        const r = await api('POST', '/ai/audit', { token, body: { resumeData: { summary: 'Backend developer' } } });
+        assert.equal(r.status, 200);
+        assert.equal(r.body.analysis.score, 100, 'score clamped to 0-100');
+    });
+});
