@@ -132,6 +132,8 @@ All server settings (Gemini, SMTP, rate limits, CORS) are documented in [`server
 
 Production security settings on the API: `SUPERADMIN_EMAILS` (your email), `ENCRYPTION_KEY` (32+ random characters, set once and never change it), and `INTERNAL_API_KEY` (also set on Vercel as a server-only variable so share and invite pages rate-limit per visitor).
 
+**Adding or moving a template?** Run `npm run templates:export` in `client/` and commit `shared/templates.json`: the API uses it to enforce which plan each template needs.
+
 ## Deploying
 
 - **Web → Vercel**: root directory `client`; set the variables above.

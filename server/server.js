@@ -48,8 +48,11 @@ const app = express();
 app.disable('x-powered-by');
 
 // Behind a proxy or load balancer (Render, Railway, Nginx…) set TRUST_PROXY=1 so
-// rate limits see the visitor's IP rather than the proxy's.
-if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+// rate limits see the visitor's IP rather than the proxy's. Cloud Run (which sets
+// K_SERVICE) always sits behind exactly one Google front end, so trust that hop by
+// default: otherwise every visitor looks like the same IP and shares one limit.
+const trustProxy = process.env.TRUST_PROXY || (process.env.K_SERVICE ? '1' : '');
+if (trustProxy) app.set('trust proxy', Number(trustProxy) || trustProxy);
 
 // Basic security headers (the API only serves JSON).
 app.use((req, res, next) => {
@@ -70,8 +73,13 @@ if (!origins && process.env.NODE_ENV === 'production') {
 }
 app.use(cors(origins ? { origin: origins } : undefined));
 
-// Resumes can carry a profile photo as a data URL, so allow larger JSON bodies.
-app.use(express.json({ limit: '10mb' }));
+// Resumes can carry a profile photo as a data URL, so only resume saves get large
+// bodies; AI requests carry a resume without photos; everything else is small.
+// (Smaller limits mean a flood of huge bodies can't tie up memory.)
+app.use('/api/resumes', express.json({ limit: '10mb' }));
+app.use('/api/ai', express.json({ limit: '2mb' }));
+app.use('/api/admin', express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '100kb' }));
 
 // Drop keys starting with "$" (and dotted keys) from request bodies and queries,
 // so user input can never smuggle MongoDB operators like {"$gt": ""} into a query.
@@ -86,7 +94,7 @@ const stripOperators = (value) => {
     return value;
 };
 // Per-IP ceiling for the whole API (each route also has its own, stricter limits).
-app.use('/api', limit({ name: 'api-ip', windowMs: 60 * 1000, max: 600, key: clientIp, message: 'Too many requests.' }));
+app.use('/api', limit({ name: 'api-ip', windowMs: 60 * 1000, max: 600, key: clientIp, message: 'Too many requests.', label: 'Whole API (per IP)', group: 'Overall', description: 'Ceiling for every request from one network. Every other limit is stricter.', min: 60 }));
 
 // API responses carry personal data: never let browsers or proxies cache them unless a route says otherwise.
 app.use('/api', (req, res, next) => {
@@ -96,7 +104,8 @@ app.use('/api', (req, res, next) => {
 
 app.use((req, res, next) => {
     if (req.body) stripOperators(req.body);
-    if (req.query) for (const key of Object.keys(req.query)) if (key.startsWith('$')) delete req.query[key];
+    // Query strings can nest too (?q[$ne]=x becomes { q: { $ne: 'x' } }), so clean them the same way.
+    if (req.query) stripOperators(req.query);
     next();
 });
 
@@ -125,7 +134,8 @@ app.use((err, req, res, next) => {
     res.status(status).json({
         success: false,
         error:
-            err.type === 'entity.too.large' ? 'That resume is too large to save. Try a smaller photo.'
+            err.type === 'entity.too.large'
+                ? req.path.startsWith('/api/resumes') ? 'That resume is too large to save. Try a smaller photo.' : 'That request is too large.'
             : err.type === 'entity.parse.failed' ? 'Invalid request body.'
             : status >= 500 ? 'Server error' : err.message,
     });

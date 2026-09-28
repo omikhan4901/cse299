@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, UPGRADE_NEEDED } from "@/lib/api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { api, SETTINGS_CHANGED, UPGRADE_NEEDED } from "@/lib/api";
 import { CONTACT_EMAIL } from "@/lib/config";
 import { useAuth } from "./AuthProvider";
 import UpgradeModal from "./billing/UpgradeModal";
@@ -26,11 +26,30 @@ export function BillingProvider({ children }) {
   // The locked feature someone just tried to use: { feature, what } (shows the upgrade dialog).
   const [upgrade, setUpgrade] = useState(null);
 
+  // Plans, locks and costs come from the admin settings. Reload them when the page
+  // comes back into view, every minute, and straight after an admin saves, so a
+  // change in /admin shows up without a full reload.
+  const refreshConfig = useCallback(
+    () =>
+      api("/billing/plans")
+        .then((d) => setConfig(d.data))
+        .catch(() => {}),
+    []
+  );
   useEffect(() => {
-    api("/billing/plans")
-      .then((d) => setConfig(d.data))
-      .catch(() => {});
-  }, []);
+    refreshConfig();
+    const onVisible = () => document.visibilityState === "visible" && refreshConfig();
+    const timer = setInterval(onVisible, 60 * 1000);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener(SETTINGS_CHANGED, refreshConfig);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener(SETTINGS_CHANGED, refreshConfig);
+    };
+  }, [refreshConfig]);
 
   const refreshUsage = useCallback(() => {
     if (!token) return Promise.resolve();
@@ -59,12 +78,27 @@ export function BillingProvider({ children }) {
     };
   }, [refreshUsage]);
 
+  const configRef = useRef(config);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
   // The server is the final word on plans: if it refuses something, explain the upgrade.
   useEffect(() => {
-    const onUpgrade = (e) => setUpgrade({ feature: e.detail.feature });
+    const onUpgrade = (e) => {
+      const { feature, plan, template } = e.detail;
+      // The server knows best: refresh the local copy of the plans, then explain.
+      refreshConfig();
+      setUpgrade({
+        feature,
+        what: template ? "That template" : undefined,
+        plan: plan ? configRef.current?.plans?.find((p) => p.id === plan) : undefined,
+        description: template ? "This design needs a higher plan. Your previous template was kept." : undefined,
+      });
+    };
     window.addEventListener(UPGRADE_NEEDED, onUpgrade);
     return () => window.removeEventListener(UPGRADE_NEEDED, onUpgrade);
-  }, []);
+  }, [refreshConfig]);
 
   const value = useMemo(() => {
     const freeMode = config?.freeMode?.enabled ?? true;
@@ -78,6 +112,7 @@ export function BillingProvider({ children }) {
       config,
       usage,
       refreshUsage,
+      refreshConfig,
       freeMode,
       plan,
       costOf: (key) => config?.featureCosts?.[key] ?? null,
@@ -116,7 +151,7 @@ export function BillingProvider({ children }) {
       planRank: (id) => PLAN_ORDER.indexOf(id),
       upgradeHref: (p) => `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${p?.name || "a paid plan"}`)}`,
     };
-  }, [config, usage, refreshUsage]);
+  }, [config, usage, refreshUsage, refreshConfig]);
 
   return (
     <BillingContext.Provider value={value}>

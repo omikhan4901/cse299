@@ -7,9 +7,21 @@ const { limit } = require("../lib/rateLimit");
 const User = require("../models/User");
 const { getSettings } = require("../lib/settings");
 const { canUse } = require("../lib/credits");
+const { templateAllowed, templateTier } = require("../lib/templates");
 
 // Publishing a share link needs the "shareLinks" feature (only enforced when free mode is off).
 // Links that are already public keep working; making one public is what's checked.
+// Switching to a template the account's plan doesn't include is refused (resumes that already
+// use one keep it, e.g. after a plan ends). The builder normally stops this before it's sent.
+const templateOk = async (req, res, id) => {
+  const [user, settings] = await Promise.all([User.findById(req.userId).select("plan planExpiresAt").lean(), getSettings()]);
+  if (templateAllowed(user, settings, id)) return true;
+  const tier = templateTier(id, settings.templates);
+  const plan = settings.plans.find((p) => p.id === tier);
+  res.status(403).json({ success: false, code: "upgrade", feature: "templates", plan: tier, template: id, error: `That template is part of the ${plan?.name || "paid"} plan.` });
+  return false;
+};
+
 const shareAllowed = async (req, res) => {
   const [user, settings] = await Promise.all([User.findById(req.userId).select("plan planExpiresAt").lean(), getSettings()]);
   if (canUse(user, settings, "shareLinks")) return true;
@@ -19,7 +31,8 @@ const shareAllowed = async (req, res) => {
 };
 
 // Autosave sends a request a couple of seconds after typing stops, so this is generous.
-const perAccount = limit({ name: "resumes", windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: "Too many requests." });
+const perAccount = limit({ name: "resumes", windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: "Too many requests.", label: "Resume requests", group: "Resumes", scope: "account", description: "Opening, autosaving and listing resumes. Autosave sends a request a couple of seconds after typing stops." });
+const createByUser = limit({ name: "resume-create", windowMs: 60 * 60 * 1000, max: 30, key: (req) => req.userId, message: "You're creating resumes very quickly.", label: "New resumes", group: "Resumes", scope: "account", description: "New and duplicated resumes per account (on top of the 50-resume cap)." });
 const MAX_RESUMES = Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
 const underResumeCap = async (req, res) => {
   if ((await Resume.countDocuments({ user: req.userId })) < MAX_RESUMES) return true;
@@ -74,11 +87,12 @@ const handleError = (res, err, fallback) => {
 };
 
 // @route   POST /api/resumes  — create a resume
-router.post("/", protect, perAccount, async (req, res) => {
+router.post("/", protect, perAccount, createByUser, async (req, res) => {
   try {
     if (!(await underResumeCap(req, res))) return;
     const data = pickEditable(req.body);
     if (data.isPublic === true && !(await shareAllowed(req, res))) return;
+    if (typeof data.template === "string" && !(await templateOk(req, res, data.template))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId }, { isMaster: false });
     const resume = await Resume.create({ ...data, user: req.userId });
     res.status(201).json({ success: true, data: resume });
@@ -114,6 +128,7 @@ router.put("/:id", protect, perAccount, async (req, res) => {
     if (!resume) return;
     const data = pickEditable(req.body);
     if (data.isPublic === true && !resume.isPublic && !(await shareAllowed(req, res))) return;
+    if (typeof data.template === "string" && data.template !== resume.template && !(await templateOk(req, res, data.template))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId, _id: { $ne: resume._id } }, { isMaster: false });
     resume.set(data);
     await resume.save();
@@ -124,7 +139,7 @@ router.put("/:id", protect, perAccount, async (req, res) => {
 });
 
 // @route   POST /api/resumes/:id/duplicate
-router.post("/:id/duplicate", protect, perAccount, async (req, res) => {
+router.post("/:id/duplicate", protect, perAccount, createByUser, async (req, res) => {
   try {
     const resume = await findOwned(req, res);
     if (!resume) return;

@@ -8,6 +8,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Fired when an admin saves plan settings, so open pages reload them. */
+export const SETTINGS_CHANGED = "resumex:settings-changed";
+
 /** Fired when the server refuses something because of the plan; BillingProvider shows the upgrade dialog. */
 export const UPGRADE_NEEDED = "resumex:upgrade-needed";
 
@@ -32,7 +35,7 @@ export async function api(path, { token, method = "GET", body, timeout = 60000 }
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.success === false) {
       if (data.code === "upgrade" && data.feature && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature } }));
+        window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature, plan: data.plan, template: data.template } }));
       }
       throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.code);
     }

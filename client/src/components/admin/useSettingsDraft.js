@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { App } from "antd";
 import { useAdmin } from "./useAdmin";
+import { SETTINGS_CHANGED } from "@/lib/api";
 
 /**
  * Loads the admin settings and keeps an editable copy. `save()` sends the
@@ -25,7 +26,8 @@ export function useSettingsDraft() {
       const d = await call("/settings", { method: "PUT", body: draft });
       setData(d.data);
       setDraft(null);
-      message.success("Settings saved — live for everyone now");
+      window.dispatchEvent(new Event(SETTINGS_CHANGED)); // this tab's builder/pricing pick it up now
+      message.success("Settings saved. Live for everyone now.");
     } catch (err) {
       message.error(err.message);
     } finally {

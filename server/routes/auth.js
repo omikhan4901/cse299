@@ -141,12 +141,14 @@ const markPasswordChanged = (user) => {
 const emailKey = (req) => (typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : null);
 
 // --- Brute-force protection ---
-const loginByIp = limit({ name: 'login-ip', windowMs: 15 * 60 * 1000, max: 30, key: clientIp, message: 'Too many login attempts.' });
-const loginByEmail = limit({ name: 'login-email', windowMs: 15 * 60 * 1000, max: 8, key: emailKey, message: 'Too many login attempts for this account.' });
-const registerByIp = limit({ name: 'register-ip', windowMs: 60 * 60 * 1000, max: 10, key: clientIp, message: 'Too many accounts created from this network.' });
-const resetByIp = limit({ name: 'reset-ip', windowMs: 60 * 60 * 1000, max: 10, key: clientIp, message: 'Too many password reset requests.' });
-const resetByEmail = limit({ name: 'reset-email', windowMs: 60 * 60 * 1000, max: 3, key: emailKey, message: 'Too many password reset requests for this email.' });
-const sensitiveByUser = limit({ name: 'account', windowMs: 15 * 60 * 1000, max: 10, key: (req) => req.userId, message: 'Too many attempts.' });
+const loginByIp = limit({ name: 'login-ip', windowMs: 15 * 60 * 1000, max: 30, key: clientIp, message: 'Too many login attempts.', label: 'Log in (per IP)', group: 'Sign-in & accounts', description: 'Password attempts from one network.' });
+const loginByEmail = limit({ name: 'login-email', windowMs: 15 * 60 * 1000, max: 8, key: emailKey, message: 'Too many login attempts for this account.', label: 'Log in (per email)', group: 'Sign-in & accounts', scope: 'email', description: 'Password attempts against one account, from anywhere. Keep this low.' });
+const registerByIp = limit({ name: 'register-ip', windowMs: 60 * 60 * 1000, max: 10, key: clientIp, message: 'Too many accounts created from this network.', label: 'Sign-ups (per IP)', group: 'Sign-in & accounts', description: 'New accounts from one network. Raise it for campus events on shared Wi-Fi.' });
+const resetByIp = limit({ name: 'reset-ip', windowMs: 60 * 60 * 1000, max: 10, key: clientIp, message: 'Too many password reset requests.', label: 'Password resets (per IP)', group: 'Sign-in & accounts', description: 'Reset emails requested and reset links used from one network.' });
+const resetByEmail = limit({ name: 'reset-email', windowMs: 60 * 60 * 1000, max: 3, key: emailKey, message: 'Too many password reset requests for this email.', label: 'Password resets (per email)', group: 'Sign-in & accounts', scope: 'email', description: 'Reset emails sent to one address.' });
+const profileByUser = limit({ name: 'profile', windowMs: 15 * 60 * 1000, max: 20, key: (req) => req.userId, message: 'Too many changes.', label: 'Profile updates', group: 'Sign-in & accounts', scope: 'account', description: 'Changing your name on the account page.' });
+const exportByUser = limit({ name: 'export', windowMs: 60 * 60 * 1000, max: 5, key: (req) => req.userId, message: 'Too many exports.', label: 'Data exports', group: 'Sign-in & accounts', scope: 'account', description: 'Downloads of everything stored about an account (a heavy request).' });
+const sensitiveByUser = limit({ name: 'account', windowMs: 15 * 60 * 1000, max: 10, key: (req) => req.userId, message: 'Too many attempts.', label: 'Sensitive account actions', group: 'Sign-in & accounts', scope: 'account', description: 'Password change, account deletion, sign out everywhere and starting 2FA setup.' });
 
 // @route   POST /api/auth/register
 router.post('/register', registerByIp, async (req, res) => {
@@ -256,7 +258,7 @@ router.get('/me', protect, async (req, res) => {
 
 // @route   PUT /api/auth/me
 // @desc    Update your name
-router.put('/me', protect, async (req, res) => {
+router.put('/me', protect, profileByUser, async (req, res) => {
     const name = String(req.body?.name || '').trim();
     if (!name) return res.status(400).json({ success: false, error: 'Please enter your name.' });
     try {
@@ -298,7 +300,7 @@ router.put('/password', protect, sensitiveByUser, async (req, res) => {
 
 // @route   GET /api/auth/export
 // @desc    Download everything stored about you (account + resumes) as JSON.
-router.get('/export', protect, async (req, res) => {
+router.get('/export', protect, exportByUser, async (req, res) => {
     try {
         const [user, resumes] = await Promise.all([
             User.findById(req.userId).lean(),
@@ -397,13 +399,17 @@ router.post('/reset-password', resetByIp, async (req, res) => {
 
 // ---------- Two-factor authentication (authenticator apps) ----------
 
-const mfaByIp = limit({ name: 'mfa-ip', windowMs: 15 * 60 * 1000, max: 20, key: clientIp, message: 'Too many verification attempts.' });
+const mfaByIp = limit({ name: 'mfa-ip', windowMs: 15 * 60 * 1000, max: 20, key: clientIp, message: 'Too many verification attempts.', label: 'Two-factor codes (per IP)', group: 'Security codes', description: 'Authenticator and recovery codes entered at log in from one network.' });
 const mfaByUser = limit({
     name: 'mfa-user',
     windowMs: 15 * 60 * 1000,
     max: 10,
     key: (req) => req.userId || req.mfaUserId,
     message: 'Too many wrong codes. For your security, wait before trying again.',
+    label: 'Wrong codes (per account)',
+    group: 'Security codes',
+    scope: 'account',
+    description: 'Authenticator, recovery and email codes tried on one account.',
 });
 const is2faAdmin = (user) => ['admin', 'superadmin'].includes(roleOf(user));
 
@@ -539,7 +545,7 @@ router.post('/2fa/disable', protect, mfaByUser, async (req, res, next) => {
 
 // ---------- Email verification ----------
 
-const emailCodeLimit = limit({ name: 'email-code', windowMs: 60 * 60 * 1000, max: 4, key: (req) => req.userId, message: 'Too many codes requested.' });
+const emailCodeLimit = limit({ name: 'email-code', windowMs: 60 * 60 * 1000, max: 4, key: (req) => req.userId, message: 'Too many codes requested.', label: 'Email verification codes sent', group: 'Security codes', scope: 'account', description: 'Verification emails one account can request.' });
 
 // @route POST /api/auth/email/send-code — emails a 6-digit code (valid 15 minutes)
 router.post('/email/send-code', protect, emailCodeLimit, async (req, res, next) => {

@@ -245,11 +245,16 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       setSavedJson(body);
       onSaveSucceeded();
     } catch (err) {
-      onSaveFailed(err);
+      // The plan doesn't include the chosen template (e.g. the rules changed): go back to the
+      // saved design, which the upgrade dialog explains, instead of retrying forever.
+      if (err.code === "upgrade") {
+        const savedTemplate = savedJson ? JSON.parse(savedJson).template : "Classic";
+        setResume((r) => ({ ...r, template: savedTemplate || "Classic" }));
+      } else onSaveFailed(err);
     } finally {
       setSaving(false);
     }
-  }, [resume._id, token, payloadJson, onSaveFailed, onSaveSucceeded]);
+  }, [resume._id, token, payloadJson, savedJson, setResume, onSaveFailed, onSaveSucceeded]);
 
   /** Adds this resume to the account. Edits made while the request is in flight are kept and saved next. */
   const createResume = useCallback(
@@ -269,8 +274,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         onSaveSucceeded();
         message.success(auto ? "Saved to My resumes. Every change now saves automatically." : "Saved to My resumes.");
       } catch (err) {
-        onSaveFailed(err);
-        if (!auto) message.error(err.message);
+        if (err.code === "upgrade") setResume((r) => ({ ...r, template: "Classic" })); // saved on the next try
+        else {
+          onSaveFailed(err);
+          if (!auto) message.error(err.message);
+        }
       } finally {
         creating.current = false;
         setSaving(false);

@@ -1,4 +1,5 @@
 const Settings = require('../models/Settings');
+const { setOverrides } = require('./rateLimit');
 
 /**
  * Everything an admin can tune without a deploy. `getSettings()` always
@@ -37,6 +38,8 @@ const DEFAULTS = {
     currency: 'USD',
     showPricing: false,
     featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2 },
+    // Admin overrides for rate limits: { [name]: { max, windowMs } } (see lib/rateLimit.js).
+    rateLimits: {},
     templates: {
         categories: { ats: 'free', minimal: 'pro', creative: 'pro', executive: 'pro', academic: 'pro', student: 'free', twocol: 'pro' },
         overrides: {},
@@ -111,6 +114,12 @@ function clean(input) {
             .filter(([id, tier]) => /^[A-Za-z0-9_-]{1,40}$/.test(id) && PLAN_IDS.includes(tier))
             .slice(0, 200)
     );
+    const rateLimits = Object.fromEntries(
+        Object.entries(isObj(s.rateLimits) ? s.rateLimits : {})
+            .filter(([name, v]) => /^[a-z0-9-]{1,40}$/.test(name) && isObj(v))
+            .map(([name, v]) => [name, { max: Math.round(num(v.max, 1, { min: 1, max: 100000 })), windowMs: Math.round(num(v.windowMs, 60000, { min: 1000, max: 864e5 })) }])
+            .slice(0, 100)
+    );
     return {
         freeMode: {
             enabled: !!freeMode.enabled,
@@ -122,6 +131,7 @@ function clean(input) {
         showPricing: !!s.showPricing,
         featureCosts: costs,
         templates: { categories, overrides },
+        rateLimits,
         plans,
     };
 }
@@ -135,6 +145,7 @@ async function getSettings() {
     const doc = await Settings.findOne({ key: 'global' }).lean();
     cache = clean(doc?.data);
     cachedAt = Date.now();
+    setOverrides(cache.rateLimits);
     return cache;
 }
 
@@ -143,6 +154,7 @@ async function updateSettings(patch, by) {
     const merged = merge(current, patch);
     // Template access is saved as a whole, so removing an override really removes it.
     if (isObj(patch?.templates)) merged.templates = patch.templates;
+    if (isObj(patch?.rateLimits)) merged.rateLimits = patch.rateLimits;
     const next = clean(merged);
     const doc = await Settings.findOne({ key: 'global' });
     if (doc) {
@@ -155,8 +167,12 @@ async function updateSettings(patch, by) {
     }
     cache = next;
     cachedAt = Date.now();
+    setOverrides(next.rateLimits);
     return next;
 }
+
+// Keep every server instance's copy fresh, so rate-limit changes apply everywhere within ~30s.
+setInterval(() => getSettings().catch(() => {}), TTL + 1000).unref();
 
 const planById = (settings, id) => settings.plans.find((p) => p.id === id) || settings.plans[0];
 

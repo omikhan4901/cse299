@@ -70,6 +70,10 @@ const aiBurst = limit({
     max: Number(process.env.AI_RATE_PER_MINUTE) || 8,
     key: (req) => req.userId,
     message: "You're sending AI requests very quickly.",
+    label: 'AI requests per minute',
+    group: 'AI',
+    scope: 'account',
+    description: 'Burst limit on top of the daily/monthly credits, so one account can’t flood the AI provider.',
 });
 
 /**

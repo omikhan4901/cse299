@@ -8,7 +8,7 @@ const Campaign = require('../models/Campaign');
 const { protect, requireAdmin, roleOf, isSuperadmin, hashPassword, passwordProblem } = require('./auth');
 const AdminLog = require('../models/AdminLog');
 const { audit } = require('../lib/audit');
-const { limit } = require('../lib/rateLimit');
+const { limit, describeLimits } = require('../lib/rateLimit');
 const { getSettings, updateSettings, AI_FEATURES, APP_FEATURES } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 
@@ -17,7 +17,7 @@ const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
  * (SUPERADMIN_EMAILS). Only super admins can change who is an admin.
  */
 const router = express.Router();
-router.use(protect, requireAdmin, limit({ name: 'admin', windowMs: 60 * 1000, max: 240, key: (req) => req.userId, message: 'Too many admin requests.' }));
+router.use(protect, requireAdmin, limit({ name: 'admin', windowMs: 60 * 1000, max: 240, key: (req) => req.userId, message: 'Too many admin requests.', label: 'Admin console', group: 'Admin', scope: 'account', description: 'Requests one admin can make. Can’t go below 30, so the console stays usable.', min: 30 }));
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const bad = (res, error, status = 400) => res.status(status).json({ success: false, error });
@@ -300,13 +300,13 @@ router.get('/audit', wrap(async (req, res) => {
 // ---------- Settings (plans, prices, credit costs, free mode) ----------
 
 router.get('/settings', wrap(async (req, res) => {
-    res.json({ success: true, data: { settings: await getSettings(), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES } });
+    res.json({ success: true, data: { settings: await getSettings(), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, rateLimits: describeLimits() } });
 }));
 
 router.put('/settings', wrap(async (req, res) => {
     const settings = await updateSettings(req.body || {}, req.adminEmail);
     audit(req, 'settings.update', null, req.body);
-    res.json({ success: true, data: { settings, aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES } });
+    res.json({ success: true, data: { settings, aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, rateLimits: describeLimits() } });
 }));
 
 // ---------- Campaigns ----------

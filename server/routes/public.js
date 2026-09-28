@@ -7,7 +7,7 @@ const { limit, clientIp } = require("../lib/rateLimit");
 
 // @route   GET /api/public/:id
 // @desc    A shared resume, by short id (or legacy Mongo id). Only works when isPublic is on.
-router.get("/:id", limit({ name: "public-ip", windowMs: 60 * 1000, max: 120, key: clientIp, message: "Too many requests." }), async (req, res) => {
+router.get("/:id", limit({ name: "public-ip", windowMs: 60 * 1000, max: 120, key: clientIp, message: "Too many requests.", label: "Shared resume views", group: "Public pages", description: "Share-link page loads from one network." }), async (req, res) => {
   try {
     const { id } = req.params;
     // Never expose the owner, or the uncropped original photo.
