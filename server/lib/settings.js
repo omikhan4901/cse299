@@ -18,9 +18,13 @@ const AI_FEATURES = [
 // Non-AI features that plans can switch on or off.
 const APP_FEATURES = [
     { key: 'atsCheck', name: 'ATS check', description: 'The ATS score and job keyword match.' },
-    { key: 'premiumTemplates', name: 'All templates', description: 'Every template category, not just the basics.' },
     { key: 'shareLinks', name: 'Share links', description: 'Publish a resume as a web page.' },
 ];
+
+// Which plan each template needs: a tier per category, and optional per-template overrides.
+// Plans stack (Premium includes Pro templates). A category not listed here needs Pro.
+const PLAN_IDS = ['free', 'pro', 'premium'];
+const TEMPLATE_CATEGORIES = ['ats', 'minimal', 'creative', 'executive', 'academic', 'student', 'twocol'];
 
 const allOn = Object.fromEntries([...AI_FEATURES, ...APP_FEATURES].map((f) => [f.key, true]));
 
@@ -33,11 +37,15 @@ const DEFAULTS = {
     currency: 'USD',
     showPricing: false,
     featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2 },
+    templates: {
+        categories: { ats: 'free', minimal: 'pro', creative: 'pro', executive: 'pro', academic: 'pro', student: 'free', twocol: 'pro' },
+        overrides: {},
+    },
     plans: [
         {
             id: 'free', name: 'Free', tagline: 'Everything you need for your first resume.',
             price: 0, yearlyPrice: 0, credits: 10, creditPeriod: 'day', highlight: false,
-            features: { ...allOn, parse: false, coverLetter: false, audit: false, premiumTemplates: false },
+            features: { ...allOn, parse: false, coverLetter: false, audit: false },
             perks: ['Live PDF builder', 'ATS-Optimized and Student templates', 'ATS check with keyword match', '10 AI credits a day'],
         },
         {
@@ -94,6 +102,15 @@ function clean(input) {
         };
     });
     const freeMode = isObj(s.freeMode) ? s.freeMode : DEFAULTS.freeMode;
+    const tpl = isObj(s.templates) ? s.templates : {};
+    const categories = Object.fromEntries(
+        TEMPLATE_CATEGORIES.map((c) => [c, PLAN_IDS.includes(tpl.categories?.[c]) ? tpl.categories[c] : DEFAULTS.templates.categories[c]])
+    );
+    const overrides = Object.fromEntries(
+        Object.entries(isObj(tpl.overrides) ? tpl.overrides : {})
+            .filter(([id, tier]) => /^[A-Za-z0-9_-]{1,40}$/.test(id) && PLAN_IDS.includes(tier))
+            .slice(0, 200)
+    );
     return {
         freeMode: {
             enabled: !!freeMode.enabled,
@@ -104,6 +121,7 @@ function clean(input) {
         currency: str(s.currency, 'USD', 8).toUpperCase() || 'USD',
         showPricing: !!s.showPricing,
         featureCosts: costs,
+        templates: { categories, overrides },
         plans,
     };
 }
@@ -122,7 +140,10 @@ async function getSettings() {
 
 async function updateSettings(patch, by) {
     const current = await getSettings();
-    const next = clean(merge(current, patch));
+    const merged = merge(current, patch);
+    // Template access is saved as a whole, so removing an override really removes it.
+    if (isObj(patch?.templates)) merged.templates = patch.templates;
+    const next = clean(merged);
     const doc = await Settings.findOne({ key: 'global' });
     if (doc) {
         doc.data = next;
@@ -139,4 +160,4 @@ async function updateSettings(patch, by) {
 
 const planById = (settings, id) => settings.plans.find((p) => p.id === id) || settings.plans[0];
 
-module.exports = { getSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, DEFAULTS };
+module.exports = { getSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_IDS, DEFAULTS };

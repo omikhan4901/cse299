@@ -27,7 +27,7 @@ import AtsModal from "./AtsModal";
 import TemplateGallery from "./TemplateGallery";
 import BuilderTour from "./BuilderTour";
 import { CreditMeter, CreditTooltip } from "../Credits";
-import { useBilling, isPremiumTemplate } from "../BillingProvider";
+import { useBilling } from "../BillingProvider";
 import PlanTag from "../billing/PlanTag";
 import ResumeGuideModal from "./ResumeGuideModal";
 import { AI_LOCKED_MESSAGE } from "./ai";
@@ -531,9 +531,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const FEATURE_OF = { audit: "atsCheck", chat: "chat", cover: "coverLetter", import: "parse" };
   const FEATURE_NAME = { audit: "The ATS check", chat: "The AI assistant", cover: "The cover letter writer", import: "Importing a resume" };
   const allowed = (feature, what) => !billing || billing.requireFeature(feature, what);
-  const templateLocked = (id) => !!billing && isPremiumTemplate(templateById(id)) && !billing.canUse("premiumTemplates");
+  // The plan a template needs, when this account's plan doesn't include it (admins set this per category and template).
+  const templateLocked = (id) => billing?.templateLock(id) || null;
   const pickTemplate = (id) => {
-    if (templateLocked(id)) return allowed("premiumTemplates", `The ${templateById(id).name} template`);
+    if (billing && !billing.requireTemplate(id)) return false;
     editor.setField("template", id);
     return true;
   };
@@ -545,7 +546,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     const locked = requestedTemplate.current;
     requestedTemplate.current = null;
     editor.setField("template", "Classic");
-    allowed("premiumTemplates", `The ${templateById(locked).name} template`);
+    billing.requireTemplate(locked);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [billing?.config]);
 

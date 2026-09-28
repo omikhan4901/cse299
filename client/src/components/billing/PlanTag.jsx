@@ -8,13 +8,20 @@ import { useBilling } from "../BillingProvider";
  * doesn't include, so it's clear before anyone clicks. Renders nothing when the
  * feature is usable (including whenever free mode is on).
  */
-export default function PlanTag({ feature, locked, className = "" }) {
+export default function PlanTag({ feature, locked, plan: required, className = "" }) {
   const billing = useBilling();
-  const plan = locked !== undefined ? (locked ? billing?.upgradePlanFor(feature) || { name: "Pro" } : null) : billing?.lockFor(feature);
+  const plan =
+    required !== undefined ? required : locked !== undefined ? (locked ? billing?.upgradePlanFor(feature) || { name: "Pro" } : null) : billing?.lockFor(feature);
   if (!plan) return null;
   return (
     <span className={`inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 px-1.5 py-px text-[10px] leading-4 font-bold tracking-wide text-amber-950 uppercase shadow-sm ${className}`}>
       <Crown size={9} strokeWidth={2.5} /> {plan.name}
     </span>
   );
+}
+
+/** The plan tag for a template this account's plan doesn't include (usable in server components). */
+export function TemplateTag({ id, className = "" }) {
+  const billing = useBilling();
+  return <PlanTag plan={billing?.templateLock(id) || null} className={className} />;
 }

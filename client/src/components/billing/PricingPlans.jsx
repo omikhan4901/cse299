@@ -6,6 +6,7 @@ import { Segmented } from "antd";
 import { Check, Crown, Minus, Sparkles, Zap } from "lucide-react";
 import { formatPrice } from "../BillingProvider";
 import { CONTACT_EMAIL } from "@/lib/config";
+import { TEMPLATES, planIncludes } from "@/pdf/registry";
 
 /** The three plans from the admin settings, with a monthly / yearly switch. */
 export default function PricingPlans({ config }) {
@@ -100,6 +101,14 @@ export default function PricingPlans({ config }) {
               {plans.map((p) => (
                 <td key={p.id} className="p-4 text-center font-medium text-ink tabular-nums">
                   {freeMode.enabled && p.id === "free" ? `${freeMode.dailyCredits} / day` : `${p.credits.toLocaleString()} / ${p.creditPeriod}`}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="p-4 text-slate-700">Resume templates</td>
+              {plans.map((p) => (
+                <td key={p.id} className="p-4 text-center font-medium text-ink tabular-nums">
+                  {freeMode.enabled ? TEMPLATES.length : TEMPLATES.filter((t) => planIncludes(p.id, t, config.templates)).length} of {TEMPLATES.length}
                 </td>
               ))}
             </tr>

@@ -58,9 +58,25 @@ export const templatesIn = (category) => TEMPLATES.filter((t) => t.category === 
 
 export const categoryById = (id) => CATEGORIES.find((c) => c.id === id);
 
-// Categories open to everyone when plans are enforced; the rest need the "premiumTemplates" feature.
+// ---- Template access (which plan a template needs) ----
+// Admins set a plan per category and can override single templates (settings.templates).
+// Plans stack: free < pro < premium. These defaults apply until the settings load.
+export const PLAN_ORDER = ["free", "pro", "premium"];
 export const FREE_TEMPLATE_CATEGORIES = ["ats", "student"];
-export const isPremiumTemplate = (template) => !!template && !FREE_TEMPLATE_CATEGORIES.includes(template.category);
+const DEFAULT_ACCESS = { categories: Object.fromEntries(CATEGORIES.map((c) => [c.id, FREE_TEMPLATE_CATEGORIES.includes(c.id) ? "free" : "pro"])), overrides: {} };
+
+/** The plan id a template needs ("free", "pro" or "premium"). */
+export const templateTier = (template, access) => {
+  if (!template) return "free";
+  const a = access || DEFAULT_ACCESS;
+  return a.overrides?.[template.id] || a.categories?.[template.category] || DEFAULT_ACCESS.categories[template.category] || "pro";
+};
+
+/** True when a plan includes a template. */
+export const planIncludes = (planId, template, access) => PLAN_ORDER.indexOf(templateTier(template, access)) <= Math.max(0, PLAN_ORDER.indexOf(planId));
+
+/** With the default settings, whether a template needs a paid plan (used for static page text). */
+export const isPremiumTemplate = (template) => templateTier(template) !== "free";
 
 export const ACCENT_SWATCHES = ["#4338ca", "#2563eb", "#0f766e", "#007b7b", "#15803d", "#b45309", "#be123c", "#7c3aed", "#334155", "#0f172a"];
 

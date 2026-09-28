@@ -22,7 +22,7 @@ const listNames = (items) => (items.length <= 1 ? items.join("") : `${items.slic
  */
 export default function UpgradeModal({ request, onClose, billing }) {
   const feature = request ? billing.featureInfo(request.feature) : null;
-  const plan = request ? billing.lockFor(request.feature) || billing.upgradePlanFor(request.feature) : null;
+  const plan = request ? request.plan || billing.lockFor(request.feature) || billing.upgradePlanFor(request.feature) : null;
   const currency = billing.config?.currency || "USD";
   const usage = billing.usage;
   const current = billing.plan || billing.config?.plans?.[0];
@@ -44,7 +44,7 @@ export default function UpgradeModal({ request, onClose, billing }) {
           <h2 className="mt-4 font-display text-xl font-bold text-ink">
             {title} is part of {plan?.name || "a paid plan"}
           </h2>
-          {feature?.description ? <p className="mt-1 text-sm text-slate-600">{feature.description}</p> : null}
+          {feature?.description || request.description ? <p className="mt-1 text-sm text-slate-600">{feature?.description || request.description}</p> : null}
 
           {plan?.price != null ? (
             <div className="mt-5 rounded-2xl border border-brand-200 bg-brand-50/60 p-4">

@@ -17,7 +17,7 @@ export const CREDITS_CHANGED = "resumex:credits-changed";
 /** Call after anything that may have spent credits, to refresh the balance. */
 export const notifyCreditsChanged = () => typeof window !== "undefined" && window.dispatchEvent(new Event(CREDITS_CHANGED));
 
-export { FREE_TEMPLATE_CATEGORIES, isPremiumTemplate } from "@/pdf/registry";
+import { PLAN_ORDER, planIncludes, templateById, templateTier } from "@/pdf/registry";
 
 export function BillingProvider({ children }) {
   const { token } = useAuth();
@@ -94,6 +94,26 @@ export function BillingProvider({ children }) {
         setUpgrade({ feature: key, what });
         return false;
       },
+      /** The plan a template needs when this account's plan doesn't include it, or null. */
+      templateLock: (id) => {
+        if (!config || freeMode) return null;
+        const t = templateById(id);
+        if (planIncludes(planId, t, config.templates)) return null;
+        const need = templateTier(t, config.templates);
+        return config.plans?.find((p) => p.id === need) || { id: need, name: need[0].toUpperCase() + need.slice(1) };
+      },
+      /** How many templates a plan includes. */
+      templatesFor: (id, all) => all.filter((t) => planIncludes(id, t, config?.templates)).length,
+      /** True when the template can be used; otherwise explains the upgrade and returns false. */
+      requireTemplate: (id) => {
+        if (!config || freeMode) return true;
+        const t = templateById(id);
+        if (planIncludes(planId, t, config.templates)) return true;
+        const need = templateTier(t, config.templates);
+        setUpgrade({ feature: "templates", what: `The ${t.name} template`, plan: config.plans?.find((p) => p.id === need), description: "Every plan includes a set of designs. This one needs a higher plan." });
+        return false;
+      },
+      planRank: (id) => PLAN_ORDER.indexOf(id),
       upgradeHref: (p) => `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${p?.name || "a paid plan"}`)}`,
     };
   }, [config, usage, refreshUsage]);

@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { ArrowRight, Crown } from "lucide-react";
 import { useBilling } from "../BillingProvider";
+import { TEMPLATES } from "@/pdf/registry";
 
 /**
  * "Use this template" on a template page. When plans are enforced and the
  * template needs a paid plan, says so up front instead of after sign-up.
  */
-export default function TemplateCta({ template, premium }) {
+export default function TemplateCta({ template }) {
   const billing = useBilling();
-  const plan = premium ? billing?.lockFor("premiumTemplates") : null;
+  const plan = billing?.templateLock(template.id);
   const button = "group inline-flex items-center gap-2 rounded-xl px-6 py-3.5 font-semibold shadow-lg transition hover:-translate-y-0.5";
   if (!plan) {
     return (
@@ -24,10 +25,10 @@ export default function TemplateCta({ template, premium }) {
       <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
         <Crown size={18} className="mt-0.5 shrink-0 text-amber-600" />
         <p className="text-amber-950">
-          <b>{template.name} is a {plan.name} template.</b> On the free plan you can use every ATS-friendly and student template. Everything else, including the ATS check and PDF downloads, is free.
+          <b>{template.name} is a {plan.name} template.</b> Your plan includes {billing.templatesFor(billing.plan?.id || "free", TEMPLATES)} of our {TEMPLATES.length} designs, and building, the ATS check and PDF downloads stay free.
         </p>
       </div>
-      <button type="button" onClick={() => billing.requireFeature("premiumTemplates", `The ${template.name} template`)} className={`${button} bg-gradient-to-r from-amber-400 to-orange-500 text-amber-950 shadow-amber-500/25`}>
+      <button type="button" onClick={() => billing.requireTemplate(template.id)} className={`${button} bg-gradient-to-r from-amber-400 to-orange-500 text-amber-950 shadow-amber-500/25`}>
         <Crown size={18} /> Get {plan.name} to use it
       </button>
     </div>

@@ -90,7 +90,7 @@ export default async function TemplatePage({ params }) {
               ))}
             </ul>
             <div className="mt-8 flex flex-wrap gap-3">
-              <TemplateCta template={{ id: t.id, name: t.name }} premium={isPremiumTemplate(t)} />
+              <TemplateCta template={{ id: t.id, name: t.name }} />
               <Link href={`/templates/category/${catPage.slug}`} className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 font-semibold text-ink hover:border-brand-200 hover:text-brand">
                 More {cat.name.toLowerCase()} templates
               </Link>

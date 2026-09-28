@@ -20,6 +20,7 @@ router.get('/plans', async (req, res, next) => {
                 currency: s.currency,
                 showPricing: s.showPricing,
                 featureCosts: s.featureCosts,
+                templates: s.templates,
                 plans: s.plans,
                 aiFeatures: AI_FEATURES,
                 appFeatures: APP_FEATURES,

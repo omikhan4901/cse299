@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Result, Button, Tabs, Skeleton } from "antd";
-import { BarChart3, Users, Crown, Zap, Megaphone, ShieldCheck, ScrollText, Lock, Mail, Smartphone } from "lucide-react";
+import { BarChart3, Users, Crown, Zap, Megaphone, ShieldCheck, ScrollText, Lock, Mail, Smartphone, LayoutTemplate } from "lucide-react";
 import { api } from "@/lib/api";
 import { EmailVerify, TwoFactorSetup } from "../security/TwoFactor";
 import AuditTab from "./AuditTab";
@@ -13,11 +13,13 @@ import UsersTab from "./UsersTab";
 import PlansTab from "./PlansTab";
 import CreditsTab from "./CreditsTab";
 import CampaignsTab from "./CampaignsTab";
+import TemplatesTab from "./TemplatesTab";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: BarChart3, Comp: Overview },
   { key: "users", label: "Users", icon: Users, Comp: UsersTab },
   { key: "plans", label: "Plans & pricing", icon: Crown, Comp: PlansTab },
+  { key: "templates", label: "Templates", icon: LayoutTemplate, Comp: TemplatesTab },
   { key: "credits", label: "Credits & access", icon: Zap, Comp: CreditsTab },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, Comp: CampaignsTab },
   { key: "audit", label: "Audit log", icon: ScrollText, Comp: AuditTab },

@@ -62,7 +62,7 @@ export default function DesignPanel({ resume, onTemplate, setTheme, onBrowse, on
                   >
                     <Image src={`/templates/${t.id}.jpg`} alt="" fill sizes="74px" className="object-cover object-top" />
                     {isLocked?.(t.id) ? (
-                      <span className="absolute bottom-1 left-1 rounded-full bg-amber-400 px-1.5 text-[9px] font-bold text-amber-950 shadow">PRO</span>
+                      <span className="absolute bottom-1 left-1 rounded-full bg-amber-400 px-1.5 text-[9px] font-bold text-amber-950 uppercase shadow">{isLocked(t.id).name}</span>
                     ) : null}
                     {active ? (
                       <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-white shadow">

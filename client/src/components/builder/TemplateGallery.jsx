@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Input, Modal } from "antd";
+import { Input, Modal, Tooltip } from "antd";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Crown, LayoutGrid, Search, ShieldCheck, Columns2, Image as ImageIcon, X } from "lucide-react";
 import { CATEGORIES, TEMPLATES } from "@/pdf/registry";
@@ -29,8 +29,8 @@ function Card({ t, active, onPick, locked }) {
       <div className="relative aspect-[1/1.414] overflow-hidden bg-slate-100">
         <Image src={`/templates/${t.id}.jpg`} alt={`${t.name} resume template`} fill sizes="(min-width: 1024px) 190px, 45vw" className="object-cover object-top transition duration-500 group-hover:scale-[1.04]" />
         {locked ? (
-          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow">
-            <Crown size={10} /> PRO
+          <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 uppercase shadow">
+            <Crown size={10} /> {locked.name}
           </span>
         ) : null}
         {active ? (
@@ -90,6 +90,12 @@ export default function TemplateGallery({ open, onClose, current, onPick, initia
   };
   const toggle = (id) => setFilters((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
+  // A crown on categories where every template needs a higher plan.
+  const categoryLock = (id) => {
+    const list = TEMPLATES.filter((t) => t.category === id);
+    const locks = list.map((t) => isLocked?.(t.id)).filter(Boolean);
+    return list.length && locks.length === list.length ? locks[0] : null;
+  };
   const navItem = (id, label, count) => (
     <button
       key={id}
@@ -97,7 +103,14 @@ export default function TemplateGallery({ open, onClose, current, onPick, initia
       onClick={() => setCategory(id)}
       className={`flex shrink-0 items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition lg:w-full ${category === id ? "bg-brand text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
     >
-      <span className="whitespace-nowrap">{label}</span>
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        {label}
+        {id !== "all" && categoryLock(id) ? (
+          <Tooltip title={`${categoryLock(id).name} plan`}>
+            <Crown size={12} className={category === id ? "text-amber-200" : "text-amber-500"} />
+          </Tooltip>
+        ) : null}
+      </span>
       <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${category === id ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>{count}</span>
     </button>
   );
@@ -149,7 +162,7 @@ export default function TemplateGallery({ open, onClose, current, onPick, initia
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
                     <AnimatePresence mode="popLayout">
                       {shown.filter((t) => t.category === c.id).map((t) => (
-                        <Card key={t.id} t={t} active={t.id === current} onPick={pick} locked={!!isLocked?.(t.id)} />
+                        <Card key={t.id} t={t} active={t.id === current} onPick={pick} locked={isLocked?.(t.id) || null} />
                       ))}
                     </AnimatePresence>
                   </div>
