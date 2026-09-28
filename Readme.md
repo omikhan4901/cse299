@@ -56,10 +56,11 @@ Users see what each AI action costs in its tooltip, and their balance in the bui
 ### Everything else
 - **Photo cropper**: drag, zoom and re-crop at any time.
 - **Every section**: experience, education, projects, skills, certifications, languages, volunteering, awards, publications, courses, interests and custom sections. References can carry signature lines for printed copies.
-- **Share links**: `/view/<id>` shows the resume in its own template, with a server-rendered web version for SEO.
+- **Share links**: `/view/<id>` shows the resume in its own template. Shared resumes are kept out of search results.
 - **Accounts**: autosave, a dashboard with live thumbnails, a master profile, password reset, data export and account deletion.
 - **Works without an account**: guests can build and download.
-- **SEO-first marketing site**: metadata, sitemap, Open Graph image and JSON-LD.
+- **SEO-first marketing site**: a page for every template and template style, career guides, an ATS checker landing page, full sitemap, canonical URLs and JSON-LD (Organization, SoftwareApplication, Article, FAQ, ItemList, breadcrumbs). See [`docs/marketing/seo-checklist.md`](docs/marketing/seo-checklist.md).
+- **Marketing kit**: a 90-day plan, ready-to-post Facebook posts and social graphics in [`docs/marketing`](docs/marketing).
 
 | Landing page | Template library |
 | --- | --- |
@@ -124,6 +125,8 @@ npm run dev               # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | Public site URL (canonical links, sitemap, share links) |
 | `NEXT_PUBLIC_AI_ENABLED` | `true` to enable AI features |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Shown on the privacy and terms pages |
+| `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | Optional. Google Search Console HTML-tag value |
+| `NEXT_PUBLIC_BING_SITE_VERIFICATION` | Optional. Bing Webmaster Tools meta-tag value |
 
 All server settings (Gemini, SMTP, rate limits, CORS) are documented in [`server/.env.example`](server/.env.example).
 

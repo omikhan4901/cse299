@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ResumeX social graphics</title>
+<!--
+  Source for the social media graphics in this folder. Open this file in a browser to see them all.
+  Edit the text here, then re-export PNGs (see README.md in docs/marketing).
+  Template images come from client/public/templates.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=block" rel="stylesheet">
+<style>
+  :root { --brand:#007B7B; --brand-dark:#006262; --mint:#5eead4; --brand-50:#effafa; --brand-100:#d5f2f1; --ink:#0f1f2a; --navy:#002A3A; --slate:#475569; --muted:#64748b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#cbd5e1; font-family:Inter, sans-serif; color:var(--ink); padding:40px; display:flex; flex-direction:column; gap:40px; align-items:flex-start; }
+  .g { width:1080px; height:1080px; position:relative; overflow:hidden; flex-shrink:0; }
+  .d { font-family:"Plus Jakarta Sans", sans-serif; letter-spacing:-0.02em; }
+  .logo { display:flex; align-items:center; gap:14px; font-family:"Plus Jakarta Sans"; font-weight:800; font-size:36px; letter-spacing:-0.02em; }
+  .logo svg { width:52px; height:52px; }
+  .logo .x { color:var(--brand); }
+  .ring .logo svg { border-radius:15px; box-shadow:0 0 0 3px #fff; }
+  .on-dark .logo { color:#fff; }
+  .on-dark .logo .x { color:var(--mint); }
+  .url { position:absolute; bottom:56px; left:72px; display:inline-flex; align-items:center; gap:12px; border-radius:999px; padding:18px 30px; font-weight:700; font-size:30px; }
+  .url.light { background:#fff; color:var(--navy); }
+  .url.brand { background:var(--brand); color:#fff; }
+  .thumb { border-radius:14px; box-shadow:0 30px 60px -20px rgba(0,20,30,.55), 0 0 0 1px rgba(15,31,42,.08); background:#fff; display:block; }
+  .pill { display:inline-block; border-radius:999px; padding:10px 22px; font-weight:600; font-size:24px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(90px); }
+  ul.clean { list-style:none; }
+</style>
+</head>
+<body>
+
+<!-- Reusable logo mark -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="mark" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="9" fill="#007B7B"/>
+    <path d="M10 8h8.5a5.5 5.5 0 0 1 1.6 10.76L23.5 24h-4.3l-3-4.8H14V24h-4V8zm4 3.6v4.1h4.3a2.05 2.05 0 0 0 0-4.1H14z" fill="#fff"/>
+    <circle cx="25" cy="8" r="2.4" fill="#5eead4"/>
+  </symbol>
+</svg>
+
+<!-- 01 Launch -->
+<section class="g on-dark" id="01-launch" style="background:linear-gradient(150deg,#002A3A 0%,#004f55 55%,#007B7B 100%);color:#fff">
+  <div class="glow" style="width:520px;height:520px;background:#14b8a6;opacity:.35;right:-160px;top:-120px"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <div style="position:absolute;left:72px;top:170px;width:940px">
+    <span class="pill" style="background:rgba(255,255,255,.12);color:#a7f3d0">Free · No sign-up needed to start</span>
+    <h1 class="d" style="font-size:92px;line-height:1.02;font-weight:800;margin-top:28px">Build a job-ready resume in 10 minutes.</h1>
+    <p style="font-size:32px;margin-top:26px;color:rgba(255,255,255,.8)">50 templates · Real ATS check · Instant PDF</p>
+  </div>
+  <img class="thumb" src="../../../client/public/templates/Nordic.jpg" style="position:absolute;width:330px;left:120px;top:690px;transform:rotate(-9deg)">
+  <img class="thumb" src="../../../client/public/templates/Executive.jpg" style="position:absolute;width:330px;left:640px;top:690px;transform:rotate(9deg)">
+  <img class="thumb" src="../../../client/public/templates/CoolBlue.jpg" style="position:absolute;width:360px;left:360px;top:640px;z-index:2">
+  <div style="position:absolute;right:56px;bottom:56px;z-index:3" class="pill"><span style="background:#fff;color:#002A3A;border-radius:999px;padding:18px 30px;font-weight:700;font-size:30px;display:inline-block">resumex.cc</span></div>
+</section>
+
+<!-- 02 Templates -->
+<section class="g" id="02-templates" style="background:#effafa">
+  <div style="position:absolute;inset:0;transform:rotate(-6deg) translate(-90px,500px);display:grid;grid-template-columns:repeat(5,250px);gap:26px">
+    <img class="thumb" src="../../../client/public/templates/Classic.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Sunset.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Metro.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Blush.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Harbor.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Midnight.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Graduate.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Studio.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Syntax.jpg" style="width:250px">
+    <img class="thumb" src="../../../client/public/templates/Prestige.jpg" style="width:250px">
+  </div>
+  <div style="position:absolute;inset:0 0 auto 0;height:560px;background:linear-gradient(#effafa 78%,rgba(239,250,250,0))"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <h1 class="d" style="position:absolute;left:72px;top:158px;font-size:92px;font-weight:800;line-height:1.02">50 free resume<br>templates</h1>
+  <p style="position:absolute;left:72px;top:370px;font-size:32px;color:#334155">ATS-friendly, modern, creative, academic. No watermark.</p>
+  <span class="url brand" style="z-index:3">Pick one at resumex.cc/templates</span>
+</section>
+
+<!-- 03 ATS -->
+<section class="g on-dark" id="03-ats" style="background:#002A3A;color:#fff">
+  <div class="glow" style="width:600px;height:600px;background:#007B7B;opacity:.5;left:-200px;bottom:-200px"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <h1 class="d" style="position:absolute;left:72px;top:160px;width:960px;font-size:68px;font-weight:800;line-height:1.06">Will software reject your CV before a person reads it?</h1>
+  <div style="position:absolute;left:72px;right:72px;top:430px;background:#fff;color:#0f1f2a;border-radius:32px;padding:40px 44px;box-shadow:0 40px 80px -30px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:28px">
+      <div style="width:132px;height:132px;border-radius:50%;background:conic-gradient(#10b981 0 92%,#e2e8f0 92% 100%);display:flex;align-items:center;justify-content:center">
+        <div style="width:104px;height:104px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center" class="d"><b style="font-size:44px">92</b></div>
+      </div>
+      <div><p class="d" style="font-size:38px;font-weight:800">Excellent</p><p style="font-size:24px;color:#64748b;margin-top:4px">ATS score for “Junior Software Engineer”</p></div>
+    </div>
+    <ul class="clean" style="margin-top:30px;display:grid;gap:14px;font-size:25px">
+      <li style="display:flex;gap:14px;align-items:center;background:#f8fafc;border-radius:16px;padding:14px 18px"><span style="color:#10b981;font-size:30px">✔</span> Every word is readable text</li>
+      <li style="display:flex;gap:14px;align-items:center;background:#f8fafc;border-radius:16px;padding:14px 18px"><span style="color:#10b981;font-size:30px">✔</span> 18 of 20 job keywords matched</li>
+      <li style="display:flex;gap:14px;align-items:center;background:#fffbeb;border-radius:16px;padding:14px 18px"><span style="color:#f59e0b;font-size:30px">▲</span> Add numbers to 3 more bullet points</li>
+    </ul>
+  </div>
+  <span class="url light">Free ATS check · resumex.cc/ats-checker</span>
+</section>
+
+<!-- 04 Weak vs strong -->
+<section class="g" id="04-bullets" style="background:#fff">
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <h1 class="d" style="position:absolute;left:72px;top:156px;font-size:80px;font-weight:800;line-height:1.02;width:940px">Stop listing duties.<br><span style="color:#007B7B">Show results.</span></h1>
+  <div style="position:absolute;left:72px;right:72px;top:390px;display:grid;gap:22px">
+    <div style="display:grid;gap:12px">
+      <div style="background:#fff1f2;color:#881337;border-radius:20px;padding:22px 26px;font-size:28px;display:flex;gap:16px"><b style="color:#f43f5e">✕</b><span>Responsible for social media.</span></div>
+      <div style="background:#ecfdf5;color:#064e3b;border-radius:20px;padding:22px 26px;font-size:28px;display:flex;gap:16px"><b style="color:#10b981">✔</b><span><b>Grew</b> our club's Facebook page from 800 to 3,000 followers in 4 months with a weekly content plan.</span></div>
+    </div>
+    <div style="display:grid;gap:12px;margin-top:14px">
+      <div style="background:#fff1f2;color:#881337;border-radius:20px;padding:22px 26px;font-size:28px;display:flex;gap:16px"><b style="color:#f43f5e">✕</b><span>Worked on a group project.</span></div>
+      <div style="background:#ecfdf5;color:#064e3b;border-radius:20px;padding:22px 26px;font-size:28px;display:flex;gap:16px"><b style="color:#10b981">✔</b><span><b>Led</b> a 4-person team to build a library app now used by 300+ students.</span></div>
+    </div>
+  </div>
+  <p style="position:absolute;left:72px;bottom:150px;font-size:28px;color:#475569"><b style="color:#0f1f2a">The formula:</b> action verb + what you did + a number.</p>
+  <span class="url brand">More tips at resumex.cc/guides</span>
+</section>
+
+<!-- 05 Fresh graduates -->
+<section class="g" id="05-freshers" style="background:linear-gradient(180deg,#effafa,#d5f2f1)">
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <p class="pill" style="position:absolute;left:72px;top:156px;background:#fff;color:#007B7B">For students & fresh graduates</p>
+  <h1 class="d" style="position:absolute;left:72px;top:230px;font-size:76px;font-weight:800;line-height:1.04;width:940px">No experience? Put these on your CV instead.</h1>
+  <ol class="clean" style="position:absolute;left:72px;right:72px;top:470px;display:grid;grid-template-columns:1fr 1fr;gap:18px;font-size:29px;font-weight:600">
+    <li style="background:#fff;border-radius:20px;padding:24px;display:flex;gap:16px;align-items:center"><span class="d" style="flex:none;width:52px;height:52px;border-radius:50%;background:#007B7B;color:#fff;display:flex;align-items:center;justify-content:center">1</span>University projects</li>
+    <li style="background:#fff;border-radius:20px;padding:24px;display:flex;gap:16px;align-items:center"><span class="d" style="flex:none;width:52px;height:52px;border-radius:50%;background:#007B7B;color:#fff;display:flex;align-items:center;justify-content:center">2</span>Clubs & volunteering</li>
+    <li style="background:#fff;border-radius:20px;padding:24px;display:flex;gap:16px;align-items:center"><span class="d" style="flex:none;width:52px;height:52px;border-radius:50%;background:#007B7B;color:#fff;display:flex;align-items:center;justify-content:center">3</span>Competitions & hackathons</li>
+    <li style="background:#fff;border-radius:20px;padding:24px;display:flex;gap:16px;align-items:center"><span class="d" style="flex:none;width:52px;height:52px;border-radius:50%;background:#007B7B;color:#fff;display:flex;align-items:center;justify-content:center">4</span>Relevant coursework</li>
+    <li style="background:#fff;border-radius:20px;padding:24px;display:flex;gap:16px;align-items:center"><span class="d" style="flex:none;width:52px;height:52px;border-radius:50%;background:#007B7B;color:#fff;display:flex;align-items:center;justify-content:center">5</span>Certifications</li>
+    <li style="background:#fff;border-radius:20px;padding:24px;display:flex;gap:16px;align-items:center"><span class="d" style="flex:none;width:52px;height:52px;border-radius:50%;background:#007B7B;color:#fff;display:flex;align-items:center;justify-content:center">6</span>Tuition & part-time work</li>
+  </ol>
+  <span class="url brand">Free guide: resumex.cc/guides</span>
+</section>
+
+<!-- 06 Mistakes -->
+<section class="g on-dark" id="06-mistakes" style="background:linear-gradient(160deg,#0f1f2a,#002A3A);color:#fff">
+  <div class="glow" style="width:500px;height:500px;background:#f43f5e;opacity:.18;right:-150px;top:120px"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <h1 class="d" style="position:absolute;left:72px;top:160px;font-size:82px;font-weight:800;line-height:1.02;width:940px">5 CV mistakes that get you rejected</h1>
+  <ol class="clean" style="position:absolute;left:72px;right:72px;top:380px;display:grid;gap:16px;font-size:31px">
+    <li style="display:flex;gap:22px;align-items:center;background:rgba(255,255,255,.07);border-radius:20px;padding:22px 26px"><span class="d" style="color:#fb7185;font-weight:800;font-size:38px;width:40px">1</span>Spelling and grammar mistakes</li>
+    <li style="display:flex;gap:22px;align-items:center;background:rgba(255,255,255,.07);border-radius:20px;padding:22px 26px"><span class="d" style="color:#fb7185;font-weight:800;font-size:38px;width:40px">2</span>The same CV for every job</li>
+    <li style="display:flex;gap:22px;align-items:center;background:rgba(255,255,255,.07);border-radius:20px;padding:22px 26px"><span class="d" style="color:#fb7185;font-weight:800;font-size:38px;width:40px">3</span>Duties instead of results</li>
+    <li style="display:flex;gap:22px;align-items:center;background:rgba(255,255,255,.07);border-radius:20px;padding:22px 26px"><span class="d" style="color:#fb7185;font-weight:800;font-size:38px;width:40px">4</span>An email like coolboy99@…</li>
+    <li style="display:flex;gap:22px;align-items:center;background:rgba(255,255,255,.07);border-radius:20px;padding:22px 26px"><span class="d" style="color:#fb7185;font-weight:800;font-size:38px;width:40px">5</span>Layouts job portals can't read</li>
+  </ol>
+  <span class="url light">Check yours free · resumex.cc</span>
+</section>
+
+<!-- 07 Private mode -->
+<section class="g" id="07-private" style="background:#fff">
+  <div class="glow" style="width:560px;height:560px;background:#a9e3e1;opacity:.6;right:-180px;top:-180px"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <div style="position:absolute;left:72px;top:200px;width:150px;height:150px;border-radius:40px;background:#007B7B;display:flex;align-items:center;justify-content:center">
+    <svg width="78" height="78" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  </div>
+  <h1 class="d" style="position:absolute;left:72px;top:400px;font-size:90px;font-weight:800;line-height:1.02;width:940px">Your CV.<br>Your data.</h1>
+  <p style="position:absolute;left:72px;top:620px;width:900px;font-size:34px;line-height:1.4;color:#334155">Turn on <b style="color:#007B7B">Private mode</b> and build, check and download your resume without anything being saved on our servers.</p>
+  <ul class="clean" style="position:absolute;left:72px;right:72px;top:810px;display:flex;flex-wrap:wrap;gap:14px;font-size:25px;font-weight:600;color:#064e3b">
+    <li style="background:#ecfdf5;border-radius:999px;padding:12px 22px">✔ No account needed</li>
+    <li style="background:#ecfdf5;border-radius:999px;padding:12px 22px">✔ No draft kept</li>
+    <li style="background:#ecfdf5;border-radius:999px;padding:12px 22px">✔ Save a file to your device</li>
+  </ul>
+  <span class="url brand">Try it at resumex.cc</span>
+</section>
+
+<!-- 08 Campus ambassadors -->
+<section class="g on-dark ring" id="08-ambassadors" style="background:linear-gradient(150deg,#007B7B,#004f55);color:#fff">
+  <div class="glow" style="width:520px;height:520px;background:#5eead4;opacity:.35;left:-180px;bottom:-160px"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <p class="pill" style="position:absolute;left:72px;top:170px;background:rgba(255,255,255,.14);color:#ccfbf1">Now recruiting</p>
+  <h1 class="d" style="position:absolute;left:72px;top:246px;font-size:96px;font-weight:800;line-height:1;width:940px">Campus Ambassadors</h1>
+  <p style="position:absolute;left:72px;top:470px;width:900px;font-size:34px;line-height:1.4;color:rgba(255,255,255,.88)">Bring ResumeX to your university. Your club gets its own campus code that unlocks premium features for every member.</p>
+  <ul class="clean" style="position:absolute;left:72px;top:690px;display:grid;gap:14px;font-size:30px;font-weight:600">
+    <li>✦ A certificate and LinkedIn recommendation</li>
+    <li>✦ Free premium access for you</li>
+    <li>✦ Real marketing experience for your CV</li>
+  </ul>
+  <span class="url light">DM our page to apply</span>
+</section>
+
+<!-- 09 Bangla -->
+<section class="g on-dark" id="09-bangla" style="background:linear-gradient(150deg,#002A3A,#007B7B);color:#fff;font-family:'Hind Siliguri',sans-serif">
+  <div class="glow" style="width:520px;height:520px;background:#14b8a6;opacity:.35;right:-140px;top:-140px"></div>
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <h1 style="position:absolute;left:72px;top:190px;font-size:104px;font-weight:700;line-height:1.15;width:940px">১০ মিনিটে প্রফেশনাল সিভি</h1>
+  <p style="position:absolute;left:72px;top:470px;font-size:40px;color:rgba(255,255,255,.88);line-height:1.5">৫০টি ফ্রি টেমপ্লেট · ATS চেক · এক ক্লিকে PDF</p>
+  <img class="thumb" src="../../../client/public/templates/Graduate.jpg" style="position:absolute;width:300px;left:600px;top:640px;transform:rotate(8deg)">
+  <img class="thumb" src="../../../client/public/templates/Modern.jpg" style="position:absolute;width:300px;left:380px;top:620px;transform:rotate(-4deg)">
+  <span class="url light" style="font-family:'Hind Siliguri';z-index:3">ফ্রি · resumex.cc</span>
+</section>
+
+<!-- 10 Guide promo -->
+<section class="g" id="10-guide" style="background:#fff">
+  <div style="position:absolute;left:72px;top:64px" class="logo"><svg><use href="#mark"/></svg><span>Resume<span class="x">X</span></span></div>
+  <div style="position:absolute;left:72px;right:72px;top:170px;bottom:170px;border-radius:40px;background:linear-gradient(160deg,#effafa,#d5f2f1);padding:60px;overflow:hidden">
+    <img class="thumb" src="../../../client/public/templates/Graduate.jpg" style="position:absolute;width:300px;right:60px;top:500px;transform:rotate(6deg)">
+    <p class="pill" style="background:#007B7B;color:#fff">Free guide</p>
+    <h1 class="d" style="font-size:72px;font-weight:800;line-height:1.05;margin-top:30px">How to write a CV as a fresh graduate</h1>
+    <ul class="clean" style="margin-top:36px;display:grid;gap:16px;font-size:30px;color:#334155">
+      <li>→ The best section order when you have no experience</li>
+      <li>→ Turning projects into experience</li>
+      <li>→ A summary that isn't generic</li>
+      <li>→ Real before-and-after examples</li>
+    </ul>
+  </div>
+  <span class="url brand">Read it: resumex.cc/guides</span>
+</section>
+
+<!-- Facebook page cover: 1640 x 624. Keep text inside the centre 1230px (mobile crop). -->
+<section class="g on-dark" id="cover" style="width:1640px;height:624px;background:linear-gradient(120deg,#002A3A 0%,#004f55 55%,#007B7B 100%);color:#fff">
+  <div class="glow" style="width:500px;height:500px;background:#14b8a6;opacity:.35;right:120px;top:-200px"></div>
+  <div style="position:absolute;left:230px;top:150px;width:720px">
+    <h1 class="d" style="font-size:76px;font-weight:800;line-height:1.02">The free resume builder that gets you hired.</h1>
+    <p style="font-size:30px;margin-top:24px;color:rgba(255,255,255,.82)">50 templates · ATS check · AI help · <b style="color:#fff">resumex.cc</b></p>
+  </div>
+  <img class="thumb" src="../../../client/public/templates/Sunset.jpg" style="position:absolute;width:270px;left:1000px;top:120px;transform:rotate(-8deg)">
+  <img class="thumb" src="../../../client/public/templates/Nordic.jpg" style="position:absolute;width:270px;left:1190px;top:100px;transform:rotate(6deg);z-index:2">
+</section>
+
+<!-- Profile picture: 720 x 720, shown as a circle -->
+<section class="g" id="profile" style="width:720px;height:720px;background:#007B7B;display:flex;align-items:center;justify-content:center">
+  <svg width="440" height="440" viewBox="8 6 20 20"><path d="M10 8h8.5a5.5 5.5 0 0 1 1.6 10.76L23.5 24h-4.3l-3-4.8H14V24h-4V8zm4 3.6v4.1h4.3a2.05 2.05 0 0 0 0-4.1H14z" fill="#fff"/><circle cx="25" cy="8" r="2.1" fill="#5eead4"/></svg>
+</section>
+
+</body>
+</html>
