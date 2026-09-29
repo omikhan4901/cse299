@@ -27,6 +27,13 @@ function CostHint({ feature, verb }) {
 
 const { TextArea } = Input;
 
+/** "Only the first 6,000 characters are read": shown when a pasted text is longer than the AI takes. */
+export function ReadsFirst({ text, feature, what = "The AI reads" }) {
+  const max = useBilling()?.config?.aiLimits?.[feature]?.input;
+  if (!max || (text || "").length <= max) return null;
+  return <p className="mt-1.5 text-xs text-amber-700">{what} the first {max.toLocaleString()} characters; the rest is left out.</p>;
+}
+
 /** Resume data for the AI: no photo (large and private) and no database fields. */
 export function aiResume(resume) {
   const { _id, shortId, isPublic, isMaster, updatedAt, nickname, theme, template, rev, tailoredFor, suggestions, biodata, ...rest } = resume;
@@ -43,6 +50,8 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
+  // The assistant's message limit (Admin › Credits & access), shown as a counter near it.
+  const maxInput = useBilling()?.config?.aiLimits?.chat?.input;
 
   useEffect(() => {
     if (open && messages.length === 0) {
@@ -124,7 +133,7 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
         {loading ? <div className="text-sm text-slate-400">Thinking…</div> : null}
       </div>
       <div className="mt-3 flex gap-2">
-        <Input size="large" value={input} onChange={(e) => setInput(e.target.value)} onPressEnter={send} placeholder="e.g. What skills am I missing for a data analyst role?" disabled={loading} />
+        <Input size="large" value={input} maxLength={maxInput} showCount={!!maxInput && input.length > maxInput * 0.8} onChange={(e) => setInput(e.target.value)} onPressEnter={send} placeholder="e.g. What skills am I missing for a data analyst role?" disabled={loading} />
         <Button size="large" type="primary" icon={<Send size={16} />} onClick={send} loading={loading} />
       </div>
       <ReviewChanges
@@ -180,6 +189,7 @@ export function CoverLetterModal({ open, onClose, resume, token, initialJob = ""
         <div>
           <p className="mb-3 text-sm text-slate-500">We&apos;ll write a letter that connects your experience to this job.</p>
           <TextArea rows={8} value={job} onChange={(e) => setJob(e.target.value)} placeholder="Paste the full job description" />
+          <ReadsFirst text={job} feature="coverLetter" what="The letter is written from" />
           <CreditTooltip feature="coverLetter">
             <Button type="primary" size="large" block className="!mt-4" loading={loading} onClick={generate}>
               Write my cover letter

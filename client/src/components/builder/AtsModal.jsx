@@ -11,8 +11,8 @@ import { extractPdfText } from "@/lib/ats/extract";
 import { api } from "@/lib/api";
 import { AI_ENABLED } from "@/lib/config";
 import { loadPdfJs } from "./PdfPreview";
-import { aiResume } from "./AiModals";
 import { CreditTooltip } from "../Credits";
+import { aiResume, ReadsFirst } from "./AiModals";
 import PlanTag from "../billing/PlanTag";
 import AtsReport from "../ats/AtsReport";
 import ResumeThumbnail from "../ResumeThumbnail";
@@ -213,6 +213,7 @@ function AtsChecker({ resume, token }) {
           We render your real PDF, read it back the way applicant tracking systems do, and run 30+ checks on parsing, content and — if you paste a job description — keyword match.
         </p>
         <TextArea className="!mt-4" rows={7} value={job} onChange={(e) => setJob(e.target.value)} placeholder="Paste the job description (recommended) — or leave empty for a general check" />
+        <ReadsFirst text={job} feature="audit" what="The AI review reads" />
         {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         <Button type="primary" size="large" block className="!mt-4" icon={<ScanSearch size={17} />} onClick={run}>
           {job.trim() ? "Check against this job" : "Run a general ATS check"}

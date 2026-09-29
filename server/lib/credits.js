@@ -151,6 +151,9 @@ function aiQuota(feature) {
                     }
                 }
                 const cost = settings.featureCosts[feature] ?? 1;
+                // The feature's input, output and thinking limits (lib/aiLimits.js), for the route
+                // and for the model call (routes/ai.js generate()).
+                req.aiLimits = settings.aiLimits[feature];
                 const a = allowanceFor(user, settings);
                 const key = periodKey(a.period);
                 let doc = null;

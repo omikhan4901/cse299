@@ -10,7 +10,7 @@ const { INSTRUCTION: INGEST_INSTRUCTION, RESPONSE_SCHEMA: INGEST_SCHEMA, prompt:
 const CHAT_SCHEMA = { type: 'OBJECT', properties: { reply: { type: 'STRING' }, operations: INGEST_SCHEMA.properties.operations }, required: ['reply', 'operations'] };
 // The operation part of the import instructions, reused to explain the format to the assistant.
 const OPERATIONS_GUIDE = INGEST_INSTRUCTION.slice(INGEST_INSTRUCTION.indexOf('- "add"'), INGEST_INSTRUCTION.indexOf('Rules:')).trim();
-const { readPdf } = require('../lib/pdfText');
+const { readPdf, pdfPageCount } = require('../lib/pdfText');
 const polish = require('../lib/polish');
 const Resume = require('../models/Resume');
 const Application = require('../models/Application');
@@ -19,6 +19,7 @@ const interviewAi = require('../lib/interviewAi');
 const { requireV2 } = require('../lib/v2');
 const mongoose = require('mongoose');
 const vertex = require('../lib/vertex');
+const { generationLimits } = require('../lib/aiLimits');
 
 const router = express.Router();
 
@@ -129,13 +130,23 @@ const callModel = async (model, payload, limits) => {
  * Pass the request so the call stops when the person goes away, and keeps to the time budget.
  */
 const generate = async (systemInstruction, contents, generationConfig, req) => {
+    // The feature's output and thinking limits (lib/aiLimits.js) bound what the call can cost.
+    const bounded = { ...(generationConfig || {}), ...generationLimits(req?.aiLimits) };
     const payload = {
         contents,
         systemInstruction: { parts: [{ text: systemInstruction }] },
-        ...(generationConfig ? { generationConfig } : {}),
+        ...(Object.keys(bounded).length ? { generationConfig: bounded } : {}),
     };
     const limits = { deadline: Date.now() + aiBudgetMs(req), signal: req?.aiSignal, perTry: req?.aiLongTask ? PER_TRY_LONG_MS : PER_TRY_MS };
     let response = await callModel(MODEL_NAME, payload, limits);
+    // A model without thinking settings refuses them: try once more without (the output cap stays).
+    if (response.status === 400 && payload.generationConfig?.thinkingConfig) {
+        const detail = await response.clone().json().then((r) => String(r?.error?.message || '')).catch(() => '');
+        if (/thinking/i.test(detail)) {
+            delete payload.generationConfig.thinkingConfig;
+            response = await callModel(MODEL_NAME, payload, limits);
+        }
+    }
     // Overloaded, rate-limited or retired model: try the lighter fallback model once, if there's time.
     if ([404, 429, 500, 503].includes(response.status) && FALLBACK_MODEL && FALLBACK_MODEL !== MODEL_NAME && limits.deadline - Date.now() > 3000) {
         console.warn(`Gemini ${MODEL_NAME} returned ${response.status}; trying ${FALLBACK_MODEL}`);
@@ -196,6 +207,24 @@ const cleanResume = (resume) => {
 };
 const resumeJson = (resume) => clip(JSON.stringify(cleanResume(resume)), MAX_RESUME_CHARS);
 
+// Input limits (lib/aiLimits.js): typed text over the feature's limit is refused before the
+// model is called (the credits are refunded); stored text, like a job description, is trimmed.
+const inputCap = (req, fallback) => req.aiLimits?.input || fallback;
+// A PDF with more pages than the feature allows is refused before the model sees it.
+const tooManyPages = async (req, res, buffer) => {
+    const max = req.aiLimits?.pages;
+    const n = max ? await pdfPageCount(buffer) : null;
+    if (!n || n <= max) return false;
+    res.status(400).json({ success: false, code: 'too-long', max, error: `That PDF has ${n} pages. Upload one of up to ${max} pages.` });
+    return true;
+};
+const tooLong = (req, res, text, what = 'That text') => {
+    const max = req.aiLimits?.input;
+    if (!max || String(text || '').length <= max) return false;
+    res.status(400).json({ success: false, code: 'too-long', max, error: `${what} is too long. Keep it under ${max.toLocaleString('en-US')} characters.` });
+    return true;
+};
+
 // The model sometimes writes line breaks as a literal "\\n"; turn them back into real ones.
 const fixNewlines = (value) => {
     if (typeof value === 'string') return value.replace(/(\\r)?\\n/g, '\n');
@@ -208,6 +237,7 @@ const fixNewlines = (value) => {
 router.post('/refine', protect, aiQuota('refine'), async (req, res) => {
     const { resumeText, fullResume, sectionType } = req.body;
     if (!str(resumeText)) return res.status(400).json({ success: false, error: 'No text provided.' });
+    if (tooLong(req, res, resumeText)) return;
 
     const context = isObj(fullResume)
         ? `CONTEXT FROM USER'S RESUME:
@@ -232,7 +262,7 @@ RULES:
 4. Reply with the rewritten text only — no quotes, labels, markdown or commentary.`;
 
     try {
-        const refinedText = (await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, 4000) }] }], undefined, req)).replace(/^["']|["']$/g, '');
+        const refinedText = (await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, inputCap(req, 4000)) }] }], undefined, req)).replace(/^["']|["']$/g, '');
         // Rewrite is truth-preserving: anything that looks new is pointed out before it's used.
         const unverified = polish.newFacts(refinedText, `${resumeText} ${isObj(fullResume) ? JSON.stringify({ ...fullResume, personal: undefined }) : ''}`);
         res.status(200).json({ success: true, refinedText, unverified });
@@ -243,7 +273,8 @@ RULES:
 
 // --- 1b. Strengthen: asks what would make a point stronger, then writes it from the answers only ---
 router.post('/strengthen', protect, aiQuota('refine'), async (req, res) => {
-    const text = clip(str(req.body?.text), 1000);
+    if (tooLong(req, res, str(req.body?.text), 'That point')) return;
+    const text = str(req.body?.text);
     if (!text) return res.status(400).json({ success: false, error: 'No text provided.' });
     const answers = list(req.body?.answers)
         .filter((x) => isObj(x) && str(x.a))
@@ -285,6 +316,7 @@ router.post('/polish', protect, aiQuota('polish'), async (req, res) => {
         }
         if (!resume || !resumeOk(resume)) return res.status(400).json({ success: false, error: 'There is nothing in this resume to polish yet.' });
         if (jobText.length < 40) return res.status(400).json({ success: false, error: 'Add the job description to the application first: polish writes for that job.' });
+        jobText = clip(jobText, inputCap(req, 12000));
         req.aiLongTask = true;
         // Only the resume's own content counts as known facts (not earlier proposals).
         const { suggestions, tailoredFor, rev, ...content } = resume;
@@ -323,7 +355,7 @@ router.post('/interview-prep', protect, requireV2, aiQuota('interviewAi'), async
         if (!source || !resumeOk(source)) return res.status(400).json({ success: false, error: 'Choose a resume for this job, or fill in your Career Profile, first.' });
         req.aiLongTask = true;
         const clean = cleanResume(source);
-        const job = { title: app.job.title, organisation: app.job.organisation, description: app.job.description };
+        const job = { title: app.job.title, organisation: app.job.organisation, description: clip(app.job.description, inputCap(req, 12000)) };
         const json = await generate(interviewAi.PREP_INSTRUCTION, [{ role: 'user', parts: [{ text: interviewAi.prepPrompt(clean, job) }] }], { responseMimeType: 'application/json', responseSchema: interviewAi.PREP_SCHEMA }, req);
         const data = interviewAi.checkPrep(JSON.parse(json), clean, job);
         if (!data.questions.length) throw new AiError("The AI's answer didn't include any questions. Please try again.");
@@ -342,13 +374,14 @@ router.post('/chat', protect, aiQuota('chat'), async (req, res) => {
     if (!Array.isArray(conversation) || conversation.length === 0) {
         return res.status(400).json({ success: false, error: 'No conversation history.' });
     }
-    const contents = conversation
-        .slice(-20)
-        .filter((msg) => isObj(msg) && str(msg.content))
-        .map((msg) => ({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: clip(msg.content, 4000) }],
-        }));
+    // Only the latest turns are kept; the person's own messages must fit the limit.
+    const kept = conversation.slice(-(req.aiLimits?.turns || 20)).filter((msg) => isObj(msg) && str(msg.content));
+    const last = kept.at(-1);
+    if (last && last.role !== 'assistant' && tooLong(req, res, last.content, 'That message')) return;
+    const contents = kept.map((msg) => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: clip(msg.content, msg.role === 'assistant' ? 2000 : inputCap(req, 4000)) }],
+    }));
     // Gemini requires the conversation to start with a user turn.
     while (contents.length && contents[0].role !== 'user') contents.shift();
     if (!contents.length) return res.status(400).json({ success: false, error: 'No question provided.' });
@@ -420,7 +453,7 @@ router.post('/audit', protect, aiQuota('audit'), async (req, res) => {
         required: ['score', 'summary', 'strengths', 'improvements', 'missingKeywords'],
     };
     const systemInstruction = `Act as an applicant tracking system and career coach.
-${targeted ? `Score 0-100 how well the resume matches this job description:\n"""${clip(jobDescription, 6000)}"""` : 'Score 0-100 the resume against general best practices for its target role.'}
+${targeted ? `Score 0-100 how well the resume matches this job description:\n"""${clip(jobDescription, inputCap(req, 6000))}"""` : 'Score 0-100 the resume against general best practices for its target role.'}
 Give a one-sentence summary, 2-4 strengths, 3-5 specific improvements and up to 10 missing keywords${targeted ? ' from the job description' : ''}.`;
 
     try {
@@ -447,11 +480,12 @@ router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), as
     try {
         let part;
         if (isPdf(file.buffer)) {
+            if (await tooManyPages(req, res, file.buffer)) return;
             part = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } };
         } else if (isZip(file.buffer) && /\.docx$/i.test(file.originalname)) {
             const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
             if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
-            part = { text: clip(text, 30000) };
+            part = { text: clip(text, inputCap(req, 30000)) };
         } else {
             return res.status(400).json({ success: false, error: 'Please upload a PDF or DOCX file.' });
         }
@@ -482,6 +516,9 @@ router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), a
     if (!isObj(outline)) outline = {};
     if (!file && !typed) return res.status(400).json({ success: false, error: 'Paste some text or choose a PDF or Word file.' });
     if (typed.length > 30000) return res.status(400).json({ success: false, error: 'That text is very long. Paste it in parts of up to about 30,000 characters.' });
+    // Typed on its own it's the input (limited); with a file it's a short note about the file.
+    if (!file && tooLong(req, res, typed)) return;
+    if (file && typed.length > 2000) return res.status(400).json({ success: false, code: 'too-long', max: 2000, error: 'That note is too long. Keep it under 2,000 characters.' });
     // Reading a file, or a long pasted CV, takes a while: allow the import's longer budget.
     if (file || typed.length > 1500) req.aiLongTask = true;
 
@@ -493,6 +530,7 @@ router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), a
         let pdfPart = null;
         if (file) {
             if (isPdf(file.buffer)) {
+                if (await tooManyPages(req, res, file.buffer)) return;
                 const { text } = await readPdf(file.buffer).catch(() => ({ text: '' }));
                 if (text.replace(/\s/g, '').length > 150) fileText = text;
                 else pdfPart = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } }; // a scanned PDF
@@ -505,7 +543,7 @@ router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), a
             }
         }
         if (fileText) source = `${fileText}\n\n${typed}`.trim();
-        const input = file ? clip(fileText, 30000) || '(see the attached PDF)' : clip(typed, 30000);
+        const input = file ? clip(fileText, inputCap(req, 30000)) || '(see the attached PDF)' : clip(typed, 30000);
         const parts = [...(pdfPart ? [pdfPart] : []), { text: ingestPrompt(outline, input, file ? clip(typed, 2000) : '') }];
         const json = await generate(INGEST_INSTRUCTION, [{ role: 'user', parts }], { responseMimeType: 'application/json', responseSchema: INGEST_SCHEMA }, req);
         // Removals must be asked for in the person's own words: what they typed, not the file.
@@ -529,7 +567,7 @@ CANDIDATE RESUME (JSON):
 ${resumeJson(resumeData)}
 
 JOB DESCRIPTION:
-"""${clip(jobDescription, 6000)}"""
+"""${clip(jobDescription, inputCap(req, 6000))}"""
 
 GUIDELINES:
 1. Structure: greeting, strong opening hook, why the candidate fits (match real skills to the job), why this company, call to action, sign-off with the candidate's name.

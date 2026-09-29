@@ -1,5 +1,6 @@
 const Settings = require('../models/Settings');
 const { setOverrides } = require('./rateLimit');
+const { cleanLimits } = require('./aiLimits');
 
 /**
  * Everything an admin can tune without a deploy. `getSettings()` always
@@ -156,8 +157,8 @@ function clean(input) {
     );
     // Stored as a list (model names contain dots, which can't be database field names).
     const priceSource = Array.isArray(s.aiPriceList)
-        ? { ...DEFAULTS.aiPrices, ...Object.fromEntries(s.aiPriceList.filter(isObj).map((p) => [String(p.model || ''), p])) }
-        : isObj(s.aiPrices) ? s.aiPrices : DEFAULTS.aiPrices;
+        ? Object.fromEntries(s.aiPriceList.filter(isObj).map((p) => [String(p.model || ''), p]))
+        : isObj(input?.aiPrices) ? input.aiPrices : DEFAULTS.aiPrices; // the given table as is, not merged with the defaults
     const aiPrices = Object.fromEntries(
         Object.entries(priceSource)
             .filter(([model, v]) => /^[A-Za-z0-9._-]{1,60}$/.test(model) && isObj(v))
@@ -192,6 +193,7 @@ function clean(input) {
             days: Math.round(num(isObj(s.pass) ? s.pass.days : 90, 90, { min: 1, max: 730 })),
         },
         featureCosts: costs,
+        aiLimits: cleanLimits(s.aiLimits, AI_FEATURES.map((f) => f.key)),
         aiSpend: {
             enabled: isObj(s.aiSpend) ? s.aiSpend.enabled !== false : true,
             cap: Math.round(num(isObj(s.aiSpend) ? s.aiSpend.cap : 40, 40, { min: 1, max: 100000 }) * 100) / 100,

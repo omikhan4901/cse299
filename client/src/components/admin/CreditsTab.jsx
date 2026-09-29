@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, Input, InputNumber, Radio, Skeleton, Switch } from "antd";
+import { Alert, Input, InputNumber, Radio, Skeleton, Switch, Tooltip } from "antd";
+import { worstCase, worstPerCredit } from "@/lib/aiCost";
 import { Gift, Lock, Zap } from "lucide-react";
 import { useSettingsDraft } from "./useSettingsDraft";
 import SaveBar from "./SaveBar";
@@ -50,25 +51,54 @@ export default function CreditsTab() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
-        <h2 className="font-semibold text-ink">Credit cost per use</h2>
-        <p className="text-sm text-slate-600">How many credits each AI feature takes. 0 makes it free. Failed requests are always refunded. The ATS check never costs credits.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {meta.aiFeatures.map((f) => (
-            <div key={f.key} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
-              <div>
-                <p className="font-medium text-ink">{f.name}</p>
-                <p className="text-xs text-slate-500">{f.description}</p>
-              </div>
-              <InputNumber
-                min={0}
-                max={1000}
-                className="!w-24 shrink-0"
-                prefix={<Zap size={13} className="fill-amber-400 text-amber-500" />}
-                value={settings.featureCosts[f.key]}
-                onChange={(v) => update((s) => ((s.featureCosts[f.key] = v ?? 0), s))}
-              />
-            </div>
-          ))}
+        <h2 className="font-semibold text-ink">AI features: credits and limits</h2>
+        <p className="text-sm text-slate-600">
+          Credits each use takes (0 makes it free), and the most one request may send and receive. Longer typed text is refused before the AI is called, at no charge;
+          stored text like job descriptions is trimmed. Thinking is the model working before it answers, billed like output. The worst case uses the dearest model price.
+        </p>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-500">
+                <th className="py-2 pr-3 font-medium">Feature</th>
+                <th className="px-2 py-2 font-medium">Credits</th>
+                <th className="px-2 py-2 font-medium">Input (characters)</th>
+                <th className="px-2 py-2 font-medium">Turns / pages</th>
+                <th className="px-2 py-2 font-medium">Output (tokens)</th>
+                <th className="px-2 py-2 font-medium">Thinking (tokens)</th>
+                <th className="py-2 pl-2 text-right font-medium">Worst case</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {meta.aiFeatures.map((f) => {
+                const l = settings.aiLimits?.[f.key] || {};
+                const set = (k) => (v) => update((s) => ((s.aiLimits[f.key] = { ...s.aiLimits[f.key], [k]: v ?? 0 }), s));
+                const extra = "turns" in l ? "turns" : "pages" in l ? "pages" : null;
+                const request = worstCase(f.key, settings);
+                const perCredit = worstPerCredit(f.key, settings);
+                return (
+                  <tr key={f.key}>
+                    <td className="py-2.5 pr-3">
+                      <Tooltip title={f.description}><span className="font-medium text-ink">{f.name}</span></Tooltip>
+                    </td>
+                    <td className="px-2 py-2.5">
+                      <InputNumber size="small" min={0} max={1000} className="!w-20" prefix={<Zap size={12} className="fill-amber-400 text-amber-500" />} value={settings.featureCosts[f.key]} onChange={(v) => update((s) => ((s.featureCosts[f.key] = v ?? 0), s))} />
+                    </td>
+                    <td className="px-2 py-2.5"><InputNumber size="small" min={200} max={50000} step={500} className="!w-24" value={l.input} onChange={set("input")} /></td>
+                    <td className="px-2 py-2.5">
+                      {extra ? <InputNumber size="small" min={1} max={extra === "turns" ? 40 : 20} className="!w-20" addonAfter={extra} value={l[extra]} onChange={set(extra)} /> : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="px-2 py-2.5"><InputNumber size="small" min={256} max={32768} step={256} className="!w-24" value={l.output} onChange={set("output")} /></td>
+                    <td className="px-2 py-2.5"><InputNumber size="small" min={0} max={16384} step={256} className="!w-24" value={l.thinking} onChange={set("thinking")} /></td>
+                    <td className="py-2.5 pl-2 text-right tabular-nums">
+                      <span className="font-medium text-ink">${request.toFixed(4)}</span>
+                      <span className="block text-xs text-slate-500">{perCredit == null ? "free to use" : `$${perCredit.toFixed(4)} a credit`}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
       <SaveBar dirty={dirty} saving={saving} onSave={save} onDiscard={discard} />

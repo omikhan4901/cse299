@@ -82,4 +82,18 @@ async function readPdf(buffer) {
     }
 }
 
-module.exports = { readPdf, MAX_PAGES };
+/** Just the number of pages (cheap: no page is read), or null when the PDF can't be opened. */
+async function pdfPageCount(buffer) {
+    let task;
+    try {
+        const lib = await load();
+        task = lib.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false, disableFontFace: true, verbosity: 0 });
+        return (await task.promise).numPages;
+    } catch {
+        return null;
+    } finally {
+        await task?.destroy().catch(() => {});
+    }
+}
+
+module.exports = { pdfPageCount, readPdf, MAX_PAGES };

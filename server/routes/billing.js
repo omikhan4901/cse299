@@ -38,6 +38,8 @@ router.get('/plans', async (req, res, next) => {
                 // Job Search Pass: shown only when switched on and Paddle has its price.
                 pass: s.pass.enabled && cfg.prices?.pass ? { ...s.pass, price: charged?.pass ?? null } : null,
                 featureCosts: s.featureCosts,
+                // Input limits per AI feature, for the counters next to the text boxes.
+                aiLimits: Object.fromEntries(Object.entries(s.aiLimits).map(([k, l]) => [k, { input: l.input, ...(l.pages ? { pages: l.pages } : {}) }])),
                 templates: s.templates,
                 plans,
                 // Public by design: Paddle.js needs these in the browser to open checkout.

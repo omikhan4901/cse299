@@ -168,7 +168,8 @@ export default function AddAnything({ open, onClose, target, token, onApply, onA
               className="!mt-4"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              maxLength={30000}
+              maxLength={billing?.config?.aiLimits?.parse?.input || 30000}
+              showCount={text.length > (billing?.config?.aiLimits?.parse?.input || 30000) * 0.8}
               autoSize={{ minRows: 6, maxRows: 14 }}
               placeholder={"e.g. “In my third year I built an attendance system with Python and OpenCV that cut roll-call time from 10 minutes to 1.”\n\nOr: “This is my latest CV, use it instead” with a file, or “Remove my old projects”. Bangla or English is fine."}
             />
