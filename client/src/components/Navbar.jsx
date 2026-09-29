@@ -8,6 +8,7 @@ import { Button, Dropdown } from "antd";
 import { motion } from "motion/react";
 import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings, ShieldCheck, UserRound, Briefcase } from "lucide-react";
 import { useBilling } from "./BillingProvider";
+import PlanTag from "./billing/PlanTag";
 import Logo from "./Logo";
 import { useAuth } from "./AuthProvider";
 
@@ -39,8 +40,8 @@ export default function Navbar({ compact = false }) {
     items: [
       ...(billing?.v2
         ? [
-            { key: "profile", icon: <UserRound size={15} />, label: <Link href="/career">Career Profile</Link> },
-            { key: "applications", icon: <Briefcase size={15} />, label: <Link href="/applications">Applications</Link> },
+            { key: "profile", icon: <UserRound size={15} />, label: <Link href="/career" className="inline-flex items-center gap-1.5">Career Profile <PlanTag feature="profile" /></Link> },
+            { key: "applications", icon: <Briefcase size={15} />, label: <Link href="/applications" className="inline-flex items-center gap-1.5">Applications <PlanTag feature="applications" /></Link> },
           ]
         : []),
       { key: "dash", icon: <LayoutDashboard size={15} />, label: <Link href="/dashboard">My resumes</Link> },

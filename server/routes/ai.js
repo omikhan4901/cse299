@@ -16,7 +16,7 @@ const Resume = require('../models/Resume');
 const Application = require('../models/Application');
 const CareerProfile = require('../models/CareerProfile');
 const interviewAi = require('../lib/interviewAi');
-const { requireV2 } = require('../lib/v2');
+const { requireV2, requireFeature } = require('../lib/v2');
 const mongoose = require('mongoose');
 const vertex = require('../lib/vertex');
 const { generationLimits } = require('../lib/aiLimits');
@@ -205,7 +205,10 @@ const cleanResume = (resume) => {
     const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, biodata, suggestions, tailoredFor, rev, ...rest } = resume;
     return { ...rest, personal: { ...(isObj(rest.personal) ? rest.personal : {}), profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 };
-const resumeJson = (resume) => clip(JSON.stringify(cleanResume(resume)), MAX_RESUME_CHARS);
+const resumeJson = (resume, max = MAX_RESUME_CHARS) => clip(JSON.stringify(cleanResume(resume)), max);
+// The assistant resends the resume with every message, so it gets a tighter cap (about three
+// times a full two-page resume); lib/aiLimits.js counts it in the worst case.
+const CHAT_RESUME_CHARS = 20000;
 
 // Input limits (lib/aiLimits.js): typed text over the feature's limit is refused before the
 // model is called (the credits are refunded); stored text, like a job description, is trimmed.
@@ -336,7 +339,7 @@ router.post('/polish', protect, aiQuota('polish'), async (req, res) => {
 // --- 1d. Interview prep for one application (V2, lib/interviewAi.js) ---
 // Body: { applicationId }. Built from the resume that was sent, else the linked resume,
 // else the Career Profile. The sheet is kept on the application (prepAi) and returned.
-router.post('/interview-prep', protect, requireV2, aiQuota('interviewAi'), async (req, res) => {
+router.post('/interview-prep', protect, requireV2, requireFeature('applications', 'Applications'), aiQuota('interviewAi'), async (req, res) => {
     try {
         const id = req.body?.applicationId;
         const app = mongoose.isValidObjectId(id) ? await Application.findOne({ _id: id, user: req.userId }) : null;
@@ -380,7 +383,8 @@ router.post('/chat', protect, aiQuota('chat'), async (req, res) => {
     if (last && last.role !== 'assistant' && tooLong(req, res, last.content, 'That message')) return;
     const contents = kept.map((msg) => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: clip(msg.content, msg.role === 'assistant' ? 2000 : inputCap(req, 4000)) }],
+        // Earlier replies are kept to the same length as a message, so the worst case holds.
+        parts: [{ text: clip(msg.content, inputCap(req, msg.role === 'assistant' ? 2000 : 4000)) }],
     }));
     // Gemini requires the conversation to start with a user turn.
     while (contents.length && contents[0].role !== 'user') contents.shift();
@@ -402,7 +406,7 @@ ${guide}
 </resume_guide>
 ` : ''}
 RESUME:
-${resumeJson(fullResume)}`;
+${resumeJson(fullResume, CHAT_RESUME_CHARS)}`;
 
     // V2: the reply can carry proposed edits (the same operations as imports), shown as
     // cards the person applies or dismisses; nothing changes on its own.

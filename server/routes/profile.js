@@ -4,7 +4,7 @@ const CareerProfile = require('../models/CareerProfile');
 const Resume = require('../models/Resume');
 const { protect } = require('./auth');
 const { limit } = require('../lib/rateLimit');
-const { requireV2 } = require('../lib/v2');
+const { requireV2, requireFeature } = require('../lib/v2');
 const { CONTENT_KEYS, pick } = require('../lib/resumeInput');
 
 /**
@@ -15,7 +15,7 @@ const router = express.Router();
 
 const perAccount = limit({ name: 'profile', windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: 'Too many requests.', label: 'Career Profile requests', group: 'Career Profile', scope: 'account', description: 'Opening and autosaving the Career Profile.' });
 
-router.use(protect, perAccount, requireV2);
+router.use(protect, perAccount, requireV2, requireFeature('profile', 'The Career Profile'));
 
 const MAX_ITEMS = 200; // per section: far more than anyone needs, stops runaway documents
 const LISTS = ['experience', 'education', 'projects', 'certifications', 'volunteering', 'awards', 'publications', 'courses', 'references', 'links', 'customSections'];

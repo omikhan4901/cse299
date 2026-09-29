@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Dropdown, App, Result, Skeleton, Tooltip } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText, HardDrive, ArrowRight, UserRound } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Copy, Crown, Trash2, Download, Globe, FileText, HardDrive, ArrowRight, UserRound, Briefcase } from "lucide-react";
 import { api } from "@/lib/api";
 import { normalizeResume } from "@/lib/resume";
 import { templateById } from "@/pdf/registry";
 import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "./AuthProvider";
 import { useBilling } from "./BillingProvider";
+import PlanTag from "./billing/PlanTag";
 import TodayPanel from "./applications/TodayPanel";
 import ResumeThumbnail from "./ResumeThumbnail";
 import { readDraft, isWorthKeeping, draftLabel } from "./builder/drafts";
@@ -26,14 +27,19 @@ export default function Dashboard() {
   // A resume started in this browser that never made it into the account.
   const [localDraft, setLocalDraft] = useState(null);
   // V2: the Career Profile replaces the master resume. null = not set up yet.
-  const v2 = !!useBilling()?.v2;
+  const billing = useBilling();
+  const v2 = !!billing?.v2;
+  const resumeMax = billing?.limitOf?.("resumes") ?? null;
+  const atMax = resumeMax != null && (resumes || []).length >= resumeMax;
+  const morePlan = billing?.config?.plans?.find((p) => p.limits?.resumes === null || p.limits?.resumes > (resumeMax ?? Infinity));
+  const canProfile = v2 && !!billing?.ready && billing.canUse("profile");
   const [hasProfile, setHasProfile] = useState(undefined);
   useEffect(() => {
-    if (!v2 || !token) return;
-    api("/profile", { token })
+    if (!canProfile || !token) return;
+    api("/profile", { token, quiet: true })
       .then(({ data }) => setHasProfile(!!data))
       .catch(() => {});
-  }, [v2, token]);
+  }, [canProfile, token]);
   useEffect(() => {
     const draft = readDraft();
     // localStorage is only readable after mount.
@@ -82,7 +88,16 @@ export default function Dashboard() {
     }
   };
 
+  // The plan's resume limit, checked up front (the server enforces it too).
+  const roomForOne = (e) => {
+    if (billing && !billing.requireLimit("resumes", (resumes || []).length, "More resumes")) {
+      e?.preventDefault?.();
+      return false;
+    }
+    return true;
+  };
   const duplicate = (r) =>
+    roomForOne() &&
     act(r._id, async () => {
       await api(`/resumes/${r._id}/duplicate`, { token, method: "POST" });
       await load();
@@ -128,15 +143,31 @@ export default function Dashboard() {
           <h1 className="font-display text-3xl font-bold text-ink">My resumes</h1>
           <p className="mt-1 text-slate-500">
             {user ? `Hi ${user.name.split(" ")[0]}! ` : ""}Keep a version for every kind of job.{" "}
-            {v2 ? "Each one can start from your Career Profile." : <>Your <Crown size={14} className="inline text-amber-500" /> master profile can fill new resumes in one click.</>}
+            {canProfile ? "Each one can start from your Career Profile." : v2 ? "Check each one with the ATS checker before you send it." : <>Your <Crown size={14} className="inline text-amber-500" /> master profile can fill new resumes in one click.</>}
           </p>
         </div>
-        <Link href="/builder?new=1">
-          <Button type="primary" size="large" icon={<Plus size={17} />}>New resume</Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          {resumeMax != null ? <span className="text-sm text-slate-500 tabular-nums">{(resumes || []).length} of {resumeMax} resume{resumeMax === 1 ? "" : "s"}</span> : null}
+          <Link href="/builder?new=1" onClick={roomForOne}>
+            <Button type="primary" size="large" icon={<Plus size={17} />}>New resume {atMax ? <PlanTag plan={morePlan || { name: "Pro" }} /> : null}</Button>
+          </Link>
+        </div>
       </div>
 
-      {v2 && token ? <TodayPanel token={token} /> : null}
+      {v2 && token && billing?.ready ? (
+        billing.canUse("applications") ? (
+          <TodayPanel token={token} />
+        ) : (
+          <Link href="/applications" className="group mb-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-brand">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand"><Briefcase size={18} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 font-semibold text-ink">Track your job search <PlanTag feature="applications" /></span>
+              <span className="block text-sm text-slate-500">Every application in one place, a tailored resume for each, and interview prep.</span>
+            </span>
+            <ArrowRight size={16} className="shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-brand" />
+          </Link>
+        )
+      ) : null}
 
       {v2 && hasProfile === false ? (
         <Link href="/career" className="group mb-6 flex items-center gap-3 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 to-white px-4 py-3 transition hover:border-brand">
@@ -174,7 +205,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/builder?new=1" className="group flex min-h-72 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 text-slate-500 transition hover:border-brand hover:text-brand">
+          <Link href="/builder?new=1" onClick={roomForOne} className="group flex min-h-72 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 text-slate-500 transition hover:border-brand hover:text-brand">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 transition group-hover:bg-brand-50">
               <Plus size={22} />
             </span>

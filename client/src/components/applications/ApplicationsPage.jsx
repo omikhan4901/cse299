@@ -14,6 +14,7 @@ import AddApplication from "./AddApplication";
 import ApplicationDrawer from "./ApplicationDrawer";
 import { DeadlineChip, StatusChip, TONE, jobName } from "./ui";
 import TailorModal from "./TailorModal";
+import LockedArea from "../billing/LockedArea";
 import { api } from "@/lib/api";
 import { calendarFor } from "@/lib/ics";
 
@@ -25,7 +26,9 @@ export default function ApplicationsPage() {
   const { token, user, loading: authLoading, openAuth } = useAuth();
   const billing = useBilling();
   const { message, modal } = App.useApp();
-  const store = useApplications(token, { enabled: !!billing?.v2 });
+  // Only once the plan is known, and only if it includes Applications (else a preview page).
+  const allowed = !!billing?.ready && billing.canUse("applications");
+  const store = useApplications(token, { enabled: !!billing?.v2 && allowed });
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState(null);
   const [view, setView] = useState("board");
@@ -50,6 +53,22 @@ export default function ApplicationsPage() {
   }
   if (user && billing?.config && !billing.v2) {
     return <Result status="404" title="Not available yet" subTitle="This part of ResumeX isn't open yet." extra={<Link href="/dashboard"><Button>My resumes</Button></Link>} />;
+  }
+  if (token && !billing?.ready) return <div className="container-x py-10"><Skeleton active paragraph={{ rows: 4 }} /></div>;
+  if (!allowed) {
+    return (
+      <LockedArea
+        feature="applications"
+        title="Every job you apply to, in one place"
+        intro="Paste a job link and it's saved with its deadline. Tailor a resume for it in a click, get ready for the interview, and see what gets you called back."
+        scenes={[
+          { feature: "applications", title: "From saved to offer", text: "A board of every application, with the next step for each and reminders before deadlines." },
+          { feature: "tailored", title: "A resume made for each job", text: "Leads with the skills the job asks for, picked from your own profile. No AI, no credits." },
+          { feature: "interviewPrep", title: "Ready for the interview", text: "Likely questions for that job, with answers built on your own experience." },
+          { feature: "insights", title: "Learn what works", text: "Which resumes and roles get you interviews, from your own applications." },
+        ]}
+      />
+    );
   }
   if (store.error) return <Result status="warning" title="We couldn't load your applications" subTitle={store.error.message} extra={<Button onClick={store.load}>Try again</Button>} />;
 

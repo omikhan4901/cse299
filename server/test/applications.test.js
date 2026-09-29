@@ -56,7 +56,8 @@ describe('applications API', () => {
     });
 
     it('the plan limit counts active applications only; closed or archived ones free a place, and reopening checks again', async () => {
-        await setSettings({ v2: { enabled: true }, freeMode: { enabled: false }, plans: [{ limits: { applications: 2, tailored: 1, batch: 0 } }, {}, {}] });
+        // A Free plan that includes Applications (off by default), with a limit of 2.
+        await setSettings({ v2: { enabled: true }, freeMode: { enabled: false }, plans: [{ features: { applications: true }, limits: { applications: 2, tailored: 1, batch: 0 } }, {}, {}] });
         const { token } = await register();
         const a = (await add(token, { job: JOB })).body.data;
         await add(token, { job: JOB, status: 'preparing' });
@@ -151,7 +152,7 @@ describe('applications API', () => {
     });
 
     it('tailored resumes: linked to their application, within the plan’s total and batch limits', async () => {
-        await setSettings({ v2: { enabled: true }, freeMode: { enabled: false }, plans: [{ limits: { applications: 10, tailored: 2, batch: 0 } }, { limits: { applications: null, tailored: null, batch: 2 } }, {}] });
+        await setSettings({ v2: { enabled: true }, freeMode: { enabled: false }, plans: [{ features: { applications: true }, limits: { resumes: null, applications: 10, tailored: 2, batch: 0 } }, { limits: { resumes: null, applications: null, tailored: null, batch: 2 } }, {}] });
         const { token, user } = await register();
         const a1 = (await add(token, { job: JOB })).body.data;
         const a2 = (await add(token, { job: JOB })).body.data;

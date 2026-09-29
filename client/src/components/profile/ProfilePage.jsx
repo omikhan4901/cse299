@@ -13,6 +13,7 @@ import { applyOperations } from "@/lib/ingest/ops";
 import { AI_ENABLED } from "@/lib/config";
 import AddAnything from "../review/AddAnything";
 import PlanTag from "../billing/PlanTag";
+import LockedArea from "../billing/LockedArea";
 import { useAuth } from "../AuthProvider";
 import { useBilling } from "../BillingProvider";
 import ContentPanel from "../builder/ContentPanel";
@@ -24,7 +25,9 @@ import { timeAgo } from "@/lib/time";
 export default function ProfilePage() {
   const { token, user, loading: authLoading, openAuth } = useAuth();
   const billing = useBilling();
-  const store = useProfile(token, { enabled: !!billing?.v2 });
+  // Only once the plan is known, and only if it includes the Career Profile (else a preview page).
+  const allowed = !!billing?.ready && billing.canUse("profile");
+  const store = useProfile(token, { enabled: !!billing?.v2 && allowed });
 
   if (!authLoading && !token) {
     return (
@@ -37,6 +40,20 @@ export default function ProfilePage() {
   }
   if (user && billing?.config && !billing.v2) {
     return <Result status="404" title="Not available yet" subTitle="This part of ResumeX isn't open yet." extra={<Link href="/dashboard"><Button>My resumes</Button></Link>} />;
+  }
+  if (token && !billing?.ready) return <div className="container-x py-10"><Skeleton active paragraph={{ rows: 4 }} /></div>;
+  if (!allowed) {
+    return (
+      <LockedArea
+        feature="profile"
+        title="Your Career Profile"
+        intro="Everything about your career in one place, brought in from your old CV in a minute. Every resume starts from it, already filled."
+        scenes={[
+          { feature: "parse", title: "Bring it all in once", text: "Upload your old CV and it's sorted into the right places. You check everything first." },
+          { feature: "tailored", title: "A resume for every job", text: "Pick a job and get a resume that leads with what it asks for, from your own profile." },
+        ]}
+      />
+    );
   }
   if (store.error) {
     return <Result status="warning" title="We couldn't load your profile" subTitle={store.error.message} extra={<Button onClick={store.load}>Try again</Button>} />;

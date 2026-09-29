@@ -29,7 +29,7 @@ export default function TailorModal({ open, onClose, apps, token, onDone }) {
   const single = apps.length === 1 ? apps[0] : null;
   useEffect(() => {
     if (!open) return;
-    api("/profile", { token })
+    api("/profile", { token, quiet: true })
       .then(async (d) => {
         if (d.data || !single?.resume) return setProfile(d.data);
         const r = await api(`/resumes/${single.resume}`, { token }).catch(() => null);

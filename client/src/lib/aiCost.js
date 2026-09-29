@@ -4,7 +4,7 @@
  * a change as it's typed. The two must give the same answers (server/test/parity.test.js).
  */
 const FIXED_CHARS = {
-  chat: 9744 + 2500 + 40000 + 20000,
+  chat: 9744 + 2500 + 20000 + 20000, // guide, instructions, resume, outline
   refine: 2500,
   audit: 1000 + 40000,
   parse: 5000 + 30000 + 2000,

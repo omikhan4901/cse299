@@ -5,7 +5,7 @@ import { Modal } from "antd";
 import { motion } from "motion/react";
 import { Check, Crown, Sparkles, Zap } from "lucide-react";
 import FeaturePreview, { hasPreview } from "./FeaturePreview";
-import { perksOf } from "./perks";
+import { keyPerks, perksOf } from "./perks";
 
 const price = (amount, currency) => {
   try {
@@ -77,7 +77,7 @@ export default function UpgradeModal({ request, onClose, billing }) {
               </div>
               <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
                 <li className="flex gap-2"><Zap size={15} className="mt-0.5 shrink-0 fill-amber-400 text-amber-500" /> {plan.credits.toLocaleString()} AI credits {periodWord(plan.creditPeriod)}</li>
-                {perksOf(plan).slice(0, 3).map((perk) => (
+                {[...keyPerks(plan, { v2: !!billing.v2 }), ...perksOf(plan)].slice(0, 4).map((perk) => (
                   <li key={perk} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-brand" /> {perk}</li>
                 ))}
               </ul>

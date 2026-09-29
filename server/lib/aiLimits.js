@@ -25,7 +25,7 @@ const BOUNDS = { input: [200, 50000], turns: [2, 40], pages: [1, 20], output: [2
 // What every request of a feature sends besides the person's input, at most, in characters
 // (instructions, the resume or its outline, the guide), for the worst-case cost.
 const FIXED_CHARS = {
-    chat: 9744 + 2500 + 40000 + 20000,
+    chat: 9744 + 2500 + 20000 + 20000, // guide, instructions, resume, outline
     refine: 2500,
     audit: 1000 + 40000,
     parse: 5000 + 30000 + 2000,

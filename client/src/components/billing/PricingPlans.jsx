@@ -9,7 +9,7 @@ import { previewPrices } from "@/lib/paddle";
 import { TEMPLATES, planIncludes } from "@/pdf/registry";
 import { BuilderLink } from "@/components/BuilderLauncher";
 import FeaturePreview, { hasPreview } from "./FeaturePreview";
-import { perksOf } from "./perks";
+import { keyPerks, perksOf } from "./perks";
 
 /** "See it": the feature's animated example, on hover or tap. */
 function SeeIt({ feature }) {
@@ -114,7 +114,7 @@ export default function PricingPlans({ config }) {
                 <Zap size={14} className="fill-amber-400 text-amber-500" /> {p.credits.toLocaleString()} AI credits a {p.creditPeriod}
               </p>
               <ul className="mt-6 flex-1 space-y-2.5 text-sm text-slate-600">
-                {perksOf(p).map((perk) => (
+                {[...keyPerks(p, { v2: !!config.v2?.enabled }), ...perksOf(p)].map((perk) => (
                   <li key={perk} className="flex gap-2">
                     <Check size={16} className="mt-0.5 shrink-0 text-brand" /> {perk}
                   </li>
@@ -202,8 +202,9 @@ export default function PricingPlans({ config }) {
               ))}
             </tr>
             {/* V2 workspace limits, once V2 is open to everyone. */}
-            {config.v2?.enabled
-              ? (config.planLimits || []).map((l) => (
+            {(config.planLimits || [])
+              .filter((l) => !l.v2 || config.v2?.enabled)
+              .map((l) => (
                   <tr key={l.key}>
                     <td className="p-4 text-slate-700">{l.name}<SeeIt feature={l.key} /></td>
                     {plans.map((p) => {
@@ -215,8 +216,7 @@ export default function PricingPlans({ config }) {
                       );
                     })}
                   </tr>
-                ))
-              : null}
+                ))}
             {[...appFeatures, ...aiFeatures].map((f) => (
               <tr key={f.key}>
                 <td className="p-4">

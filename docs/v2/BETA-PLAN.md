@@ -182,3 +182,23 @@ separately. Rough total: 12–16 working days of effort.
   /billing/me, never the public page). Webhooks are processed in every mode.
 - Verified email is required for AI only when the server can send email, so a missing SMTP
   setting can't lock AI for everyone.
+
+**Phase 2 (plans, access and storage)**
+- Resumes per plan is a plan limit (`resumes`, shown on pricing whether or not V2 is on).
+  It counts on create, duplicate and tailoring; nothing existing is removed. Free mode lifts
+  it; the hard ceiling per account (50) stays.
+- Career Profile and Applications are plan features (off on Free). Every profile,
+  applications and interview-prep route refuses without them (403 with an upgrade prompt
+  naming the plan that has them); reminders skip those accounts. Admins follow the same rule
+  and give themselves a plan to test, so what they see is what members see.
+- The site never asks for a locked area: the builder's profile sync, the dashboard and the
+  launcher only fetch the profile when the account has it (no 403s in the console).
+- Plan cards and the upgrade dialog build "Up to N resumes" and "Career Profile and
+  Applications" from the plan's real settings; stored perks stating a number of resumes or
+  credits are hidden, so they can't contradict an admin's edit.
+- The assistant resends the resume with every message, which made it the dearest feature per
+  credit. The resume it gets is capped at 20,000 characters (about three full resumes), and
+  earlier replies are kept to the message length, which the worst case previously undercounted.
+  Worst case per message: about $0.0105 (was $0.0125).
+- Rate limits aren't part of the campaign estimate: they cap speed, not the total, and
+  credits always bind first. The estimate says so.

@@ -64,7 +64,7 @@ function Estimate({ values, settings, aiFeatures, spend }) {
       </div>
       <p className="mt-2 text-xs text-slate-500">
         {e.credits} credits a {e.period} × up to {e.periods} {e.period === "day" ? "days" : "calendar months (credits reset on the 1st)"} × {usd(e.perCredit, 4)} a credit at most.
-        {left != null ? ` ${usd(left)} left under this month's AI cap.` : " The AI cap is off."}
+        {left != null ? ` ${usd(left)} left under this month's AI cap.` : " The AI cap is off."} Rate limits only slow spending down; credits set the total.
       </p>
       {over ? <p className="mt-1.5 text-xs font-medium text-amber-800">The worst case is more than what&apos;s left under the cap: if it happened, AI would pause for everyone. Fewer places or credits lower it.</p> : null}
       {e.period === "day" ? <p className="mt-1.5 text-xs font-medium text-amber-800">Credits per day add up fast: {e.credits} a day is {e.credits * 30} a month per member.</p> : null}

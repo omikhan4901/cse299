@@ -8,6 +8,7 @@ const { limit } = require("../lib/rateLimit");
 const User = require("../models/User");
 const { getSettings } = require("../lib/settings");
 const { canUse, USER_FIELDS: ACCESS_FIELDS } = require("../lib/credits");
+const { roomForResumes } = require("../lib/resumeLimit");
 const { templateAllowed, templateTier } = require("../lib/templates");
 const { CONTENT_KEYS, pick } = require("../lib/resumeInput");
 
@@ -35,12 +36,8 @@ const shareAllowed = async (req, res) => {
 // Autosave sends a request a couple of seconds after typing stops, so this is generous.
 const perAccount = limit({ name: "resumes", windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: "Too many requests.", label: "Resume requests", group: "Resumes", scope: "account", description: "Opening, autosaving and listing resumes. Autosave sends a request a couple of seconds after typing stops." });
 const createByUser = limit({ name: "resume-create", windowMs: 60 * 60 * 1000, max: 30, key: (req) => req.userId, message: "You're creating resumes very quickly.", label: "New resumes", group: "Resumes", scope: "account", description: "New and duplicated resumes per account (on top of the 50-resume cap)." });
-const MAX_RESUMES = Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
-const underResumeCap = async (req, res) => {
-  if ((await Resume.countDocuments({ user: req.userId })) < MAX_RESUMES) return true;
-  res.status(400).json({ success: false, error: `You can keep up to ${MAX_RESUMES} resumes. Delete one to make room.` });
-  return false;
-};
+// The plan's resume limit and the hard ceiling (lib/resumeLimit.js).
+const underResumeCap = (req, res) => roomForResumes(req, res, 1);
 
 // Only these fields can be written by the client. Everything else (owner,
 // shortId, timestamps) is controlled by the server.

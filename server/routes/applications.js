@@ -4,7 +4,8 @@ const Application = require('../models/Application');
 const Resume = require('../models/Resume');
 const { protect } = require('./auth');
 const { limit } = require('../lib/rateLimit');
-const { requireV2 } = require('../lib/v2');
+const { requireV2, requireFeature } = require('../lib/v2');
+const { roomForResumes } = require('../lib/resumeLimit');
 const { planLimit } = require('../lib/credits');
 const { fetchPageText, FetchError } = require('../lib/safeFetch');
 const { CONTENT_KEYS, pick } = require('../lib/resumeInput');
@@ -20,10 +21,9 @@ const router = express.Router();
 const perAccount = limit({ name: 'applications', windowMs: 60 * 1000, max: 120, key: (req) => req.userId, message: 'Too many requests.', label: 'Application requests', group: 'Applications', scope: 'account', description: 'Opening, adding and saving tracked applications.' });
 const fetchByUser = limit({ name: 'job-fetch', windowMs: 60 * 60 * 1000, max: 30, key: (req) => req.userId, message: "You've read a lot of job links. Paste the job text instead for now.", label: 'Job links read', group: 'Applications', scope: 'account', description: 'Job pages fetched from a link people paste (the server opens the page).' });
 
-router.use(protect, perAccount, requireV2);
+router.use(protect, perAccount, requireV2, requireFeature('applications', 'Applications'));
 
 const MAX_APPLICATIONS = 500;
-const MAX_RESUMES = Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
 const APPLY_VIA = ['teletalk', 'bdjobs', 'email', 'post', 'online'];
 const isActive = (a) => !a.archived && ACTIVE.includes(a.status);
 
@@ -169,7 +169,7 @@ router.post('/tailored', async (req, res, next) => {
         if (!ids.every((id) => mongoose.isValidObjectId(id))) return res.status(400).json({ success: false, error: 'Application not found.' });
         const apps = await Application.find({ _id: { $in: ids }, user: req.userId });
         if (apps.length !== new Set(ids.map(String)).size) return res.status(400).json({ success: false, error: 'Application not found.' });
-        if ((await Resume.countDocuments({ user: req.userId })) + items.length > MAX_RESUMES) return res.status(400).json({ success: false, error: `You can keep up to ${MAX_RESUMES} resumes. Delete some to make room.` });
+        if (!(await roomForResumes(req, res, items.length))) return;
 
         const created = [];
         for (const item of items) {

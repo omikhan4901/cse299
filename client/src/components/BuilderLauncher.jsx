@@ -32,7 +32,9 @@ function findRisk() {
 export function BuilderLauncherProvider({ children }) {
   const router = useRouter();
   const { token, isAuthenticated, openAuth } = useAuth();
-  const v2 = !!useBilling()?.v2;
+  const billing = useBilling();
+  const v2 = !!billing?.v2;
+  const canProfile = !!billing?.canUse?.("profile");
   // { risk, resumes } — resumes is null while loading
   const [dialog, setDialog] = useState(null);
 
@@ -49,13 +51,13 @@ export function BuilderLauncherProvider({ children }) {
         .then(({ data }) => setDialog((d) => d && { ...d, resumes: data }))
         .catch(() => setDialog((d) => d && { ...d, resumes: [] }));
       // V2: the Career Profile takes the master resume's place here.
-      if (v2) {
-        api("/profile", { token })
+      if (v2 && canProfile) {
+        api("/profile", { token, quiet: true })
           .then(({ data }) => setDialog((d) => d && { ...d, profile: data }))
           .catch(() => {});
       }
     }
-  }, [isAuthenticated, token, router, v2]);
+  }, [isAuthenticated, token, router, v2, canProfile]);
 
   const value = useMemo(() => ({ openBuilder }), [openBuilder]);
   const close = () => setDialog(null);

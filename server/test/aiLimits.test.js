@@ -109,6 +109,24 @@ describe('AI limits: routes', () => {
         assert.deepEqual(body.contents.map((c) => c.parts[0].text), ['message 6', 'message 7', 'message 8']);
     });
 
+    it('the assistant\'s context stays within what the worst case counts: earlier replies clipped to a message, the resume to 20,000 characters', async () => {
+        const { token } = await register();
+        await setSettings({ aiLimits: { chat: { input: 500, turns: 10, output: 700, thinking: 0 } } });
+        ai.reply = 'Sure.';
+        const conversation = [
+            { role: 'user', content: 'hi' },
+            { role: 'assistant', content: 'A long answer. '.repeat(100) },
+            { role: 'user', content: 'thanks' },
+        ];
+        const fullResume = { summary: 'Z'.repeat(60000) };
+        assert.equal((await api('POST', '/ai/chat', { token, body: { conversation, fullResume } })).status, 200);
+        const body = ai.last.body;
+        assert.ok(body.contents[1].parts[0].text.length <= 500, 'an earlier reply is kept to the message limit');
+        const system = body.systemInstruction.parts[0].text;
+        const zs = (system.match(/Z+/g) || []).reduce((m, z) => Math.max(m, z.length), 0);
+        assert.ok(zs > 10000 && zs <= 20000, `resume sent: ${zs} characters`);
+    });
+
     it('a model that refuses thinking settings is asked once more without them', async () => {
         const { token } = await register();
         const real = globalThis.fetch;

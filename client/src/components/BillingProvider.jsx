@@ -24,7 +24,7 @@ export const notifyCreditsChanged = () => typeof window !== "undefined" && windo
 import { PLAN_ORDER, templateById, templateTier } from "@/pdf/registry";
 import { canUseFeature, canUseTemplate, canUseV2, planChangeKind, planLimit } from "@/lib/access";
 
-const LIMIT_KEYS = ["applications", "tailored", "batch"];
+const LIMIT_KEYS = ["resumes", "applications", "tailored", "batch"];
 /** "feature:polish", "limit:applications" or "template": where an upgrade prompt came from. */
 const sourceOf = (request) => {
   const key = String(request?.feature || "").replace(/[^a-z0-9_.-]/gi, "").slice(0, 40);
@@ -112,14 +112,15 @@ export function BillingProvider({ children }) {
   // The server is the final word on plans: if it refuses something, explain the upgrade.
   useEffect(() => {
     const onUpgrade = (e) => {
-      const { feature, plan, template } = e.detail;
+      const { feature, plan, template, error } = e.detail;
       // The server knows best: refresh the local copy of the plans, then explain.
       refreshConfig();
+      const limit = LIMIT_KEYS.includes(feature) ? configRef.current?.planLimits?.find((l) => l.key === feature) : null;
       setUpgrade({
         feature,
-        what: template ? "That template" : undefined,
+        what: template ? "That template" : limit ? `More ${limit.name.toLowerCase()}` : undefined,
         plan: plan ? configRef.current?.plans?.find((p) => p.id === plan) : undefined,
-        description: template ? "This design needs a higher plan. Your previous template was kept." : undefined,
+        description: template ? "This design needs a higher plan. Your previous template was kept." : limit ? error : undefined,
       });
     };
     window.addEventListener(UPGRADE_NEEDED, onUpgrade);
@@ -245,6 +246,8 @@ export function BillingProvider({ children }) {
       costOf: (key) => config?.featureCosts?.[key] ?? null,
       featureInfo: (key) => features.find((f) => f.key === key),
       canUse,
+      /** True once the plans and (signed in) this account's plan and switches have loaded. */
+      ready: !!config && (!token || !!usage),
       upgradePlanFor,
       /** The plan that unlocks a feature this account can't use, or null when it's usable. */
       lockFor: (key) => (canUse(key) ? null : upgradePlanFor(key) || { id: "pro", name: "Pro" }),
@@ -298,7 +301,7 @@ export function BillingProvider({ children }) {
       paddle: config?.paddle || usage?.paddle || null,
       subscription: usage?.subscription || null,
     };
-  }, [config, usage, user, refreshUsage, refreshConfig, checkout, checkoutPass, openPortal]);
+  }, [config, usage, user, token, refreshUsage, refreshConfig, checkout, checkoutPass, openPortal]);
 
   return (
     <BillingContext.Provider value={value}>

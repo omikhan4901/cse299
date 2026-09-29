@@ -117,7 +117,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
 
   useEffect(() => {
     api("/resumes", { token }).then((d) => setResumes(d.data)).catch(() => setResumes([]));
-    api("/profile", { token }).then((d) => setProfile(d.data)).catch(() => setProfile(null));
+    api("/profile", { token, quiet: true }).then((d) => setProfile(d.data)).catch(() => setProfile(null));
   }, [token]);
   useEffect(() => {
     if (!a.resume) return;

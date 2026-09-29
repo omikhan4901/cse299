@@ -24,15 +24,18 @@ const APP_FEATURES = [
     { key: 'atsCheck', name: 'ATS check', description: 'The ATS score and job keyword match.' },
     { key: 'shareLinks', name: 'Share links', description: 'Publish a resume as a web page.' },
     // V2 (shown on the pricing page only once V2 is on for everyone).
+    { key: 'profile', name: 'Career Profile', description: 'Everything about your career in one place; every resume starts from it.', v2: true },
+    { key: 'applications', name: 'Applications', description: 'Track every job you apply to, tailor a resume for each, and get ready for interviews.', v2: true },
     { key: 'interviewPrep', name: 'Interview prep', description: 'A prep sheet for each interview, from the job and your own experience.', v2: true },
     { key: 'insights', name: 'Search insights', description: 'What your own applications show: interview rate by resume and by kind of role.', v2: true },
 ];
 
 // Numeric plan limits (V2). null = unlimited; 0 = not included.
 const PLAN_LIMITS = [
-    { key: 'applications', name: 'Active applications', description: 'Applications being tracked at once (archived and finished ones don\'t count).' },
-    { key: 'tailored', name: 'Tailored resumes', description: 'Resumes made for a specific job from the Career Profile.' },
-    { key: 'batch', name: 'Jobs per batch', description: 'Jobs that can be tailored for in one go.' },
+    { key: 'resumes', name: 'Resumes', description: 'Resumes an account can keep (tailored ones included). Existing ones are never deleted.' },
+    { key: 'applications', name: 'Active applications', description: 'Applications being tracked at once (archived and finished ones don\'t count).', v2: true },
+    { key: 'tailored', name: 'Tailored resumes', description: 'Resumes made for a specific job from the Career Profile.', v2: true },
+    { key: 'batch', name: 'Jobs per batch', description: 'Jobs that can be tailored for in one go.', v2: true },
 ];
 
 // Which plan each template needs: a tier per category, and optional per-template overrides.
@@ -85,22 +88,22 @@ const DEFAULTS = {
         {
             id: 'free', name: 'Free', tagline: 'Everything you need for your first resume.',
             price: 0, yearlyPrice: 0, credits: 10, creditPeriod: 'day', highlight: false,
-            features: { ...allOn, parse: false, coverLetter: false, audit: false, polish: false, interviewAi: false, interviewPrep: false, insights: false },
-            limits: { applications: 5, tailored: 1, batch: 0 },
+            features: { ...allOn, parse: false, coverLetter: false, audit: false, polish: false, interviewAi: false, profile: false, applications: false, interviewPrep: false, insights: false },
+            limits: { resumes: 1, applications: 5, tailored: 1, batch: 0 },
             perks: ['Live PDF builder', 'ATS-Optimized and Student templates', 'ATS check with keyword match'],
         },
         {
             id: 'pro', name: 'Pro', tagline: 'For an active job search.',
             price: 6.99, yearlyPrice: 75.49, credits: 300, creditPeriod: 'month', highlight: true,
             features: { ...allOn },
-            limits: { applications: null, tailored: null, batch: 5 },
+            limits: { resumes: 15, applications: null, tailored: null, batch: 5 },
             perks: ['All 50+ templates', 'Import your old resume', 'Cover letters and AI rewrites'],
         },
         {
             id: 'premium', name: 'Premium', tagline: 'For power users and career switchers.',
             price: 12.99, yearlyPrice: 140.29, credits: 1000, creditPeriod: 'month', highlight: false,
             features: { ...allOn },
-            limits: { applications: null, tailored: null, batch: 15 },
+            limits: { resumes: 30, applications: null, tailored: null, batch: 15 },
             perks: ['Everything in Pro', 'Priority support'],
         },
     ],

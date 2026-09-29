@@ -108,7 +108,10 @@ describe('templates by plan (server side)', () => {
     it('refuses switching to a template the plan lacks, keeps existing ones, and frees everything in free mode', async () => {
         const { token } = await register();
         const id = (await api('POST', '/resumes', { token, body: { nickname: 'T', template: 'Sunset' } })).body.data._id; // free mode: allowed
-        await setSettings({ freeMode: { enabled: false } }); // Sunset (creative) needs Pro by default
+        // Sunset (creative) needs Pro by default; Free's resume limit is lifted so only templates decide here.
+        const plans = structuredClone(require('../lib/settings').DEFAULTS.plans);
+        plans[0].limits.resumes = null;
+        await setSettings({ freeMode: { enabled: false }, plans });
         const switchTo = await api('PUT', `/resumes/${id}`, { token, body: { template: 'Nordic' } }); // minimal: Pro
         assert.equal(switchTo.status, 403);
         assert.equal(switchTo.body.plan, 'pro');

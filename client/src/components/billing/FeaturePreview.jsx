@@ -443,9 +443,11 @@ const SCENES = {
   refine: () => <RefineScene />,
   shareLinks: () => <ShareScene />,
   templates: (r) => <TemplatesScene template={r.template} />,
+  resumes: () => <TemplatesScene template="Classic" />,
   tailored: () => <TailorScene />,
   batch: () => <TailorScene />,
   applications: () => <BoardScene />,
+  profile: () => <ImportScene />,
 };
 
 export const hasPreview = (feature) => !!SCENES[feature];

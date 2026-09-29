@@ -345,6 +345,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   }, [resume._id, token, takeServerCopy, message]);
 
   /** Adds this resume to the account. Edits made while the request is in flight are kept and saved next. */
+  // Set when the account is at its plan's resume limit, so a new draft isn't retried.
+  const atResumeLimit = useRef(false);
   const createResume = useCallback(
     async ({ nickname, isMaster = false }, { auto = false } = {}) => {
       if (creating.current || !token) return;
@@ -363,7 +365,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         onSaveSucceeded();
         message.success(auto ? "Saved to My resumes. Every change now saves automatically." : "Saved to My resumes.");
       } catch (err) {
-        if (err.code === "upgrade") setResume((r) => ({ ...r, template: "Classic" })); // saved on the next try
+        if (err.code === "upgrade" && err.feature === "resumes") {
+          // The plan's resume limit: stop trying; the work stays in this browser as a draft.
+          atResumeLimit.current = true;
+          if (auto) message.info("You've reached your plan's resume limit, so this one is kept in this browser only. Delete a resume or upgrade to keep it in your account.", 8);
+        } else if (err.code === "upgrade") setResume((r) => ({ ...r, template: "Classic" })); // a paid template: saved on the next try
         else {
           onSaveFailed(err);
           if (!auto) message.error(err.message);
@@ -386,7 +392,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   // Signed in: a new resume goes into the account as soon as it has content, so it can't get lost.
   const wantsAccountCopy = isAuthenticated && !!token && !resume._id && !privateMode && !sessionExpired && !suspended && hasRealContent(resume) && (!showExample || edited);
   useEffect(() => {
-    if (!wantsAccountCopy) return;
+    if (!wantsAccountCopy || atResumeLimit.current) return;
     const t = setTimeout(() => createResume({ nickname: defaultNickname(resume) }, { auto: true }), 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-armed by content changes and retries
@@ -639,7 +645,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   const billing = useBilling();
   // V2: the Career Profile replaces the "master resume" for accounts that have V2.
-  const profileSync = useProfileSync({ token, resume, setResume, enabled: isAuthenticated && !!billing?.v2 });
+  const profileSync = useProfileSync({ token, resume, setResume, enabled: isAuthenticated && !!billing?.v2 && !!billing?.ready && billing.canUse("profile") });
   // Plan locks (only when free mode is off in the admin settings). Locked controls carry a
   // plan tag, and using one explains the upgrade instead of failing.
   const FEATURE_OF = { audit: "atsCheck", chat: "chat", cover: "coverLetter", import: "parse" };

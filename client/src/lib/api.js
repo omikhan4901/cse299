@@ -2,11 +2,12 @@ import { API_URL } from "./config";
 import { trackAi } from "./aiActivity";
 
 export class ApiError extends Error {
-  constructor(message, status, code, data) {
+  constructor(message, status, code, data, feature) {
     super(message);
     this.status = status;
     this.code = code;
     this.data = data; // e.g. the latest copy of a resume on a "conflict"
+    this.feature = feature; // what an "upgrade" refusal was about (a feature, a limit or "templates")
   }
 }
 
@@ -25,7 +26,9 @@ export const VERIFY_NEEDED = "resumex:verify-needed";
 // AI requests the server treats as long tasks (a 100 s budget): the browser waits longer for them.
 const LONG_AI = ["/ai/parse", "/ai/ingest", "/ai/polish", "/ai/interview-prep"];
 
-export async function api(path, { token, method = "GET", body, timeout = LONG_AI.includes(path) ? 110000 : 60000 } = {}) {
+// `quiet`: an optional background request (e.g. reading the profile to offer something):
+// a refusal from the plan doesn't open the upgrade dialog.
+export async function api(path, { token, method = "GET", body, timeout = LONG_AI.includes(path) ? 110000 : 60000, quiet = false } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   // AI requests can be slow when the provider is busy: show them in the status card, with a
@@ -52,10 +55,10 @@ export async function api(path, { token, method = "GET", body, timeout = LONG_AI
       // AI was paused while this page was open: reload the settings so the notice shows.
       if (data.code === "ai-paused" && typeof window !== "undefined") window.dispatchEvent(new Event(SETTINGS_CHANGED));
       if (data.code === "verify-email" && typeof window !== "undefined") window.dispatchEvent(new Event(VERIFY_NEEDED));
-      if (data.code === "upgrade" && data.feature && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature, plan: data.plan, template: data.template } }));
+      if (data.code === "upgrade" && data.feature && !quiet && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature, plan: data.plan, template: data.template, error: data.error } }));
       }
-      throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.code, data.data);
+      throw new ApiError(data.error || `Request failed (${res.status})`, res.status, data.code, data.data, data.feature);
     }
     return data;
   } catch (err) {

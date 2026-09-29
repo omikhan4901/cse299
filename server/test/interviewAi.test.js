@@ -192,12 +192,18 @@ describe('POST /ai/interview-prep', () => {
     });
 
     it('follows plans and the V2 switch', async () => {
-        await setSettings({ freeMode: { enabled: false } });
         const { token } = await register();
         const { app } = await setup(token);
+        await setSettings({ freeMode: { enabled: false } });
+        const noApps = await api('POST', '/ai/interview-prep', { token, body: { applicationId: app._id } });
+        assert.equal(noApps.status, 403);
+        assert.equal(noApps.body.feature, 'applications', 'Free has no Applications at all');
+        const plans = structuredClone(require('../lib/settings').DEFAULTS.plans);
+        plans[0].features.applications = true;
+        await setSettings({ plans });
         const r = await api('POST', '/ai/interview-prep', { token, body: { applicationId: app._id } });
         assert.equal(r.status, 403);
-        assert.equal(r.body.feature, 'interviewAi');
+        assert.equal(r.body.feature, 'interviewAi', 'with Applications, the AI prep is still a paid feature');
 
         await setSettings({ freeMode: { enabled: true }, v2: { enabled: false } });
         assert.equal((await api('POST', '/ai/interview-prep', { token, body: { applicationId: app._id } })).status, 404);

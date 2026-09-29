@@ -13,6 +13,7 @@ const Reminder = require('../models/Reminder');
 const mailer = require('./mailer');
 const { getSettings } = require('./settings');
 const { hasV2 } = require('./v2');
+const { canUse, USER_FIELDS } = require('./credits');
 
 const DAY = 864e5;
 const ACTIVE = Application.ACTIVE;
@@ -90,8 +91,9 @@ async function runReminders({ digest = false, now = new Date() } = {}) {
     const userIds = await Application.distinct('user', { archived: { $ne: true }, status: { $in: ACTIVE } });
     const stats = { users: 0, reminders: 0, digests: 0, failed: 0 };
     for (const userId of userIds) {
-        const user = await User.findById(userId).select('name email role plan planExpiresAt passPlan passUntil v2Preview banned emailPrefs').lean();
-        if (!user || user.banned || !hasV2(user, settings)) continue;
+        const user = await User.findById(userId).select(`name v2Preview banned emailPrefs ${USER_FIELDS}`).lean();
+        // Only accounts that can open Applications (a plan, a campaign or free mode).
+        if (!user || user.banned || !hasV2(user, settings) || !canUse(user, settings, 'applications')) continue;
         const apps = await Application.find({ user: userId }).select('-snapshot -coverLetter -job.description').lean();
         const first = (user.name || '').trim().split(/\s+/)[0] || 'there';
         stats.users++;

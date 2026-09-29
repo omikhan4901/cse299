@@ -137,7 +137,7 @@ describe('Career Profile API', () => {
         await updateSettings({ v2: { enabled: 'yes' }, plans: [{ limits: { applications: -4, tailored: '7', batch: null } }, { limits: { applications: 'lots' } }, {}] }, 'test');
         const { settings } = await readSettings();
         assert.equal(settings.v2.enabled, true);
-        assert.deepEqual(settings.plans[0].limits, { applications: 0, tailored: 7, batch: null });
+        assert.deepEqual(settings.plans[0].limits, { resumes: 1, applications: 0, tailored: 7, batch: null });
         assert.equal(settings.plans[1].limits.applications, null, 'garbage falls back to the default (unlimited on Pro)');
         assert.equal(settings.plans[2].limits.batch, 15);
     });
