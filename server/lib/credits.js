@@ -3,6 +3,8 @@ const Usage = require('../models/Usage');
 const AiEvent = require('../models/AiEvent');
 const { getSettings, planById, AI_FEATURES } = require('./settings');
 const { limit, retryIn } = require('./rateLimit');
+const { pauseState, recordSpend } = require('./aiSpend');
+const { isAdmin } = require('./roles');
 
 /**
  * AI credits. Every AI feature has a credit cost (set in the admin console).
@@ -59,7 +61,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
+const USER_FIELDS = 'email role plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -133,6 +135,21 @@ function aiQuota(feature) {
                         error: `${featureName} is part of the ${upgrade?.name || 'paid'} plan.`,
                     });
                 }
+                // The monthly spending cap, or the admin's pause: refused before anything is
+                // charged or sent to the model. Admins can still use AI (to test).
+                if (!isAdmin(user)) {
+                    const state = await pauseState(settings);
+                    if (state.paused) {
+                        return res.status(503).json({
+                            success: false,
+                            code: 'ai-paused',
+                            until: state.until,
+                            error: state.until
+                                ? `AI features are paused until ${new Date(state.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })}. Everything else works as usual, and you weren't charged.`
+                                : "AI features are paused for a little while. Everything else works as usual, and you weren't charged.",
+                        });
+                    }
+                }
                 const cost = settings.featureCosts[feature] ?? 1;
                 const a = allowanceFor(user, settings);
                 const key = periodKey(a.period);
@@ -164,6 +181,8 @@ function aiQuota(feature) {
                     if (!ok && cost > 0) await Usage.updateOne({ user: req.userId, day: key }, { $inc: { ai: -cost } }).catch((err) => console.error('Credit refund failed:', err.message));
                     // Logged when it worked, and when it failed after the model answered (paid tokens).
                     const u = req.aiUsage;
+                    // Paid for whether or not it worked: counts towards the monthly cap.
+                    if (u) await recordSpend(u, settings);
                     if (ok || u) {
                         await AiEvent.create({ user: req.userId, feature, credits: ok ? cost : 0, ok, model: u?.model || undefined, inputTokens: u?.inputTokens || 0, outputTokens: u?.outputTokens || 0 }).catch(() => {});
                     }

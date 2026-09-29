@@ -54,6 +54,8 @@ If a connection is a real product decision (pricing, what's free, legal wording)
 - Keep this file current: when you learn how the owner wants things done, add it here in one
   line. Remove anything that stops being true. Don't pad it.
 - The owner's "go ahead" starts work. If they interrupt a tool call, stop and wait.
+- Beta work (docs/v2/BETA-PLAN.md): the owner put me in charge; decide details myself, log decisions in
+  the plan, keep improving it, and only ask about pricing, what's free and legal wording.
 - **Look and feel:** calm, uncluttered screens with little text. Heavy features still show
   one clear next action at a time; details appear only when needed (progressive disclosure).
   Match the existing design (antd + Tailwind, motion); make it eye-catching but easy on the eyes.

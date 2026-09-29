@@ -47,6 +47,8 @@ export async function api(path, { token, method = "GET", body, timeout = LONG_AI
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.success === false) {
+      // AI was paused while this page was open: reload the settings so the notice shows.
+      if (data.code === "ai-paused" && typeof window !== "undefined") window.dispatchEvent(new Event(SETTINGS_CHANGED));
       if (data.code === "upgrade" && data.feature && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature, plan: data.plan, template: data.template } }));
       }

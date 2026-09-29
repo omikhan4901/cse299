@@ -79,11 +79,8 @@ const signInResponse = (user) =>
         ? { success: true, mfaRequired: true, mfaToken: mfaTicket(user) }
         : { success: true, token: getSignedJwtToken(user), user: publicUser(user) };
 
-// Super admins are set by email in SUPERADMIN_EMAILS (comma-separated). They can
-// do everything, including making other people admins.
-const superadminEmails = () => (process.env.SUPERADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-const isSuperadmin = (user) => !!user?.email && superadminEmails().includes(String(user.email).toLowerCase());
-const roleOf = (user) => (isSuperadmin(user) ? 'superadmin' : user?.role || 'user');
+// Super admins and admins (lib/roles.js).
+const { isSuperadmin, roleOf } = require('../lib/roles');
 
 const bannedMessage = (user) => `This account has been suspended${user.bannedReason ? `: ${user.bannedReason}` : '.'} Contact support if you think this is a mistake.`;
 

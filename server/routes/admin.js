@@ -14,6 +14,7 @@ const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email')
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { deleteUserData } = require('../lib/userData');
 const { aiEconomics } = require('../lib/economics');
+const { pauseState, monthKey, nextMonth } = require('../lib/aiSpend');
 const { revenueReport, paymentsCsv } = require('../lib/revenue');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
@@ -312,6 +313,24 @@ router.delete('/users/:id', wrap(async (req, res) => {
 router.get('/economics', wrap(async (req, res) => {
     const days = Math.min(180, Math.max(1, Math.round(Number(req.query.days) || 30)));
     res.json({ success: true, data: await aiEconomics({ days, settings: await getSettings() }) });
+}));
+
+// @route GET /api/admin/ai-spend — this month's AI cost against the cap (lib/aiSpend.js)
+router.get('/ai-spend', wrap(async (req, res) => {
+    const settings = await getSettings();
+    const now = new Date();
+    const state = await pauseState(settings, now);
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const daysIn = Math.round((nextMonth(now) - start) / 864e5);
+    const elapsed = Math.max(1 / 24, (now - start) / 864e5);
+    // At this month's pace so far: the month's total, and the day the cap would be reached.
+    const projected = (state.spent / elapsed) * daysIn;
+    const perDay = state.spent / elapsed;
+    const capDay = settings.aiSpend.enabled && perDay > 0 && state.spent < settings.aiSpend.cap ? new Date(start.getTime() + (settings.aiSpend.cap / perDay) * 864e5) : null;
+    res.json({
+        success: true,
+        data: { month: monthKey(now), ...settings.aiSpend, spent: state.spent, projected, capDay: capDay && capDay < nextMonth(now) ? capDay : null, paused: state.paused, reason: state.reason, until: state.until },
+    });
 }));
 
 // ---------- Revenue ----------

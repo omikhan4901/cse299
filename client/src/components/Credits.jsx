@@ -6,13 +6,15 @@ import { Crown, Lock, Zap } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { useBilling, resetsIn } from "./BillingProvider";
 import PlanTag from "./billing/PlanTag";
+import { pausedText } from "./billing/AiPausedNotice";
 
 const periodWord = (p) => (p === "month" ? "this month" : "today");
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** Card shown inside a tooltip for an AI action: what it does and what it costs. */
 function CreditCard({ feature, title, description }) {
-  const { costOf, featureInfo, usage, canUse, upgradePlanFor } = useBilling() || {};
+  const { costOf, featureInfo, usage, canUse, upgradePlanFor, config } = useBilling() || {};
+  const aiPaused = config?.aiPaused;
   const info = featureInfo?.(feature);
   const cost = costOf?.(feature);
   const locked = canUse && !canUse(feature);
@@ -29,7 +31,9 @@ function CreditCard({ feature, title, description }) {
         ) : null}
       </div>
       {description || info?.description ? <p className="mt-1 text-xs leading-relaxed text-white/70">{description || info?.description}</p> : null}
-      {locked ? (
+      {aiPaused ? (
+        <p className="mt-2 border-t border-white/10 pt-2 text-[11px] text-amber-200">{pausedText(aiPaused)}</p>
+      ) : locked ? (
         <p className="mt-2 flex items-center gap-1.5 border-t border-white/10 pt-2 text-[11px] text-amber-200">
           <Lock size={11} /> Included in {upgradePlanFor(feature)?.name || "a paid plan"}
         </p>

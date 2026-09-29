@@ -60,7 +60,11 @@ const DEFAULTS = {
     // economics view only: check Google's price list and keep these current.
     aiPrices: {
         default: { input: 0.3, output: 2.5 },
+        'gemini-2.5-flash': { input: 0.3, output: 2.5 },
     },
+    // The monthly AI spending cap (lib/aiSpend.js), in US dollars: at the cap, AI pauses for
+    // everyone except admins until the 1st. `paused` is the admin's emergency brake.
+    aiSpend: { enabled: true, cap: 40, alertAt: 80, paused: false },
     // Monthly running costs the admin enters (hosting, domain, email…), in the payout
     // currency, for the profit figure in the Revenue view. AI and Paddle fees are measured.
     fixedCosts: [],
@@ -150,8 +154,12 @@ function clean(input) {
             .filter(([id, tier]) => /^[A-Za-z0-9_-]{1,40}$/.test(id) && PLAN_IDS.includes(tier))
             .slice(0, 200)
     );
+    // Stored as a list (model names contain dots, which can't be database field names).
+    const priceSource = Array.isArray(s.aiPriceList)
+        ? { ...DEFAULTS.aiPrices, ...Object.fromEntries(s.aiPriceList.filter(isObj).map((p) => [String(p.model || ''), p])) }
+        : isObj(s.aiPrices) ? s.aiPrices : DEFAULTS.aiPrices;
     const aiPrices = Object.fromEntries(
-        Object.entries(isObj(s.aiPrices) ? s.aiPrices : DEFAULTS.aiPrices)
+        Object.entries(priceSource)
             .filter(([model, v]) => /^[A-Za-z0-9._-]{1,60}$/.test(model) && isObj(v))
             .map(([model, v]) => [model, { input: num(v.input, 0, { max: 1000 }), output: num(v.output, 0, { max: 1000 }) }])
             .slice(0, 30)
@@ -184,6 +192,12 @@ function clean(input) {
             days: Math.round(num(isObj(s.pass) ? s.pass.days : 90, 90, { min: 1, max: 730 })),
         },
         featureCosts: costs,
+        aiSpend: {
+            enabled: isObj(s.aiSpend) ? s.aiSpend.enabled !== false : true,
+            cap: Math.round(num(isObj(s.aiSpend) ? s.aiSpend.cap : 40, 40, { min: 1, max: 100000 }) * 100) / 100,
+            alertAt: Math.round(num(isObj(s.aiSpend) ? s.aiSpend.alertAt : 80, 80, { min: 0, max: 99 })),
+            paused: !!(isObj(s.aiSpend) && s.aiSpend.paused),
+        },
         templates: { categories, overrides },
         aiPrices,
         fixedCosts,
@@ -203,6 +217,12 @@ async function getSettings() {
     cachedAt = Date.now();
     setOverrides(cache.rateLimits);
     return cache;
+}
+
+/** The settings as saved: model prices as a list, since dotted model names can't be field names. */
+function toStored(settings) {
+    const { aiPrices, ...rest } = settings;
+    return { ...rest, aiPriceList: Object.entries(aiPrices).map(([model, p]) => ({ model, input: p.input, output: p.output })) };
 }
 
 /** The settings and their revision, read from the database (not the cache). */
@@ -228,9 +248,10 @@ async function updateSettings(patch, by, { baseRev } = {}) {
     if (isObj(patch?.aiPrices)) merged.aiPrices = patch.aiPrices;
     if (Array.isArray(patch?.fixedCosts)) merged.fixedCosts = patch.fixedCosts;
     const next = clean(merged);
+    const stored = toStored(next);
     try {
         if (doc) {
-            doc.data = next;
+            doc.data = stored;
             doc.updatedBy = by;
             doc.rev = rev + 1;
             doc.markModified('data');
@@ -238,7 +259,7 @@ async function updateSettings(patch, by, { baseRev } = {}) {
             doc.$where = rev === 0 ? { rev: { $in: [0, null] } } : { rev };
             await doc.save();
         } else {
-            await Settings.create({ key: 'global', data: next, updatedBy: by, rev: 1 });
+            await Settings.create({ key: 'global', data: stored, updatedBy: by, rev: 1 });
         }
     } catch (err) {
         if (err.name === 'DocumentNotFoundError' || err.code === 11000) throw conflict();

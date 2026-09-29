@@ -7,6 +7,7 @@ import { App } from "antd";
 import { useAuth } from "./AuthProvider";
 import { openCheckout } from "@/lib/paddle";
 import UpgradeModal from "./billing/UpgradeModal";
+import AiPausedNotice from "./billing/AiPausedNotice";
 
 /**
  * Plans, prices, credit costs and the signed-in account's credit balance.
@@ -294,6 +295,7 @@ export function BillingProvider({ children }) {
     <BillingContext.Provider value={value}>
       {children}
       <UpgradeModal request={upgrade} onClose={() => setUpgrade(null)} billing={value} />
+      <AiPausedNotice />
     </BillingContext.Provider>
   );
 }

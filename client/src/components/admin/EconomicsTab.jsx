@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, Button, Input, InputNumber, Segmented, Skeleton, Table, Tooltip } from "antd";
-import { Coins, Gauge, Plus, Trash2, Users, Wallet } from "lucide-react";
+import { Alert, App, Button, Input, InputNumber, Segmented, Skeleton, Switch, Table, Tooltip } from "antd";
+import { Coins, Gauge, PauseCircle, Plus, ShieldCheck, Trash2, Users, Wallet } from "lucide-react";
+import { SETTINGS_CHANGED } from "@/lib/api";
 import { useAdmin } from "./useAdmin";
 import { useSettingsDraft } from "./useSettingsDraft";
 import SaveBar from "./SaveBar";
@@ -40,9 +41,103 @@ export default function EconomicsTab() {
         <p className="text-sm text-slate-500">Real token counts from every AI request, priced with the rates below.</p>
         <Segmented value={days} onChange={setDays} options={[{ value: 7, label: "7 days" }, { value: 30, label: "30 days" }, { value: 90, label: "90 days" }]} />
       </div>
+      <SpendCap />
       {error ? <Alert type="error" showIcon title={error} /> : !data || loading ? <Skeleton active paragraph={{ rows: 6 }} /> : <Report data={data} />}
       <Prices />
     </div>
+  );
+}
+
+const fmtDay = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+/**
+ * The monthly spending cap (server/lib/aiSpend.js): this month against the cap, the pace, and
+ * the emergency Pause switch, which saves at once. The cap and alert level save with the button.
+ */
+function SpendCap() {
+  const { message } = App.useApp();
+  const { data, reload, call } = useAdmin("/ai-spend");
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+  if (!data) return <Skeleton active paragraph={{ rows: 2 }} />;
+  const cfg = edit || { enabled: data.enabled, cap: data.cap, alertAt: data.alertAt };
+  const pct = data.enabled ? Math.min(100, (data.spent / data.cap) * 100) : 0;
+  const tone = data.paused ? "bg-rose-500" : pct >= data.alertAt ? "bg-amber-500" : "bg-brand";
+
+  const put = async (aiSpend, done) => {
+    setBusy(true);
+    try {
+      await call("/settings", { method: "PUT", body: { aiSpend: { enabled: data.enabled, cap: data.cap, alertAt: data.alertAt, paused: data.paused && data.reason === "manual", ...aiSpend } } });
+      window.dispatchEvent(new Event(SETTINGS_CHANGED));
+      await reload();
+      setEdit(null);
+      message.success(done);
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className={`rounded-2xl border p-5 ${data.paused ? "border-rose-200 bg-rose-50/40" : "border-slate-200 bg-white"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand"><ShieldCheck size={19} /></span>
+          <div>
+            <h2 className="font-semibold text-ink">Monthly spending cap</h2>
+            <p className="text-sm text-slate-600">
+              {data.paused
+                ? data.reason === "manual" ? "AI is paused by an admin. Everything else works." : `The cap is reached: AI is paused for everyone but admins until ${fmtDay(data.until)}.`
+                : data.enabled ? "At the cap, AI pauses for everyone but admins until the 1st. Nothing is charged for refused requests." : "Off: AI keeps running whatever it costs."}
+            </p>
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <PauseCircle size={16} className={data.reason === "manual" ? "text-rose-500" : "text-slate-400"} /> Pause AI now
+          <Switch checked={data.reason === "manual"} loading={busy} onChange={(v) => put({ paused: v }, v ? "AI paused for everyone but admins." : "AI resumed.")} />
+        </label>
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="text-slate-600">
+            <b className="font-display text-2xl text-ink tabular-nums">{money(data.spent)}</b>
+            {data.enabled ? <> of {money(data.cap, "USD", 0)} this month</> : " this month"}
+          </span>
+          <span className="text-xs text-slate-500">
+            {data.projected > 0 ? `At this pace: ${money(data.projected)} by month end` : "No AI use yet this month"}
+            {data.capDay ? ` · cap reached around ${fmtDay(data.capDay)}` : ""}
+          </span>
+        </div>
+        {data.enabled ? (
+          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+            <div className={`h-full rounded-full ${tone} transition-all`} style={{ width: `${pct}%` }} />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <Switch size="small" checked={cfg.enabled} onChange={(v) => setEdit({ ...cfg, enabled: v })} /> Cap on
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">Cap (USD a month)</span>
+          <InputNumber min={1} step={5} prefix="$" value={cfg.cap} disabled={!cfg.enabled} onChange={(v) => setEdit({ ...cfg, cap: v ?? 1 })} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">Email me at</span>
+          <InputNumber min={0} max={99} suffix="%" value={cfg.alertAt} disabled={!cfg.enabled} onChange={(v) => setEdit({ ...cfg, alertAt: v ?? 0 })} />
+        </label>
+        {edit ? (
+          <span className="flex gap-2">
+            <Button onClick={() => setEdit(null)}>Discard</Button>
+            <Button type="primary" loading={busy} onClick={() => put(cfg, "Spending cap saved.")}>Save</Button>
+          </span>
+        ) : null}
+        <p className="w-full text-xs text-slate-400">Costs come from real token counts and the model prices below: keep them current. Changes reach every server within 30 seconds.</p>
+      </div>
+    </section>
   );
 }
 

@@ -137,6 +137,7 @@ async function resetState() {
     const Settings = require('../models/Settings');
     await Settings.deleteMany({});
     await setSettings(require('../lib/settings').DEFAULTS);
+    await require('../models/AiSpend').deleteMany({});
     resetLimits();
     // Tests make many requests from one IP; lift the per-IP ceilings unless a test sets its own.
     setOverrides({});

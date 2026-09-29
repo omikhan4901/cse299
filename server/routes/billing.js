@@ -3,6 +3,7 @@ const Campaign = require('../models/Campaign');
 const { protect, campaignProblem } = require('./auth');
 const { getSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { usageSummary } = require('../lib/credits');
+const { pauseState } = require('../lib/aiSpend');
 const { limit, clientIp } = require('../lib/rateLimit');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
@@ -44,6 +45,8 @@ router.get('/plans', async (req, res, next) => {
                 aiFeatures: AI_FEATURES,
                 appFeatures: APP_FEATURES,
                 planLimits: PLAN_LIMITS,
+                // AI paused (monthly cap reached, or by an admin): shown up front in the site.
+                aiPaused: await pauseState(s).then((p) => (p.paused ? { reason: p.reason, until: p.until } : null)),
             },
         });
     } catch (err) {
