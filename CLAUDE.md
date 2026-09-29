@@ -66,3 +66,7 @@ If a connection is a real product decision (pricing, what's free, legal wording)
 - The owner isn't a cloud-console expert: give exact click paths or commands, and always
   the least-privilege option (e.g. `roles/aiplatform.user`, not admin).
 - Credentials the owner shares live only in the session scratchpad; never print or commit them.
+- Local tests run on FerretDB: avoid `$group` with expressions or `$ne` inside it, and
+  `findOneAndUpdate` with a projection; sum in JS or update then read. Real MongoDB in CI.
+- Never `pkill -f` a pattern that appears in your own command line (it kills the shell); the
+  scratchpad's `killsrv.sh` stops the local API and site safely.

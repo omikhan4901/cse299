@@ -180,6 +180,22 @@ export default function PricingPlans({ config }) {
                 </td>
               ))}
             </tr>
+            {/* V2 workspace limits, once V2 is open to everyone. */}
+            {config.v2?.enabled
+              ? (config.planLimits || []).map((l) => (
+                  <tr key={l.key}>
+                    <td className="p-4 text-slate-700">{l.name}</td>
+                    {plans.map((p) => {
+                      const v = freeMode.enabled ? null : p.limits?.[l.key];
+                      return (
+                        <td key={p.id} className="p-4 text-center font-medium text-ink tabular-nums">
+                          {v === null || v === undefined ? "Unlimited" : v === 0 ? <Minus size={18} className="mx-auto text-slate-300" aria-label="Not included" /> : v}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              : null}
             {[...appFeatures, ...aiFeatures].map((f) => (
               <tr key={f.key}>
                 <td className="p-4">

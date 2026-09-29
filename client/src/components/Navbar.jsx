@@ -31,6 +31,8 @@ export default function Navbar({ compact = false }) {
     ? [{ href: "/career", label: "Profile" }, { href: "/applications", label: "Applications" }, { href: "/dashboard", label: "My Resumes" }]
     : [{ href: "/dashboard", label: "My Resumes" }];
   const links = isAuthenticated ? [...base, ...mine] : base;
+  // More links (V2 accounts) need more room: the full bar from lg, the menu button below that.
+  const wide = links.length > 5;
   const mobileLinks = isAuthenticated ? [...links, { href: "/account", label: "Account settings" }, ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])] : links;
 
   const userMenu = {
@@ -55,7 +57,7 @@ export default function Navbar({ compact = false }) {
       <nav className={`${compact ? "px-4 md:px-6" : "container-x"} flex h-16 items-center justify-between gap-4`} aria-label="Main">
         <Logo href="/" />
 
-        <div className="hidden items-center gap-1 md:flex">
+        <div className={`hidden items-center gap-1 ${wide ? "lg:flex" : "md:flex"}`}>
           {links.map((l) => (
             <Link
               key={l.href}
@@ -98,13 +100,13 @@ export default function Navbar({ compact = false }) {
           )}
         </div>
 
-        <button className="rounded-lg p-2 text-slate-700 md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
+        <button className={`rounded-lg p-2 text-slate-700 ${wide ? "lg:hidden" : "md:hidden"}`} onClick={() => setOpen(!open)} aria-label="Toggle menu" aria-expanded={open}>
           {open ? <X size={22} /> : <Menu size={22} />}
         </button>
       </nav>
 
       {open ? (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden border-t border-slate-200 bg-white px-5 py-4 md:hidden">
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className={`overflow-hidden border-t border-slate-200 bg-white px-5 py-4 ${wide ? "lg:hidden" : "md:hidden"}`}>
           <div className="flex flex-col gap-1">
             {mobileLinks.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50">

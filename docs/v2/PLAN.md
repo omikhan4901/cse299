@@ -5,6 +5,24 @@ work. While the AI account is being refilled, everything that doesn't need a liv
 is built and tested now. AI parts are still written, tested against the stubbed model, and
 put on the **AI verification queue** (§4) to be checked against the real model later.
 
+## Status (29 September 2026)
+
+| Step | State |
+| --- | --- |
+| A. Bank what exists, V2 preview switch | Done |
+| B. Phase 0 non-AI half (review screen, token logging, AI economics) | Done |
+| C. Phase 1 Career Profile | Done |
+| D. Phase 2 Applications and home | Done |
+| E. Phase 3 deterministic tailoring (and batch) | Done |
+| F. AI plumbing (polish, Rewrite and Strengthen, assistant proposals) | Built, stub-tested; real-model checks on the queue (§4) |
+| G. Phase 4 (biodata, Bangla spike, reminders, Job Search Pass, .ics) | Done; Bangla CV decided against for now (`spikes/bangla-pdf.md`) |
+| H. Whole-product pass | Automated and browser checks done; go-live list below |
+
+**Before switching V2 on for everyone:** run the AI queue (§4); set up email (SMTP) and the
+two Cloud Scheduler jobs; create the pass's one-time price in Paddle if it will be sold;
+review pricing-page wording once V2 shows its limits there; then turn on "V2 workspace for
+everyone" in Admin › Plans.
+
 ## 0. Ground rules for this stretch
 
 - **V2 stays hidden in production until it's ready.** Every push to `main` deploys, so V2

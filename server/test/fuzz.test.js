@@ -6,7 +6,7 @@
  */
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, superadmin, resetState, ai } = require('./helpers');
+const { start, stop, api, register, superadmin, resetState, setSettings, ai } = require('./helpers');
 
 // With payments configured, so the Paddle webhook and billing routes are fuzzed too
 // (their API calls go to the stub in helpers.js).
@@ -95,14 +95,18 @@ describe('fuzz: malformed input never causes a 5xx', () => {
         for (const [method, path] of all) {
             await resetState();
             await liftLimits();
+            // V2 on, so its routes are fuzzed for real rather than answering 404.
+            await setSettings({ v2: { enabled: true } });
             ai.reply = '{"score":50,"summary":"ok","strengths":[],"improvements":[],"missingKeywords":[],"questions":["What changed?"],"points":[],"operations":[]}';
             const user = await register();
             const other = await register();
             const boss = await superadmin();
             const mine = await api('POST', '/resumes', { token: user.token, body: { nickname: 'Mine' } });
             const theirs = await api('POST', '/resumes', { token: other.token, body: { nickname: 'Theirs' } });
-            const ownId = path.startsWith('/admin') ? String(user.user?.id || user.user?._id) : mine.body.data?._id;
-            const otherId = path.startsWith('/admin') ? String(boss.user._id) : theirs.body.data?._id;
+            const myApp = path.startsWith('/applications') ? await api('POST', '/applications', { token: user.token, body: { job: { title: 'Fuzz job', description: 'Go and PostgreSQL experience needed for this backend role.' } } }) : null;
+            const theirApp = path.startsWith('/applications') ? await api('POST', '/applications', { token: other.token, body: { job: { title: 'Theirs' } } }) : null;
+            const ownId = path.startsWith('/admin') ? String(user.user?.id || user.user?._id) : myApp ? myApp.body.data?._id : mine.body.data?._id;
+            const otherId = path.startsWith('/admin') ? String(boss.user._id) : theirApp ? theirApp.body.data?._id : theirs.body.data?._id;
             const ids = path.includes(':') ? IDS(ownId, otherId) : [null];
             const tokens = path.startsWith('/admin') ? [boss.token, user.token] : [user.token, undefined, 'garbage.token.here'];
 
