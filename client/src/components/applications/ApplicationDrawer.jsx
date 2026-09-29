@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { App, Button, Checkbox, Drawer, Dropdown, Input, Modal, Select, Skeleton, Tooltip } from "antd";
@@ -36,6 +36,11 @@ function Section({ title, children, action }) {
 export default function ApplicationDrawer({ id, store, token, onClose }) {
   const { message, modal } = App.useApp();
   const [full, setFull] = useState(null);
+  // The latest onClose, so a parent re-render (e.g. after each save) doesn't reload the drawer.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -46,9 +51,9 @@ export default function ApplicationDrawer({ id, store, token, onClose }) {
       .then(({ data }) => setFull(data))
       .catch((err) => {
         message.error(err.message);
-        onClose();
+        close.current();
       });
-  }, [id, token, message, onClose]);
+  }, [id, token, message]);
 
   /** Saves a change; `local` is how it should look meanwhile (for fields stored differently). */
   const save = useCallback(

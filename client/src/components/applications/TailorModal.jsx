@@ -9,7 +9,8 @@ import { api } from "@/lib/api";
 import { contentFrom, include, tailor } from "@/lib/tailor";
 import { jobMatch } from "@/lib/applications";
 import { templatesIn } from "@/pdf/registry";
-import { useBilling } from "../BillingProvider";
+import { useBilling, notifyCreditsChanged } from "../BillingProvider";
+import { AI_ENABLED } from "@/lib/config";
 import { jobName } from "./ui";
 
 /**
@@ -144,6 +145,10 @@ function Many({ apps, profile, token, templateFor, tailoredCount, onDone, onClos
   const results = useMemo(() => apps.map((a) => ({ a, t: tailor(profile, a.job?.description || "") })), [apps, profile]);
   const [picked, setPicked] = useState(() => new Set(apps.map((a) => a._id)));
   const [busy, setBusy] = useState(false);
+  const [polish, setPolish] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const perJob = billing?.costOf("polish") ?? null;
+  const canPolish = AI_ENABLED && perJob != null && billing?.canUse("polish");
   const chosen = results.filter((r) => picked.has(r.a._id));
   const batch = billing?.limitOf("batch");
 
@@ -160,6 +165,21 @@ function Many({ apps, profile, token, templateFor, tailoredCount, onDone, onClos
         method: "POST",
         body: { items: chosen.map(({ a, t }) => ({ application: a._id, nickname: nicknameFor(a), template: templateFor(t.category), content: t.content })) },
       });
+      if (polish && canPolish) {
+        // One polish request per resume: each is charged on its own, and any that fails is refunded.
+        let ok = 0;
+        for (const [i, r] of data.entries()) {
+          setProgress(`Polishing ${i + 1} of ${data.length}…`);
+          try {
+            await api("/ai/polish", { token, method: "POST", body: { resumeId: r.resume, store: true } });
+            ok++;
+          } catch (err) {
+            if (err.code === "credits" || err.code === "upgrade" || err.code === "cancelled") break;
+          }
+        }
+        notifyCreditsChanged();
+        message.info(ok === data.length ? "Polish suggestions are waiting in each resume." : `${ok} of ${data.length} polished; the rest weren't charged.`, 6);
+      }
       onDone?.(data);
       message.success(`${data.length} tailored resume${data.length === 1 ? "" : "s"} ready`);
       onClose();
@@ -189,8 +209,19 @@ function Many({ apps, profile, token, templateFor, tailoredCount, onDone, onClos
           </li>
         ))}
       </ul>
+      {canPolish ? (
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3">
+          <Checkbox checked={polish} onChange={(e) => setPolish(e.target.checked)} className="!mt-0.5" />
+          <span className="text-sm">
+            <span className="font-medium text-ink">Also polish each with AI</span>
+            <span className="block text-xs text-slate-500">
+              {perJob} credit{perJob === 1 ? "" : "s"} each, {perJob * chosen.length} in all{billing?.usage ? `. You have ${billing.usage.remaining}` : ""}. Suggestions wait in each resume for you to review.
+            </span>
+          </span>
+        </label>
+      ) : null}
       <div className="mt-5 flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-400">{batch != null ? `Your plan tailors up to ${batch} at once.` : ""}</p>
+        <p className="text-xs text-slate-400">{progress || (batch != null ? `Your plan tailors up to ${batch} at once.` : "")}</p>
         <div className="flex gap-2">
           <Button onClick={onClose}>Cancel</Button>
           <Button type="primary" loading={busy} disabled={!chosen.length} onClick={create}>

@@ -7,12 +7,12 @@ import { Button, Dropdown, Segmented, Tooltip, App, Input, Modal, Result, Spin }
 import { AnimatePresence } from "motion/react";
 import {
   Download, Share2, Save, MoreHorizontal, Sparkles, MessageSquare, ScanSearch, Mail, Upload, Crown, Eraser,
-  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen, FileWarning, LogIn, UserRound,
+  ZoomIn, ZoomOut, Palette, PenLine, Check, CloudOff, Loader2, Lock, ArrowLeft, BookOpen, Compass, EyeOff, FileDown, FolderOpen, FileWarning, LogIn, UserRound, Wand2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { setBuilderSession } from "@/lib/builderSession";
 import { AI_ENABLED } from "@/lib/config";
-import { normalizeResume, sampleResume, blankResume, toPayload, withContentOf } from "@/lib/resume";
+import { normalizeResume, sampleResume, blankResume, toPayload, withContentOf, splitBullets } from "@/lib/resume";
 import { templateById, TEMPLATES } from "@/pdf/registry";
 import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "../AuthProvider";
@@ -36,6 +36,8 @@ import ActionDock from "./ActionDock";
 import { celebrate } from "../celebrate";
 import { useProfileSync } from "../profile/useProfileSync";
 import AddAnything from "../review/AddAnything";
+import ReviewChanges from "../review/ReviewChanges";
+import { RewriteModal, StrengthenModal } from "./RewriteReview";
 import { applyOperations } from "@/lib/ingest/ops";
 
 /** Loads the resume to edit (saved, new or local draft) and then mounts the editor. */
@@ -171,6 +173,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const [downloading, setDownloading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [aiModal, setAiModal] = useState(null);
+  // AI rewrite waiting for approval, a point being strengthened, AI polish proposals to review.
+  const [rewrite, setRewrite] = useState(null);
+  const [strengthen, setStrengthen] = useState(null);
+  const [polishReview, setPolishReview] = useState(null);
   const [gallery, setGallery] = useState(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
@@ -596,7 +602,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     if (!requireAccount()) return;
     if (!resume.summary.trim()) return message.info("Write a few words first, then let AI polish them.");
     const data = await aiCall("summary", "/ai/refine", { resumeText: resume.summary, fullResume: aiResume(resume), sectionType: "summary" });
-    if (data) editor.setField("summary", data.refinedText);
+    // Shown next to the original; it only replaces it when the person says so.
+    if (data) setRewrite({ kind: "summary", before: resume.summary, after: data.refinedText, unverified: data.unverified });
   };
 
   const refineItem = async (itemId, text) => {
@@ -604,7 +611,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     if (!requireAccount()) return;
     if (!text.trim()) return message.info("Write a few points first, then let AI polish them.");
     const data = await aiCall(itemId, "/ai/refine", { resumeText: text, fullResume: aiResume(resume), sectionType: "experience" });
-    if (data) editor.updateItem("experience", itemId, { description: data.refinedText });
+    if (data) setRewrite({ kind: "item", itemId, before: text, after: data.refinedText, unverified: data.unverified });
   };
 
   const importFile = async (e) => {
@@ -625,6 +632,23 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     } finally {
       hide();
     }
+  };
+
+  // V2: rewrite a tailored resume's summary and top points for its job (proposals to review).
+  const runPolish = async () => {
+    if (!allowed("polish", "AI polish")) return;
+    if (!requireAccount()) return;
+    try {
+      const { data: app } = await api(`/applications/${resume.tailoredFor}`, { token });
+      const data = await aiCall("polish", "/ai/polish", { resume: aiResume(resume), jobDescription: app.job?.description || "" });
+      if (data) setPolishReview({ operations: data.operations, stored: false });
+    } catch (err) {
+      message.error(err.message);
+    }
+  };
+  const clearSuggestions = () => {
+    setResume((r) => ({ ...r, suggestions: undefined }));
+    if (resume._id) api(`/resumes/${resume._id}`, { token, method: "PUT", body: { suggestions: null } }).catch(() => {});
   };
 
   const billing = useBilling();
@@ -688,6 +712,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
         aiItem("cover", <Mail size={15} />, "Cover letter", () => openAi("cover")),
         aiItem("import", <Upload size={15} />, billing?.v2 ? "Add anything" : "Import PDF / DOCX", () => openAi("import")),
+        ...(billing?.v2 && resume.tailoredFor ? [aiItem("polish", <Wand2 size={15} />, "Polish for this job", runPolish)] : []),
       ] },
       { type: "divider" },
       ...(profileSync.items.length ? profileSync.items : isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
@@ -881,7 +906,17 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
               </div>
             ) : null}
             {tab === "content" ? (
+              <>
+              {resume.suggestions?.operations?.length ? (
+                <div className="mb-3 flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3">
+                  <Wand2 size={17} className="shrink-0 text-brand" />
+                  <p className="min-w-0 flex-1 text-sm text-ink">AI polish has {resume.suggestions.operations.length} suggestion{resume.suggestions.operations.length === 1 ? "" : "s"} for this job.</p>
+                  <Button size="small" type="text" onClick={clearSuggestions}>Dismiss</Button>
+                  <Button size="small" type="primary" onClick={() => setPolishReview({ operations: resume.suggestions.operations, stored: true })}>Review</Button>
+                </div>
+              ) : null}
               <ContentPanel editor={editor} onRefineSummary={refineSummary} onRefineItem={refineItem} refiningId={refiningId} onHelp={() => setGuideOpen(true)} />
+              </>
             ) : (
               <DesignPanel resume={resume} onTemplate={pickTemplate} isLocked={templateLocked} setTheme={editor.setTheme} onBrowse={setGallery} onHelp={() => setGuideOpen(true)} />
             )}
@@ -938,6 +973,43 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         onLeave={confirmLeavePrivate}
       />
       {profileSync.dialog}
+      <RewriteModal
+        rewrite={rewrite}
+        onClose={() => setRewrite(null)}
+        onStrengthen={(point) => setStrengthen({ itemId: rewrite.itemId, point })}
+        onUse={(text) => {
+          if (rewrite.kind === "summary") editor.setField("summary", text);
+          else editor.updateItem("experience", rewrite.itemId, { description: text });
+          setRewrite(null);
+        }}
+      />
+      <StrengthenModal
+        point={strengthen?.point}
+        token={token}
+        onClose={() => setStrengthen(null)}
+        onUse={(text) => {
+          // Replace that one point in the job (the rewrite dialog stays for the others).
+          const item = resume.experience.find((e) => e.id === strengthen.itemId);
+          if (item) editor.updateItem("experience", item.id, { description: splitBullets(item.description).map((l) => (l === strengthen.point ? text : l)).join("\n") });
+          setRewrite(null);
+          setStrengthen(null);
+          message.success("Point updated");
+        }}
+      />
+      <ReviewChanges
+        open={!!polishReview}
+        title="Polished for this job"
+        subtitle="Your facts in the job's language. Tick what to use."
+        operations={polishReview?.operations}
+        target={resume}
+        applyLabel="Use"
+        onApply={(ops) => {
+          setResume((r) => applyOperations(r, ops));
+          if (polishReview.stored) clearSuggestions();
+          setPolishReview(null);
+        }}
+        onClose={() => setPolishReview(null)}
+      />
       <AddAnything
         open={aiModal === "add"}
         onClose={() => setAiModal(null)}

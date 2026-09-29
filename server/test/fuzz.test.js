@@ -95,7 +95,7 @@ describe('fuzz: malformed input never causes a 5xx', () => {
         for (const [method, path] of all) {
             await resetState();
             await liftLimits();
-            ai.reply = '{"score":50,"summary":"ok","strengths":[],"improvements":[],"missingKeywords":[]}';
+            ai.reply = '{"score":50,"summary":"ok","strengths":[],"improvements":[],"missingKeywords":[],"questions":["What changed?"],"points":[],"operations":[]}';
             const user = await register();
             const other = await register();
             const boss = await superadmin();

@@ -7,6 +7,10 @@ const { loadResumeGuide } = require('../lib/resumeGuide');
 const { aiQuota, usageSummary } = require('../lib/credits');
 const { INSTRUCTION: INGEST_INSTRUCTION, RESPONSE_SCHEMA: INGEST_SCHEMA, prompt: ingestPrompt, checkOperations } = require('../lib/ingest');
 const { readPdf } = require('../lib/pdfText');
+const polish = require('../lib/polish');
+const Resume = require('../models/Resume');
+const Application = require('../models/Application');
+const mongoose = require('mongoose');
 const vertex = require('../lib/vertex');
 
 const router = express.Router();
@@ -218,10 +222,68 @@ RULES:
 4. Reply with the rewritten text only — no quotes, labels, markdown or commentary.`;
 
     try {
-        const refinedText = await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, 4000) }] }], undefined, req);
-        res.status(200).json({ success: true, refinedText: refinedText.replace(/^["']|["']$/g, '') });
+        const refinedText = (await generate(systemInstruction, [{ role: 'user', parts: [{ text: clip(resumeText, 4000) }] }], undefined, req)).replace(/^["']|["']$/g, '');
+        // Rewrite is truth-preserving: anything that looks new is pointed out before it's used.
+        const unverified = polish.newFacts(refinedText, `${resumeText} ${isObj(fullResume) ? JSON.stringify({ ...fullResume, personal: undefined }) : ''}`);
+        res.status(200).json({ success: true, refinedText, unverified });
     } catch (err) {
         sendError(res, err);
+    }
+});
+
+// --- 1b. Strengthen: asks what would make a point stronger, then writes it from the answers only ---
+router.post('/strengthen', protect, aiQuota('refine'), async (req, res) => {
+    const text = clip(str(req.body?.text), 1000);
+    if (!text) return res.status(400).json({ success: false, error: 'No text provided.' });
+    const answers = list(req.body?.answers)
+        .filter((x) => isObj(x) && str(x.a))
+        .slice(0, 6)
+        .map((x) => ({ q: clip(str(x.q), 300), a: clip(str(x.a), 600) }));
+    try {
+        if (!answers.length) {
+            const json = await generate(polish.STRENGTHEN_ASK, [{ role: 'user', parts: [{ text: `POINT: ${text}` }] }], { responseMimeType: 'application/json', responseSchema: polish.QUESTIONS_SCHEMA }, req);
+            const questions = list(JSON.parse(json).questions).map((q) => clip(str(q), 200)).filter(Boolean).slice(0, 4);
+            if (!questions.length) throw new AiError("The AI couldn't think of questions for that point. Try another one.");
+            return res.json({ success: true, questions });
+        }
+        const input = `POINT: ${text}\n\nANSWERS:\n${answers.map((x) => `Q: ${x.q}\nA: ${x.a}`).join('\n')}`;
+        const out = (await generate(polish.STRENGTHEN_WRITE, [{ role: 'user', parts: [{ text: input }] }], undefined, req)).replace(/^["'\s•-]+|["'\s]+$/g, '');
+        res.json({ success: true, text: out, unverified: polish.newFacts(out, `${text} ${answers.map((x) => x.a).join(' ')}`) });
+    } catch (err) {
+        sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);
+    }
+});
+
+// --- 1c. Polish a tailored resume for its job: proposals to review (lib/polish.js) ---
+// Body: { resumeId } (the job text comes from its application), or { resume, jobDescription }.
+// With store: true the proposals are kept on the resume for later review (batch polish).
+router.post('/polish', protect, aiQuota('polish'), async (req, res) => {
+    try {
+        let resume = isObj(req.body?.resume) ? req.body.resume : null;
+        let jobText = str(req.body?.jobDescription);
+        let doc = null;
+        if (req.body?.resumeId) {
+            if (!mongoose.isValidObjectId(req.body.resumeId)) return res.status(404).json({ success: false, error: 'Resume not found.' });
+            doc = await Resume.findOne({ _id: req.body.resumeId, user: req.userId });
+            if (!doc) return res.status(404).json({ success: false, error: 'Resume not found.' });
+            resume = doc.toObject();
+            if (!jobText && doc.tailoredFor) jobText = (await Application.findOne({ _id: doc.tailoredFor, user: req.userId }).select('job.description').lean())?.job?.description || '';
+        }
+        if (!resume || !resumeOk(resume)) return res.status(400).json({ success: false, error: 'There is nothing in this resume to polish yet.' });
+        if (jobText.length < 40) return res.status(400).json({ success: false, error: 'Add the job description to the application first: polish writes for that job.' });
+        req.aiLongTask = true;
+        // Only the resume's own content counts as known facts (not earlier proposals).
+        const { suggestions, tailoredFor, rev, ...content } = resume;
+        const clean = cleanResume(content);
+        const json = await generate(polish.POLISH_INSTRUCTION, [{ role: 'user', parts: [{ text: polish.polishPrompt(clean, jobText) }] }], { responseMimeType: 'application/json', responseSchema: polish.POLISH_SCHEMA }, req);
+        const operations = polish.polishOperations(fixNewlines(JSON.parse(json)), clean);
+        if (doc && req.body?.store) {
+            doc.suggestions = { operations, at: new Date() };
+            await doc.save({ timestamps: false });
+        }
+        res.json({ success: true, operations });
+    } catch (err) {
+        sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);
     }
 });
 

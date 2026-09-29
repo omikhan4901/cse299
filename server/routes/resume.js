@@ -123,6 +123,8 @@ router.put("/:id", protect, perAccount, async (req, res) => {
     if (typeof data.template === "string" && data.template !== resume.template && !(await templateOk(req, res, data.template))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId, _id: { $ne: resume._id } }, { isMaster: false }, { timestamps: false });
     resume.set(data);
+    // Reviewed AI polish proposals are cleared (doesn't count as a content change).
+    if (req.body.suggestions === null) resume.suggestions = undefined;
     if (content) {
       resume.rev = rev + 1;
       // Saves only if nobody else saved in between (otherwise DocumentNotFoundError below).

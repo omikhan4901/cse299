@@ -129,6 +129,11 @@ updated to match.
 
 ### Step F: AI plumbing built now, verified later
 
+*(Changed while building: batch polish sends one request per resume instead of one
+variable-cost request, so each job is charged and refunded on its own with the existing
+credit middleware, and no single request risks the time limit. The cost of the whole batch
+is shown before it starts, from the admin's per-feature cost and the account's balance.)*
+
 - `aiQuota` with a **cost function** (cost = per job × jobs), an **estimate endpoint**
   ("Polish 3 resumes: 6 credits. You have 240") and **per-job refunds**, all tested with
   the stub.

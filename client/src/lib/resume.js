@@ -122,6 +122,9 @@ export function normalizeResume(input) {
     isPublic: !!data.isPublic,
     updatedAt: data.updatedAt,
     ...(Number.isInteger(data.rev) ? { rev: data.rev } : {}),
+    // V2: the application it was tailored for, and AI polish proposals waiting for review (server-owned).
+    ...(data.tailoredFor ? { tailoredFor: String(data.tailoredFor) } : {}),
+    ...(data.suggestions?.operations?.length ? { suggestions: data.suggestions } : {}),
     personal: { ...base.personal },
     summary: str(data.summary),
     skills: str(data.skills),
@@ -175,7 +178,7 @@ export const withContentOf = (target, source, { keepPhoto = false } = {}) => {
  * (an open builder would otherwise put back an old value).
  */
 export function toPayload(resume) {
-  const { _id, shortId, updatedAt, isPublic, isMaster, rev, ...rest } = resume;
+  const { _id, shortId, updatedAt, isPublic, isMaster, rev, tailoredFor, suggestions, ...rest } = resume;
   return rest;
 }
 
