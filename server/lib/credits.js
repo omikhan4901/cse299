@@ -148,10 +148,11 @@ function aiQuota(feature) {
                 const settle = async (ok) => {
                     if (settled) return;
                     settled = true;
-                    if (!ok) {
-                        if (cost > 0) await Usage.updateOne({ user: req.userId, day: key }, { $inc: { ai: -cost } }).catch((err) => console.error('Credit refund failed:', err.message));
-                    } else {
-                        await AiEvent.create({ user: req.userId, feature, credits: cost }).catch(() => {});
+                    if (!ok && cost > 0) await Usage.updateOne({ user: req.userId, day: key }, { $inc: { ai: -cost } }).catch((err) => console.error('Credit refund failed:', err.message));
+                    // Logged when it worked, and when it failed after the model answered (paid tokens).
+                    const u = req.aiUsage;
+                    if (ok || u) {
+                        await AiEvent.create({ user: req.userId, feature, credits: ok ? cost : 0, ok, model: u?.model || undefined, inputTokens: u?.inputTokens || 0, outputTokens: u?.outputTokens || 0 }).catch(() => {});
                     }
                 };
                 const json = res.json.bind(res);

@@ -12,7 +12,7 @@ const AI_FEATURES = [
     { key: 'chat', name: 'AI assistant', description: 'Chat about your resume and get tailored advice.' },
     { key: 'refine', name: 'AI rewrite', description: 'Rewrite a summary or a set of bullet points.' },
     { key: 'audit', name: 'AI resume review', description: 'Written feedback from the AI on top of the ATS score.' },
-    { key: 'parse', name: 'Import resume', description: 'Read an existing PDF or Word resume into the builder.' },
+    { key: 'parse', name: 'Import resume', description: 'Add an old resume (PDF or Word), pasted text or your own words to a resume or your profile.' },
     { key: 'coverLetter', name: 'Cover letter', description: 'Write a cover letter for a specific job.' },
 ];
 
@@ -48,6 +48,12 @@ const DEFAULTS = {
     // accounts with v2Preview until switched on here.
     v2: { enabled: false },
     featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2 },
+    // What the AI provider charges, in US dollars per million tokens, by model (the name
+    // Google reports, e.g. "gemini-2.5-flash"; "default" covers any other). For the AI
+    // economics view only: check Google's price list and keep these current.
+    aiPrices: {
+        default: { input: 0.3, output: 2.5 },
+    },
     // Admin overrides for rate limits: { [name]: { max, windowMs } } (see lib/rateLimit.js).
     rateLimits: {},
     templates: {
@@ -134,6 +140,13 @@ function clean(input) {
             .filter(([id, tier]) => /^[A-Za-z0-9_-]{1,40}$/.test(id) && PLAN_IDS.includes(tier))
             .slice(0, 200)
     );
+    const aiPrices = Object.fromEntries(
+        Object.entries(isObj(s.aiPrices) ? s.aiPrices : DEFAULTS.aiPrices)
+            .filter(([model, v]) => /^[A-Za-z0-9._-]{1,60}$/.test(model) && isObj(v))
+            .map(([model, v]) => [model, { input: num(v.input, 0, { max: 1000 }), output: num(v.output, 0, { max: 1000 }) }])
+            .slice(0, 30)
+    );
+    if (!aiPrices.default) aiPrices.default = { ...DEFAULTS.aiPrices.default };
     const rateLimits = Object.fromEntries(
         Object.entries(isObj(s.rateLimits) ? s.rateLimits : {})
             .filter(([name, v]) => /^[a-z0-9-]{1,40}$/.test(name) && isObj(v))
@@ -152,6 +165,7 @@ function clean(input) {
         v2: { enabled: !!(isObj(s.v2) && s.v2.enabled) },
         featureCosts: costs,
         templates: { categories, overrides },
+        aiPrices,
         rateLimits,
         plans,
     };
@@ -190,6 +204,7 @@ async function updateSettings(patch, by, { baseRev } = {}) {
     // Template access is saved as a whole, so removing an override really removes it.
     if (isObj(patch?.templates)) merged.templates = patch.templates;
     if (isObj(patch?.rateLimits)) merged.rateLimits = patch.rateLimits;
+    if (isObj(patch?.aiPrices)) merged.aiPrices = patch.aiPrices;
     const next = clean(merged);
     try {
         if (doc) {

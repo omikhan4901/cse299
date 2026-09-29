@@ -7,6 +7,7 @@
  */
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Payment = require('../models/Payment');
 const Subscription = require('../models/Subscription');
 const PaddleCustomer = require('../models/PaddleCustomer');
 const { paddle, planForPrice, grantsAccess, PLAN_RANK } = require('./paddle');
@@ -109,6 +110,30 @@ async function onCustomer(event) {
     }
 }
 
+const cents = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+/** Keeps the amounts of a payment (idempotent: a repeated delivery updates the same record). */
+async function recordPayment(t, userId, paidAt) {
+    const totals = t.details?.totals || {};
+    // Paddle converts to the payout currency in payoutTotals; fall back to the charged currency.
+    const payout = t.details?.payoutTotals;
+    await Payment.updateOne(
+        { transactionId: t.id },
+        {
+            $set: {
+                user: userId,
+                currency: payout?.currencyCode || totals.currencyCode || t.currencyCode,
+                total: cents(totals.grandTotal ?? totals.total),
+                tax: cents(totals.tax),
+                fee: cents(payout?.fee ?? totals.fee),
+                earnings: cents(payout?.earnings ?? totals.earnings),
+                billedAt: paidAt,
+            },
+        },
+        { upsert: true }
+    );
+}
+
 async function onTransaction(event) {
     const t = event.data;
     const user = await findUser({ userId: t.customData?.userId, customerId: t.customerId });
@@ -119,6 +144,7 @@ async function onTransaction(event) {
     if (t.status === 'completed' && total > 0) {
         const paidAt = toDate(t.billedAt) || toDate(event.occurredAt);
         await User.updateOne({ _id: user._id }, { $min: { firstPaidAt: paidAt }, $max: { lastPaidAt: paidAt } });
+        await recordPayment(t, user._id, paidAt);
     }
     await syncPlan(user._id);
 }
@@ -130,6 +156,14 @@ async function onTransaction(event) {
  */
 async function onAdjustment(event) {
     const a = event.data;
+    // Any approved refund (full or partial) lowers the revenue it came from, once per adjustment.
+    if (a.action === 'refund' && a.status === 'approved' && a.transactionId) {
+        const t = a.payoutTotals || a.totals || {};
+        await Payment.updateOne(
+            { transactionId: a.transactionId, 'refunds.id': { $ne: a.id } },
+            { $push: { refunds: { id: a.id, total: cents(a.totals?.total), earnings: cents(t.earnings), at: toDate(event.occurredAt) || new Date() } } }
+        );
+    }
     const fullRefund = a.action === 'refund' && a.type === 'full' && a.status === 'approved';
     const chargeback = a.action === 'chargeback';
     if (!fullRefund && !chargeback) return;

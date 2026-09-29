@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Result, Button, Tabs, Skeleton } from "antd";
-import { BarChart3, Users, Crown, Zap, Megaphone, ShieldCheck, ScrollText, Lock, Mail, Smartphone, LayoutTemplate, Gauge } from "lucide-react";
+import { BarChart3, Users, Crown, Zap, Megaphone, ShieldCheck, ScrollText, Lock, Mail, Smartphone, LayoutTemplate, Gauge, Coins } from "lucide-react";
 import { api } from "@/lib/api";
 import { EmailVerify, TwoFactorSetup } from "../security/TwoFactor";
 import AuditTab from "./AuditTab";
@@ -15,6 +15,7 @@ import CreditsTab from "./CreditsTab";
 import CampaignsTab from "./CampaignsTab";
 import TemplatesTab from "./TemplatesTab";
 import RateLimitsTab from "./RateLimitsTab";
+import EconomicsTab from "./EconomicsTab";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: BarChart3, Comp: Overview },
@@ -22,6 +23,7 @@ const TABS = [
   { key: "plans", label: "Plans & pricing", icon: Crown, Comp: PlansTab },
   { key: "templates", label: "Templates", icon: LayoutTemplate, Comp: TemplatesTab },
   { key: "credits", label: "Credits & access", icon: Zap, Comp: CreditsTab },
+  { key: "economics", label: "AI costs", icon: Coins, Comp: EconomicsTab },
   { key: "campaigns", label: "Campaigns", icon: Megaphone, Comp: CampaignsTab },
   { key: "limits", label: "Rate limits", icon: Gauge, Comp: RateLimitsTab },
   { key: "audit", label: "Audit log", icon: ScrollText, Comp: AuditTab },

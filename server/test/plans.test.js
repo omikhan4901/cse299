@@ -211,3 +211,29 @@ describe('AI input', () => {
         assert.equal(r.body.analysis.score, 100, 'score clamped to 0-100');
     });
 });
+
+describe('token usage', () => {
+    before(() => start('tokens'));
+    after(stop);
+    beforeEach(resetState);
+
+    it('every AI request stores its tokens and model; a failed reply the model was paid for is kept without credits', async () => {
+        const AiEvent = require('../models/AiEvent');
+        const { token, user } = await register();
+        ai.usage = { promptTokenCount: 1200, candidatesTokenCount: 300, thoughtsTokenCount: 50 };
+        ai.model = 'gemini-test-flash';
+        const ok = await api('POST', '/ai/refine', { token, body: { resumeText: 'Built a payments service used every day by many people.', sectionType: 'experience' } });
+        assert.equal(ok.status, 200);
+        ai.reply = 'not json';
+        const bad = await api('POST', '/ai/ingest', { token, body: { text: 'I worked at Acme.' } });
+        assert.equal(bad.status, 502);
+        const events = await AiEvent.find({ user: user.id }).sort({ at: 1 }).lean();
+        assert.deepEqual(events.map((e) => [e.feature, e.ok, e.credits, e.model, e.inputTokens, e.outputTokens]), [
+            ['refine', true, 1, 'gemini-test-flash', 1200, 350],
+            ['parse', false, 0, 'gemini-test-flash', 1200, 350],
+        ]);
+        ai.status = 503;
+        await api('POST', '/ai/refine', { token, body: { resumeText: 'Built a payments service used every day by many people.', sectionType: 'experience' } });
+        assert.equal(await AiEvent.countDocuments({ user: user.id }), 2, 'a call the model never answered costs nothing and is not logged');
+    });
+});

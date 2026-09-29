@@ -6,11 +6,17 @@ const Resume = require('../models/Resume');
 const Usage = require('../models/Usage');
 const AiEvent = require('../models/AiEvent');
 const CareerProfile = require('../models/CareerProfile');
+const Payment = require('../models/Payment');
 
 const PER_USER = [Resume, Usage, AiEvent, CareerProfile];
 
 /** Deletes everything the account owns (not the User document itself). */
-const deleteUserData = (userId) => Promise.all(PER_USER.map((M) => M.deleteMany({ user: userId })));
+const deleteUserData = (userId) =>
+    Promise.all([
+        ...PER_USER.map((M) => M.deleteMany({ user: userId })),
+        // Payments are financial records: kept for the accounts, but no longer linked to anyone.
+        Payment.updateMany({ user: userId }, { $unset: { user: 1 } }),
+    ]);
 
 /** What the person can download about themselves. */
 async function exportUserData(userId) {

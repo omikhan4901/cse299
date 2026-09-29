@@ -375,3 +375,91 @@ describe('billing endpoints', () => {
         assert.equal(r.body.data.interval, 'year');
     });
 });
+
+describe('AI economics', () => {
+    const paid = (userId, { id = `txn_${++seq}`, total = '699', earnings = '560', payout = null } = {}) => ({
+        id, status: 'completed', customer_id: 'ctm_1', subscription_id: 'sub_1', custom_data: { userId }, origin: 'web', currency_code: 'USD',
+        collection_mode: 'automatic', billing_details: null, billing_period: null, address_id: null, business_id: null, discount_id: null, invoice_id: null,
+        invoice_number: null, available_payment_methods: [], items: [], payments: [], checkout: null, created_at: iso(Date.now()), updated_at: iso(Date.now()),
+        billed_at: iso(Date.now()),
+        details: {
+            tax_rates_used: [], line_items: [], adjusted_totals: null, payout_totals: payout,
+            totals: { subtotal: total, discount: '0', tax: '91', total, credit: '0', credit_to_balance: '0', balance: '0', grand_total: total, fee: '48', earnings, currency_code: 'USD' },
+        },
+    });
+    const Payment = () => require('../models/Payment');
+    const AiEvent = () => require('../models/AiEvent');
+    beforeEach(async () => {
+        await Payment().deleteMany({});
+        await AiEvent().deleteMany({});
+    });
+
+    it('records payments once, subtracts approved refunds once, and keeps them (unlinked) when the account goes', async () => {
+        const u = await register();
+        const t = paid(u.user.id, { id: 'txn_econ' });
+        await deliver(event('transaction.completed', t));
+        await deliver(event('transaction.completed', t)); // Paddle retries deliveries
+        let p = await Payment().findOne({ transactionId: 'txn_econ' }).lean();
+        assert.deepEqual([p.total, p.tax, p.fee, p.earnings, p.currency], [699, 91, 48, 560, 'USD']);
+        assert.equal(await Payment().countDocuments(), 1);
+
+        const refund = { id: 'adj_econ', action: 'refund', type: 'partial', status: 'approved', transaction_id: 'txn_econ', subscription_id: null, customer_id: 'ctm_1', reason: 'x', credit_applied_to_balance: false, currency_code: 'USD', items: [], totals: { subtotal: '300', tax: '0', total: '300', fee: '0', earnings: '250', currency_code: 'USD' }, payout_totals: null, created_at: iso(Date.now()), updated_at: iso(Date.now()) };
+        await deliver(event('adjustment.updated', refund));
+        await deliver(event('adjustment.updated', refund));
+        await deliver(event('adjustment.updated', { ...refund, id: 'adj_pending', status: 'pending_approval' }));
+        p = await Payment().findOne({ transactionId: 'txn_econ' }).lean();
+        assert.deepEqual(p.refunds.map((r) => [r.id, r.earnings]), [['adj_econ', 250]]);
+
+        await require('../lib/userData').deleteUserData(u.user.id);
+        p = await Payment().findOne({ transactionId: 'txn_econ' }).lean();
+        assert.ok(p, 'the payment record stays');
+        assert.equal(p.user, undefined, 'but no longer points at the person');
+    });
+
+    it('works out cost per feature from tokens and prices, and the AI cost ratio of paying users', async () => {
+        const { setSettings } = require('./helpers');
+        await setSettings({ aiPrices: { default: { input: 1, output: 10 }, 'gemini-x-flash': { input: 0.5, output: 4 } } });
+        const payer = await register();
+        const freeUser = await register();
+        await deliver(event('transaction.completed', paid(payer.user.id, { earnings: '1000' })));
+        const at = new Date();
+        await AiEvent().create([
+            // 1M input + 100k output on the priced model: 0.5 + 0.4 = $0.90
+            { user: payer.user.id, feature: 'chat', credits: 1, ok: true, model: 'gemini-x-flash-001', inputTokens: 1e6, outputTokens: 1e5, at },
+            // an unknown model uses "default": 0.1 + 0.1 = $0.20, and failed (still paid for)
+            { user: payer.user.id, feature: 'parse', credits: 0, ok: false, model: 'mystery-model', inputTokens: 1e5, outputTokens: 1e4, at },
+            // a free user's call: counted in costs, not in the paying users' ratio. $1.00
+            { user: freeUser.user.id, feature: 'chat', credits: 1, ok: true, model: 'gemini-x-flash', inputTokens: 2e6, outputTokens: 0, at },
+            // older than the window
+            { user: payer.user.id, feature: 'chat', credits: 1, ok: true, model: 'gemini-x-flash', inputTokens: 9e6, outputTokens: 0, at: new Date(Date.now() - 40 * 864e5) },
+        ]);
+        const boss = await superadmin();
+        const r = await api('GET', '/admin/economics?days=30', { token: boss.token });
+        assert.equal(r.status, 200);
+        const d = r.body.data;
+        const chat = d.features.find((f) => f.key === 'chat');
+        const parse = d.features.find((f) => f.key === 'parse');
+        assert.equal(chat.calls, 2);
+        assert.ok(Math.abs(chat.cost - 1.9) < 1e-9, String(chat.cost));
+        assert.equal(parse.failed, 1);
+        assert.ok(Math.abs(parse.cost - 0.2) < 1e-9);
+        assert.ok(Math.abs(d.totals.cost - 2.1) < 1e-9);
+        assert.deepEqual(d.unpricedModels, ['mystery-model']);
+        assert.equal(d.revenue.payingUsers, 1);
+        assert.equal(d.revenue.net, 10);
+        assert.ok(Math.abs(d.revenue.aiCostPerPayingUser - 1.1) < 1e-9);
+        assert.ok(Math.abs(d.revenue.costRatio - 0.11) < 1e-9);
+
+        assert.equal((await api('GET', '/admin/economics', { token: payer.token })).status, 403, 'admins only');
+        const weird = await api('GET', '/admin/economics?days=-5', { token: boss.token });
+        assert.equal(weird.body.data.days, 1);
+    });
+
+    it('bad prices are cleaned; "default" always exists', async () => {
+        const { updateSettings, readSettings } = require('../lib/settings');
+        await updateSettings({ aiPrices: { 'bad name!': { input: 1, output: 1 }, 'ok-model': { input: -3, output: 'x' } } }, 'test');
+        const { settings } = await readSettings();
+        assert.deepEqual(Object.keys(settings.aiPrices).sort(), ['default', 'ok-model']);
+        assert.deepEqual(settings.aiPrices['ok-model'], { input: 0, output: 0 });
+    });
+});

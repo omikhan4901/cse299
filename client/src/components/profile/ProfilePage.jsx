@@ -9,6 +9,10 @@ import { ArrowRight, Check, CircleUserRound, CloudOff, FilePlus2, Loader2, Spark
 import { api } from "@/lib/api";
 import { normalizeResume } from "@/lib/resume";
 import { profileFromResume, profileHealth, resumeFromProfile } from "@/lib/profile";
+import { applyOperations } from "@/lib/ingest/ops";
+import { AI_ENABLED } from "@/lib/config";
+import AddAnything from "../review/AddAnything";
+import PlanTag from "../billing/PlanTag";
 import { useAuth } from "../AuthProvider";
 import { useBilling } from "../BillingProvider";
 import ContentPanel from "../builder/ContentPanel";
@@ -143,6 +147,7 @@ function Editor({ token, store }) {
   const saving = useRef(false);
   const latest = useRef(profile);
   const [making, setMaking] = useState(false);
+  const [adding, setAdding] = useState(false);
   useEffect(() => {
     latest.current = profile;
   });
@@ -255,8 +260,16 @@ function Editor({ token, store }) {
           <h1 className="font-display text-3xl font-bold text-ink">Career Profile</h1>
           <p className="mt-1 text-slate-500">Everything true about your career. Resumes pick what each job needs.</p>
         </div>
-        <SaveStatus status={status} onRetry={saveNow} />
+        <div className="flex items-center gap-4">
+          <SaveStatus status={status} onRetry={saveNow} />
+          {AI_ENABLED ? (
+            <Button icon={<Sparkles size={15} />} onClick={() => setAdding(true)}>
+              Add anything <PlanTag feature="parse" />
+            </Button>
+          ) : null}
+        </div>
       </div>
+      <AddAnything open={adding} onClose={() => setAdding(false)} target={profile} token={token} where="your profile" onApply={(ops) => setResume((p) => applyOperations(p, ops))} />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <ContentPanel editor={editor} />

@@ -39,7 +39,7 @@ globalThis.fetch = async (url, opts) => {
         }
         if (ai.status !== 200) return new Response(JSON.stringify({ error: { message: ai.errorMessage || 'stub failure' } }), { status: ai.status });
         const text = typeof ai.reply === 'function' ? ai.reply(JSON.parse(opts.body)) : ai.reply;
-        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }), { status: 200 });
+        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }], ...(ai.usage ? { usageMetadata: ai.usage, modelVersion: ai.model } : {}) }), { status: 200 });
     }
     // Paddle's API: tests set paddleApi.handler(url, opts) to answer like Paddle would.
     if (/paddle\.com/.test(String(url))) {
@@ -148,6 +148,8 @@ async function resetState() {
     ai.tokens = 0;
     ai.last = null;
     ai.errorMessage = null;
+    ai.usage = null;
+    ai.model = null;
     delete process.env.AI_PROVIDER;
     delete process.env.VERTEX_CREDENTIALS;
     require('../lib/vertex').reset();

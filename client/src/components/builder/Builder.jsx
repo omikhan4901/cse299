@@ -35,6 +35,8 @@ import { AI_LOCKED_MESSAGE } from "./ai";
 import ActionDock from "./ActionDock";
 import { celebrate } from "../celebrate";
 import { useProfileSync } from "../profile/useProfileSync";
+import AddAnything from "../review/AddAnything";
+import { applyOperations } from "@/lib/ingest/ops";
 
 /** Loads the resume to edit (saved, new or local draft) and then mounts the editor. */
 export default function Builder() {
@@ -658,8 +660,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     if (key === "audit") return setAiModal("audit");
     if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
     if (!requireAccount()) return;
-    if (key === "import") document.getElementById("resume-import")?.click();
-    else setAiModal(key);
+    // V2: "Add anything" merges into the resume after review, instead of replacing it.
+    if (key === "import") {
+      if (billing?.v2) setAiModal("add");
+      else document.getElementById("resume-import")?.click();
+    } else setAiModal(key);
   };
 
   const saveState = saving ? "saving" : dirty ? "dirty" : resume._id && isAuthenticated ? "saved" : "new";
@@ -682,7 +687,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       { type: "group", label: "AI tools", children: [
         aiItem("chat", <MessageSquare size={15} />, "AI assistant", () => openAi("chat")),
         aiItem("cover", <Mail size={15} />, "Cover letter", () => openAi("cover")),
-        aiItem("import", <Upload size={15} />, "Import PDF / DOCX", () => openAi("import")),
+        aiItem("import", <Upload size={15} />, billing?.v2 ? "Add anything" : "Import PDF / DOCX", () => openAi("import")),
       ] },
       { type: "divider" },
       ...(profileSync.items.length ? profileSync.items : isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
@@ -759,9 +764,14 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         <div className="hidden sm:block">
           <CreditMeter />
         </div>
-        <CreditTooltip feature="parse" title="Import your resume" description="Upload an existing PDF or Word resume and we'll fill in every section for you." placement="bottom">
+        <CreditTooltip
+          feature="parse"
+          title={billing?.v2 ? "Add anything" : "Import your resume"}
+          description={billing?.v2 ? "Paste an old CV or describe your work, or upload a PDF or Word file. It's added in the right places after you check it." : "Upload an existing PDF or Word resume and we'll fill in every section for you."}
+          placement="bottom"
+        >
           <Button icon={<Upload size={15} />} onClick={() => openAi("import")} data-tour="import">
-            <span className="hidden md:inline">Import resume</span>
+            <span className="hidden md:inline">{billing?.v2 ? "Add anything" : "Import resume"}</span>
             <PlanTag feature="parse" />
           </Button>
         </CreditTooltip>
@@ -928,6 +938,16 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         onLeave={confirmLeavePrivate}
       />
       {profileSync.dialog}
+      <AddAnything
+        open={aiModal === "add"}
+        onClose={() => setAiModal(null)}
+        target={resume}
+        token={token}
+        onApply={(ops) => {
+          setResume((r) => applyOperations(r, ops));
+          setShowExample(false);
+        }}
+      />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} resume={resume} onChange={(patch) => setResume((r) => ({ ...r, ...patch }))} />
       <TemplateGallery
         open={!!gallery}

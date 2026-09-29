@@ -11,6 +11,7 @@ const { audit } = require('../lib/audit');
 const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email');
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { deleteUserData } = require('../lib/userData');
+const { aiEconomics } = require('../lib/economics');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 const { refundCheck } = require('../lib/refunds');
@@ -67,7 +68,7 @@ router.get('/overview', wrap(async (req, res) => {
         User.find().select('plan planExpiresAt').lean(),
         Resume.countDocuments(),
         Resume.countDocuments({ isPublic: true }),
-        AiEvent.find({ at: { $gte: since30 } }).select('user feature credits at').limit(100000).lean(),
+        AiEvent.find({ at: { $gte: since30 }, ok: { $ne: false } }).select('user feature credits at').limit(100000).lean(),
         Campaign.countDocuments({ active: true }),
     ]);
 
@@ -295,6 +296,13 @@ router.delete('/users/:id', wrap(async (req, res) => {
     await user.deleteOne();
     await audit(req, 'user.delete', user.email);
     res.json({ success: true });
+}));
+
+// ---------- AI economics ----------
+
+router.get('/economics', wrap(async (req, res) => {
+    const days = Math.min(180, Math.max(1, Math.round(Number(req.query.days) || 30)));
+    res.json({ success: true, data: await aiEconomics({ days, settings: await getSettings() }) });
 }));
 
 // ---------- Audit log ----------

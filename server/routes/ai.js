@@ -143,6 +143,14 @@ const generate = async (systemInstruction, contents, generationConfig, req) => {
         }
         throw new AiError(response.status === 429 || response.status >= 500 ? BUSY_MESSAGE : 'The AI service is unavailable right now. Please try again later.');
     }
+    // Tokens paid for, per request (lib/credits.js stores them with the request's AiEvent).
+    const usage = result.usageMetadata;
+    if (req && usage) {
+        req.aiUsage ||= { inputTokens: 0, outputTokens: 0, model: null };
+        req.aiUsage.inputTokens += Number(usage.promptTokenCount) || 0;
+        req.aiUsage.outputTokens += (Number(usage.candidatesTokenCount) || 0) + (Number(usage.thoughtsTokenCount) || 0);
+        req.aiUsage.model = result.modelVersion || req.aiUsage.model || (response.url?.match(/models\/([^:]+):/)?.[1] ?? null);
+    }
     const text = result.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim();
     if (!text) throw new AiError('The AI could not generate a response. Try rephrasing.');
     return text;
