@@ -65,7 +65,7 @@ export function CreditMeter() {
   if (!isAuthenticated || !usage) return null;
   const pct = usage.limit ? Math.round((usage.remaining / usage.limit) * 100) : 0;
   const tone = pct > 40 ? "#0d9488" : pct > 15 ? "#d97706" : "#dc2626";
-  const costs = billing.config?.aiFeatures || [];
+  const costs = (billing.config?.aiFeatures || []).filter((f) => !f.v2 || billing.v2);
 
   const content = (
     <div className="w-72">

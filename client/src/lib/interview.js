@@ -120,7 +120,7 @@ export function prepFor({ job, source, sent = false } = {}) {
   if (!job || !(job.title || job.description)) return null;
   const family = familyFor(job);
   const text = [job.title, job.description].filter(Boolean).join("\n");
-  const keywords = text.trim().length >= 40 ? jobKeywords(text).filter((k) => k.kind !== "soft") : [];
+  const keywords = text.trim().length >= 40 ? jobKeywords(text, { ignore: [job.organisation].filter(Boolean) }).filter((k) => k.kind !== "soft") : [];
   const { points, skills, resume } = pointsOf(source || {});
 
   // What they'll look for: the job's strongest skills, each with the person's own evidence.
@@ -194,5 +194,41 @@ export function prepText(prep, job) {
   for (const q of prep.ask) lines.push(`- ${q}`);
   lines.push("", "Before you go");
   for (const c of prep.checklist) lines.push(`- ${c}`);
+  return lines.join("\n");
+}
+
+/** The AI prep sheet (server/lib/interviewAi.js) as plain text, to copy. */
+export function aiPrepText(data, job) {
+  if (!data) return "";
+  const name = [job?.title, job?.organisation].filter(Boolean).join(" · ");
+  const lines = [`Interview prep: ${name}`, ""];
+  if (data.summary) lines.push(data.summary, "");
+  if (data.focus?.length) {
+    lines.push("What they'll probe");
+    for (const f of data.focus) {
+      lines.push(`- ${f.skill}: ${f.why}`);
+      if (f.evidence) lines.push(`  Your example: "${f.evidence.text}" (${f.evidence.where})`);
+      if (f.talk) lines.push(`  ${f.talk}`);
+    }
+    lines.push("");
+  }
+  lines.push("Likely questions");
+  for (const q of data.questions || []) {
+    lines.push(`- ${q.question}`);
+    for (const o of q.outline || []) lines.push(`  • ${o}`);
+    if (q.use) lines.push(`  Build on: "${q.use.text}"`);
+  }
+  if (data.gaps?.length) {
+    lines.push("", "If they ask about gaps");
+    for (const g of data.gaps) lines.push(`- ${g.gap}${g.answer ? `: ${g.answer}` : ""}`);
+  }
+  if (data.ask?.length) {
+    lines.push("", "Questions to ask them");
+    for (const q of data.ask) lines.push(`- ${q}`);
+  }
+  if (data.prepare?.length) {
+    lines.push("", "Before you go");
+    for (const c of data.prepare) lines.push(`- ${c}`);
+  }
   return lines.join("\n");
 }

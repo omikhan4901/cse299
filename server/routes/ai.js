@@ -14,6 +14,9 @@ const { readPdf } = require('../lib/pdfText');
 const polish = require('../lib/polish');
 const Resume = require('../models/Resume');
 const Application = require('../models/Application');
+const CareerProfile = require('../models/CareerProfile');
+const interviewAi = require('../lib/interviewAi');
+const { requireV2 } = require('../lib/v2');
 const mongoose = require('mongoose');
 const vertex = require('../lib/vertex');
 
@@ -293,6 +296,41 @@ router.post('/polish', protect, aiQuota('polish'), async (req, res) => {
             await doc.save({ timestamps: false });
         }
         res.json({ success: true, operations });
+    } catch (err) {
+        sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);
+    }
+});
+
+// --- 1d. Interview prep for one application (V2, lib/interviewAi.js) ---
+// Body: { applicationId }. Built from the resume that was sent, else the linked resume,
+// else the Career Profile. The sheet is kept on the application (prepAi) and returned.
+router.post('/interview-prep', protect, requireV2, aiQuota('interviewAi'), async (req, res) => {
+    try {
+        const id = req.body?.applicationId;
+        const app = mongoose.isValidObjectId(id) ? await Application.findOne({ _id: id, user: req.userId }) : null;
+        if (!app) return res.status(404).json({ success: false, error: 'Application not found.' });
+        if (str(app.job?.description).length < 80) return res.status(400).json({ success: false, error: 'Add the job description first: the prep is written for that job.' });
+        let source = app.snapshot?.content;
+        let from = 'sent';
+        if (!resumeOk(source || {}) && app.resume) {
+            source = await Resume.findOne({ _id: app.resume, user: req.userId }).lean();
+            from = 'resume';
+        }
+        if (!resumeOk(source || {})) {
+            source = await CareerProfile.findOne({ user: req.userId }).lean();
+            from = 'profile';
+        }
+        if (!source || !resumeOk(source)) return res.status(400).json({ success: false, error: 'Choose a resume for this job, or fill in your Career Profile, first.' });
+        req.aiLongTask = true;
+        const clean = cleanResume(source);
+        const job = { title: app.job.title, organisation: app.job.organisation, description: app.job.description };
+        const json = await generate(interviewAi.PREP_INSTRUCTION, [{ role: 'user', parts: [{ text: interviewAi.prepPrompt(clean, job) }] }], { responseMimeType: 'application/json', responseSchema: interviewAi.PREP_SCHEMA }, req);
+        const data = interviewAi.checkPrep(JSON.parse(json), clean, job);
+        if (!data.questions.length) throw new AiError("The AI's answer didn't include any questions. Please try again.");
+        const prepAi = { data, at: new Date(), from };
+        // Not an edit by the person: no new revision, so an open drawer can keep saving.
+        await Application.updateOne({ _id: app._id, user: req.userId }, { $set: { prepAi } }, { timestamps: false });
+        res.json({ success: true, data: prepAi });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);
     }

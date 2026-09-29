@@ -20,16 +20,19 @@ export const UPGRADE_NEEDED = "resumex:upgrade-needed";
  * fetch() wrapper for the Express API. Throws ApiError with the server's
  * message on failure and returns the parsed JSON body on success.
  */
-export async function api(path, { token, method = "GET", body, timeout = 60000 } = {}) {
+// AI requests the server treats as long tasks (a 100 s budget): the browser waits longer for them.
+const LONG_AI = ["/ai/parse", "/ai/ingest", "/ai/polish", "/ai/interview-prep"];
+
+export async function api(path, { token, method = "GET", body, timeout = LONG_AI.includes(path) ? 110000 : 60000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   // AI requests can be slow when the provider is busy: show them in the status card, with a
-  // Cancel button. The server gives up within its time budget (45 s; 100 s for imports) and
+  // Cancel button. The server gives up within its time budget (45 s; 100 s for imports and other long tasks) and
   // refunds anything that doesn't finish, including cancelled requests.
   const isAi = path.startsWith("/ai/") && method !== "GET" && typeof window !== "undefined";
   let cancelled = false;
   const untrack = isAi
-    ? trackAi({ path, startedAt: Date.now(), budgetMs: path === "/ai/parse" || path === "/ai/ingest" ? 100000 : 45000, cancel: () => ((cancelled = true), controller.abort()) })
+    ? trackAi({ path, startedAt: Date.now(), budgetMs: LONG_AI.includes(path) ? 100000 : 45000, cancel: () => ((cancelled = true), controller.abort()) })
     : null;
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;

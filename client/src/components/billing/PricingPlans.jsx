@@ -16,9 +16,10 @@ import { BuilderLink } from "@/components/BuilderLauncher";
  */
 export default function PricingPlans({ config }) {
   const [yearly, setYearly] = useState(false);
-  const { plans, currency, freeMode, aiFeatures, featureCosts } = config;
+  const { plans, currency, freeMode, featureCosts } = config;
   // V2 features appear once V2 is open to everyone.
   const appFeatures = (config.appFeatures || []).filter((f) => !f.v2 || config.v2?.enabled);
+  const aiFeatures = (config.aiFeatures || []).filter((f) => !f.v2 || config.v2?.enabled);
   const hasYearly = plans.some((p) => p.yearlyPrice > 0);
   const billing = useBilling();
   const paddle = config.paddle;

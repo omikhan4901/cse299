@@ -45,7 +45,7 @@ export default function AddAnything({ open, onClose, target, token, onApply, whe
       } else {
         body = { text: text.trim(), outline: outlineOf(target) };
       }
-      const data = await api("/ai/ingest", { token, method: "POST", body, timeout: file ? 120000 : 60000 });
+      const data = await api("/ai/ingest", { token, method: "POST", body, timeout: file ? 120000 : undefined });
       notifyCreditsChanged();
       setReview({ operations: data.operations, skipped: data.skipped });
     } catch (err) {

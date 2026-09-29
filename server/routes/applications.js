@@ -125,7 +125,7 @@ const invalid = (res, err, next) => (err.name === 'ValidationError' || err.name 
 // @route GET /api/applications — all of them, without the heavy parts
 router.get('/', async (req, res, next) => {
     try {
-        const data = await Application.find({ user: req.userId }).select('-snapshot.content -coverLetter.text').sort({ updatedAt: -1 }).lean();
+        const data = await Application.find({ user: req.userId }).select('-snapshot.content -coverLetter.text -prepAi.data').sort({ updatedAt: -1 }).lean();
         // Just whether there is a job text (the text itself is only sent with one application).
         for (const a of data) {
             a.job = { ...a.job, hasDescription: !!a.job?.description?.trim() };

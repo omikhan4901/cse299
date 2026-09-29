@@ -50,3 +50,42 @@ describe('job capture', () => {
         assert.ok(Date.now() - started < 2000, `${Date.now() - started} ms`);
     });
 });
+
+describe('a real embedded-software posting (keywords and capture)', () => {
+    const text = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'embedded-job.txt'), 'utf8');
+    const ats = () => import(require('node:path').join(__dirname, '../../client/src/lib/ats/analyze.js'));
+
+    it('finds the real skills, weighted by section, and none of the noise', async () => {
+        const { jobKeywords } = await ats();
+        const ks = jobKeywords(text, { ignore: ['ReliSource'] });
+        const names = ks.map((k) => k.name);
+        for (const want of ['C', 'C++', 'Microcontrollers', 'Embedded systems', 'RTOS', 'Serial protocols', 'Interrupt handling', 'GPIO', 'STM32', 'Git']) assert.ok(names.includes(want), `${want} in ${names}`);
+        for (const noise of ['CV', 'C/C', 'B.', 'B', 'Sc', 'bySeptember', 'ReliSource', 'Relisource', 'US', 'IMPORTANT', 'GPIO/SFR', 'I/O', 'ESE_CS_15032025']) assert.ok(!names.includes(noise), `${noise} should not be a keyword`);
+        const w = Object.fromEntries(ks.map((k) => [k.name, k.importance]));
+        assert.ok(w['C++'] > w.Git, 'a key requirement outweighs a nice-to-have');
+        assert.ok(w.TCP < 1, '"Nice To Have Requirements" counts as nice to have');
+        // Without the employer given, its email domain still keeps it out.
+        assert.ok(!jobKeywords(text).some((k) => /relisource/i.test(k.name)));
+    });
+
+    it('no years check for "0-2 years" (no minimum); the organisation comes from the email domain', async () => {
+        const { matchChecks } = await ats();
+        const { normalizeResume } = await import(require('node:path').join(__dirname, '../../client/src/lib/resume.js'));
+        const { checks } = matchChecks({ resume: normalizeResume({ experience: [{ id: 1, title: 'Intern', startDate: '2024', endDate: '2025' }] }), jobDescription: text });
+        assert.equal(checks.find((c) => c.id === 'years'), undefined);
+        const { captureJob } = await lib();
+        const c = captureJob(text, { now: new Date('2026-09-01') });
+        assert.equal(c.organisation, 'Relisource');
+        assert.equal(c.deadline, '2026-09-30');
+        assert.equal(c.email, 'career@relisource.com');
+        // A free email provider says nothing about the employer.
+        assert.equal(captureJob('Send your CV to hr.team@gmail.com by 30 September 2026. Software Engineer wanted.', { now: new Date('2026-09-01') }).organisation, '');
+    });
+
+    it('a known phrase is one keyword: no stray "PCI" and "DSS", and "API" isn\'t repeated next to REST APIs', async () => {
+        const { jobKeywords } = await ats();
+        const jd = 'Software Engineer (Payments)\nSSLCommerz\n\nRequirements:\n- Kafka or another message queue\n- Docker and Kubernetes\n- gRPC and REST API design\n- Payment systems, PCI DSS is a plus';
+        const names = jobKeywords(jd, { ignore: ['SSLCommerz'] }).map((k) => k.name);
+        assert.deepEqual(names.sort(), ['Docker', 'Kafka', 'Kubernetes', 'PCI DSS', 'REST APIs', 'gRPC'].sort());
+    });
+});

@@ -48,6 +48,8 @@ const ApplicationSchema = new mongoose.Schema(
         // Checklist items ticked by hand: { [key]: when }.
         checklist: { type: Map, of: Date, default: undefined },
         notes: { type: String, default: '', maxlength: 5000 },
+        // The latest AI interview prep sheet (lib/interviewAi.js), and what it was made from.
+        prepAi: { data: mongoose.Schema.Types.Mixed, at: Date, from: { type: String, enum: ['sent', 'resume', 'profile'] } },
         archived: { type: Boolean, default: false },
         rev: { type: Number, default: 0 },
     },

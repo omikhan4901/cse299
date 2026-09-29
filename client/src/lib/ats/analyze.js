@@ -359,13 +359,19 @@ function jobTitleFrom(jd) {
 }
 
 /** Extracts weighted keywords from a job description. */
-export function jobKeywords(jd) {
+/**
+ * The skills and terms a job asks for, weighted by where they appear. `ignore` lists names
+ * that aren't skills (the employer); names in the job's own email or web address are
+ * skipped too.
+ */
+export function jobKeywords(jd, { ignore = [] } = {}) {
   const lines = String(jd || "").split(/\n/);
   let sectionWeight = 1;
   const weighted = lines.map((line) => {
     const l = line.trim();
-    if (/^(requirements?|qualifications?|what you('ll)? (need|bring)|must have|you have|skills|about you)\b.*:?$/i.test(l)) sectionWeight = 1.6;
-    else if (/^(nice to have|bonus|preferred|good to have|pluses?)\b.*:?$/i.test(l)) sectionWeight = 0.6;
+    // Headings like "Nice To Have Requirements" first, then "Key/Experience Requirements".
+    if (/^(nice[ -]to[ -]have|bonus|preferred|good[ -]to[ -]have|pluses?|desirable|optional)\b.*:?$/i.test(l)) sectionWeight = 0.6;
+    else if (/^((key|job|educational|education|experience|technical|minimum|basic|core|essential|additional)\s+)?(requirements?|qualifications?|what you('ll)? (need|bring)|must have|you have|skills|about you)\b.*:?$/i.test(l)) sectionWeight = 1.6;
     else if (/^(responsibilities|what you('ll)? do|the role|about the role|duties)\b.*:?$/i.test(l)) sectionWeight = 1;
     let w = sectionWeight;
     if (/\b(required|must|minimum|essential|proficien|strong (experience|knowledge))/i.test(l)) w = Math.max(w, 1.8);
@@ -386,13 +392,29 @@ export function jobKeywords(jd) {
     for (const [name, aliases] of Object.entries(SOFT_SKILLS)) if (countAny(line, [name, ...aliases])) add(name, "soft", w * 0.4, [name, ...aliases]);
   }
   // Acronyms and product names the dictionary doesn't know (e.g. HIPAA, PostGIS, SAP BW).
-  const known = new Set([...found.values()].flatMap((k) => k.aliases.map((a) => lower(a.replace(/^=/, "")))));
-  const COMMON = new Set(["us", "usa", "uk", "eu", "ok", "it", "we", "our", "the", "a", "an", "id", "pto", "401k", "eeo", "fte", "dei", "ceo", "cto", "ai"]);
+  // Words of a known phrase count too: "PCI DSS" found means "PCI" and "DSS" aren't separate terms.
+  const known = new Set([...found.values()].flatMap((k) => k.aliases.flatMap((a) => [lower(a.replace(/^=/, "")), ...lower(a.replace(/^=/, "")).split(/\s+/)])));
+  const COMMON = new Set([
+    "us", "usa", "uk", "eu", "ok", "it", "we", "our", "the", "a", "an", "id", "pto", "401k", "eeo", "fte", "dei", "ceo", "cto", "ai",
+    // Words about applying, not skills.
+    "cv", "cvs", "jd", "hr", "nid", "bd", "ltd", "pvt", "plc", "inc", "llc", "asap", "tbd", "n/a", "na", "am", "pm", "gpa", "cgpa",
+    // Degrees and fields of study: the degree check covers them, they aren't skills.
+    "bsc", "msc", "ba", "ma", "bs", "ms", "bba", "mba", "bss", "mss", "bcom", "mcom", "phd", "ssc", "hsc", "llb", "llm", "mbbs", "beng", "meng",
+    "cse", "eee", "ece", "ete", "ipe", "cs", "ict",
+  ]);
+  // The employer's own name, from the ignore list and the job's email and web addresses.
+  const employer = new Set([
+    ...ignore.flatMap((n) => lower(n || "").split(/[^a-z0-9]+/)).filter((x) => x.length >= 3),
+    ...[...String(jd || "").matchAll(/(?:@|https?:\/\/(?:www\.)?|\bwww\.)([a-z0-9-]+)\./gi)].map((m) => lower(m[1])),
+  ]);
   for (const { line, w } of weighted) {
     const tokens = line.match(/\b(?:[A-Z][A-Z0-9+#&/.]{1,7}|[a-z]+[A-Z][A-Za-z0-9]+|[A-Z][a-z]+[A-Z][A-Za-z0-9]*)\b/g) || [];
-    for (const t of tokens) {
+    // "GPIO/SFR" and "SPI/I2C/UART" are separate terms; "B.Sc." and trailing dots aren't terms.
+    for (const t of tokens.flatMap((x) => x.split("/")).map((x) => x.replace(/\.+$/, ""))) {
       const key = lower(t);
-      if (known.has(key) || COMMON.has(key) || STOPWORDS.has(key) || t.length < 2) continue;
+      if (t.length < 2 || /\./.test(t) || known.has(key) || COMMON.has(key) || STOPWORDS.has(key) || employer.has(key)) continue;
+      // Words run together in the posting ("bySeptember", "toApply") aren't terms.
+      if (/^(by|to|at|in|on|of|for|and|or|the|with|from|via|per)[A-Z]/.test(t)) continue;
       add(t, "term", w * 0.8, [`=${t}`]);
     }
   }
@@ -415,9 +437,9 @@ function jdDegreeLevel(jd) {
   return levels.length ? Math.min(...levels) : 0; // "Bachelor's or Master's" -> Bachelor's is the minimum
 }
 
-export function matchChecks({ resume, jobDescription }) {
+export function matchChecks({ resume, jobDescription, ignore = [] }) {
   const checks = [];
-  const keywords = jobKeywords(jobDescription);
+  const keywords = jobKeywords(jobDescription, { ignore });
   const context = [
     resume.summary,
     resume.personal.title,
@@ -474,7 +496,8 @@ export function matchChecks({ resume, jobDescription }) {
     );
   }
 
-  const yearsMatch = [...jobDescription.matchAll(/(\d{1,2})\s*\+?\s*(?:-|to|–)?\s*(?:\d{1,2}\s*)?\+?\s*years?(?:'|’)?\s*(?:of\s+)?(?:[\w\s/-]{0,30}?)experience/gi)].map((m) => +m[1]);
+  // "0-2 years" means no minimum: nothing to check.
+  const yearsMatch = [...jobDescription.matchAll(/(\d{1,2})\s*\+?\s*(?:-|to|–)?\s*(?:\d{1,2}\s*)?\+?\s*years?(?:'|’)?\s*(?:of\s+)?(?:[\w\s/-]{0,30}?)experience/gi)].map((m) => +m[1]).filter((n) => n > 0);
   if (yearsMatch.length) {
     const need = Math.max(...yearsMatch.filter((n) => n <= 20));
     const have = experienceYears(resume.experience);

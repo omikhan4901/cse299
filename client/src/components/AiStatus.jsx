@@ -27,6 +27,8 @@ const LABELS = {
   "/ai/cover-letter": "Writing your cover letter",
   "/ai/parse": "Importing your resume",
   "/ai/ingest": "Reading what you added",
+  "/ai/polish": "Polishing for the job",
+  "/ai/interview-prep": "Writing your interview prep",
 };
 
 /**

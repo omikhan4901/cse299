@@ -124,18 +124,18 @@ export function funnel(apps, now = new Date()) {
  * (and whether the profile has them), and the education and experience requirements.
  * `profile` is optional; with it, missing skills the profile does have are pointed out.
  */
-export function jobMatch(resumeIn, jobText, profileIn = null) {
+export function jobMatch(resumeIn, jobText, profileIn = null, { ignore = [] } = {}) {
   const text = String(jobText || "");
   if (text.trim().length < 40) return null;
   const resume = normalizeResume(resumeIn);
-  const { checks, keywords } = matchChecks({ resume, jobDescription: text });
+  const { checks, keywords } = matchChecks({ resume, jobDescription: text, ignore });
   const hard = keywords.filter((k) => k.kind !== "soft");
   const shown = hard.filter((k) => k.matched).map((k) => k.name);
   const missing = hard.filter((k) => !k.matched).map((k) => k.name);
   let inProfile = [];
   if (profileIn && missing.length) {
     const p = normalizeResume(profileIn);
-    const pm = matchChecks({ resume: p, jobDescription: text }).keywords;
+    const pm = matchChecks({ resume: p, jobDescription: text, ignore }).keywords;
     inProfile = missing.filter((name) => pm.find((k) => k.name === name)?.matched);
   }
   const lines = [];

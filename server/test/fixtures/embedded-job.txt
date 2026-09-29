@@ -1,0 +1,71 @@
+About the job
+Application Deadline
+
+September 30, 2026 (Early applications will be given preference)
+
+Job Location
+
+Gulshan-1, Dhaka
+
+Number of Vacancies: 2
+
+Who are we looking for?
+
+We are looking for dynamic individuals having the following qualities.
+
+Educational Requirements
+
+* B. Sc. in Computer Science/ Electrical or Electronics Engineering (or similar) from any reputed university. 
+
+Experience Requirements
+
+* An ideal candidate should have 0-2 years of relevant work experience in C/C++ projects. (Freshers are encouraged to apply)
+* If you don’t have the required work experience but have strong problem-solving ability and knowledge in the following area are also welcome to apply:
+   * Micro-controllers
+   * GPIO/SFR/SPI/I2C/UART
+   * Interrupt handling
+   * Memory mapped I/O
+   * Processor low power state
+   * ARM/STM32
+   * FreeRTOS
+
+Overview Of The Responsibilities
+
+* Design, develop & maintain C/C++ based embedded system projects.
+* Regularly communicating with US clients via email & phone call. 
+
+Key Requirements
+
+* Strong problem solving & critical thinking ability. Candidates will be tested.
+* Ability to write moderately bug free code without IDE. Candidates will be tested.
+* Design, develop & maintain C/C++ for embedded system project.
+* Adherent to teamwork and always represent team in work and achievement.
+* Good reading and writing skill in English.
+* Excellent communication skill in English.
+* Follows industry best practices for coding. 
+
+Nice To Have Requirements
+
+* Experience with various sensors like temperature, light, humidity and accelerometer.
+* Experience with RTOS.
+* Principles of electronics relevant to micro-controllers.
+* Good knowledge on network communication such as TCP, UDP etc.
+* Basics of version control system (check in, check out, branching, merging etc.), preferably git.
+* Comfortable using C concepts like array, null terminated string, pointer, bitwise operation, type casting, low level memory management etc.
+* Good knowledge on object-oriented programming.
+* Follows industry best practices for coding and software development.
+* Good listening and speaking skill in English. 
+
+What's in it for you?
+
+* Very Competitive Salary with Excellent Career Opportunity in a Focused & Stable organization.
+* Overseas Tour with Opportunity to work with global companies.
+* Most importantly a friendly work environment with opportunity to learn from a number of highly skilled mentors.
+* Flexible office hours.
+* Weekend: Saturday and Sunday. 
+
+How would you apply?
+
+If you believe you are the right candidate, then send your CV to career@relisource.com with this exact line as email's subject“ESE_CS_15032025”bySeptember 30, 2026.
+
+IMPORTANT:Resume attached without above subject line will not be processed. Your CV must include your photograph.

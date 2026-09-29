@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { App, Button, Input, Result, Segmented, Skeleton, Table, Tooltip } from "antd";
+import { App, Button, Dropdown, Input, Result, Segmented, Skeleton, Table, Tooltip } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Briefcase, CalendarPlus, Columns3, FileCheck2, List, Plus, Search, Wand2 } from "lucide-react";
+import { Archive, ArrowRight, Briefcase, CalendarPlus, Columns3, FileCheck2, List, MoreHorizontal, Plus, Search, Trash2, Wand2 } from "lucide-react";
 import { ACTIVE, STATUSES, isActive, nextStep, statusOf } from "@/lib/applications";
 import { useAuth } from "../AuthProvider";
 import { useBilling } from "../BillingProvider";
@@ -24,7 +24,7 @@ const CLOSED = ["rejected", "withdrawn", "noResponse"];
 export default function ApplicationsPage() {
   const { token, user, loading: authLoading, openAuth } = useAuth();
   const billing = useBilling();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const store = useApplications(token, { enabled: !!billing?.v2 });
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState(null);
@@ -69,6 +69,20 @@ export default function ApplicationsPage() {
       else message.error(err.message);
       store.load();
     });
+  // The ⋯ menu on every card and row: the everyday actions without opening the application.
+  const actions = {
+    open: (a) => setOpenId(a._id),
+    move: changeStatus,
+    archive: (a) => store.update(a._id, { archived: !a.archived }).then(() => message.success(a.archived ? "Back in your list" : "Archived. Find it under Closed in the list.")).catch((err) => message.error(err.message)),
+    remove: (a) =>
+      modal.confirm({
+        title: `Delete “${jobName(a)}”?`,
+        content: "Its notes, dates and the copy of the resume you sent go with it. The resume itself stays in My resumes. This can't be undone.",
+        okText: "Delete",
+        okButtonProps: { danger: true },
+        onOk: () => store.remove(a._id).then(() => message.success("Deleted")),
+      }),
+  };
   const exportCalendar = () => {
     const { text, count } = calendarFor(apps, { site: window.location.origin });
     if (!count) return message.info("No deadlines, interviews or follow-ups to add yet.");
@@ -96,7 +110,7 @@ export default function ApplicationsPage() {
             {apps?.length ? `${active} in progress${max != null ? ` · your plan tracks up to ${max}` : ""}` : "Every job you apply to, from saved to offer."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {apps?.length ? (
             <Segmented
               value={view}
@@ -113,12 +127,15 @@ export default function ApplicationsPage() {
             </Tooltip>
           ) : null}
           {untailored.length >= 2 ? (
-            <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)}>
-              <span className="hidden sm:inline">Tailor resumes</span>
-            </Button>
+            <Tooltip title="One resume per job, picked from your profile. Free, no AI credits.">
+              <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)}>
+                <span className="hidden sm:inline">Tailor resumes</span>
+              </Button>
+            </Tooltip>
           ) : null}
           <Button type="primary" size="large" icon={<Plus size={17} />} onClick={startAdding}>
-            Add application
+            <span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">Add application</span>
           </Button>
         </div>
       </div>
@@ -128,9 +145,9 @@ export default function ApplicationsPage() {
       ) : !apps.length ? (
         <Empty onAdd={startAdding} />
       ) : view === "board" ? (
-        <Board apps={apps} onOpen={setOpenId} onMove={changeStatus} />
+        <Board apps={apps} onOpen={setOpenId} onMove={changeStatus} actions={actions} />
       ) : (
-        <ListView apps={apps} onOpen={setOpenId} />
+        <ListView apps={apps} onOpen={setOpenId} actions={actions} />
       )}
 
       <AddApplication open={adding} onClose={() => setAdding(false)} token={token} onCreate={async (body) => setOpenId((await store.create(body))._id)} />
@@ -151,18 +168,46 @@ function Empty({ onAdd }) {
   );
 }
 
-function Card({ a, onOpen, draggable = true }) {
+/** Open, move, archive or delete one application. */
+function AppMenu({ a, actions, className = "" }) {
+  const items = [
+    { key: "open", label: "Open" },
+    { key: "move", label: "Move to", children: STATUSES.filter((s) => s.id !== a.status).map((s) => ({ key: `move:${s.id}`, label: <StatusChip status={s.id} /> })) },
+    { key: "archive", icon: <Archive size={14} />, label: a.archived ? "Unarchive" : "Archive" },
+    { type: "divider" },
+    { key: "delete", icon: <Trash2 size={14} />, label: "Delete", danger: true },
+  ];
+  const onClick = ({ key }) => {
+    if (key === "open") actions.open(a);
+    else if (key === "archive") actions.archive(a);
+    else if (key === "delete") actions.remove(a);
+    else if (key.startsWith("move:")) actions.move(a, key.slice(5));
+  };
+  // Clicks in the menu (rendered in a portal) still bubble through React to the card: stop them here.
+  return (
+    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} draggable={false} onDragStart={(e) => e.preventDefault()}>
+      <Dropdown trigger={["click"]} menu={{ items, onClick }}>
+        <Button type="text" size="small" icon={<MoreHorizontal size={16} />} aria-label={`Actions for ${jobName(a)}`} className={`!text-slate-400 hover:!text-ink ${className}`} />
+      </Dropdown>
+    </span>
+  );
+}
+
+function Card({ a, onOpen, actions, draggable = true }) {
   const step = nextStep(a);
   return (
-    <motion.button
+    <motion.div
       layout
-      type="button"
+      role="button"
+      tabIndex={0}
       draggable={draggable}
       onDragStart={(e) => e.dataTransfer.setData("text/plain", a._id)}
       onClick={() => onOpen(a._id)}
-      className="group block w-full rounded-xl border border-slate-200 bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,31,42,0.04)] transition hover:border-brand-200 hover:shadow-md"
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onOpen(a._id))}
+      className="group relative block w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,31,42,0.04)] transition hover:border-brand-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-brand-200 focus-visible:outline-none"
     >
-      <span className="line-clamp-2 block text-sm font-semibold text-ink">{jobName(a)}</span>
+      {actions ? <AppMenu a={a} actions={actions} className="!absolute top-1.5 right-1.5 opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" /> : null}
+      <span className="line-clamp-2 block pr-6 text-sm font-semibold text-ink">{jobName(a)}</span>
       {a.job?.title && a.job?.organisation ? <span className="block truncate text-xs text-slate-500">{a.job.organisation}</span> : null}
       <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <DeadlineChip deadline={a.job?.deadline} open={["saved", "preparing"].includes(a.status)} />
@@ -173,11 +218,11 @@ function Card({ a, onOpen, draggable = true }) {
           <ArrowRight size={12} className="shrink-0 text-brand" /> <span className="truncate">{step.label}</span>
         </span>
       ) : null}
-    </motion.button>
+    </motion.div>
   );
 }
 
-function Column({ status, apps, onOpen, onMove, children }) {
+function Column({ status, apps, onOpen, onMove, actions, children }) {
   const s = statusOf(status);
   const [over, setOver] = useState(false);
   return (
@@ -201,14 +246,14 @@ function Column({ status, apps, onOpen, onMove, children }) {
       </p>
       <div className="flex min-h-24 flex-col gap-2">
         <AnimatePresence initial={false}>
-          {apps.here.map((a) => <Card key={a._id} a={a} onOpen={onOpen} />)}
+          {apps.here.map((a) => <Card key={a._id} a={a} onOpen={onOpen} actions={actions} />)}
         </AnimatePresence>
       </div>
     </div>
   );
 }
 
-function Board({ apps, onOpen, onMove }) {
+function Board({ apps, onOpen, onMove, actions }) {
   const [showClosed, setShowClosed] = useState(false);
   const live = apps.filter((a) => !a.archived);
   const closed = live.filter((a) => CLOSED.includes(a.status));
@@ -216,7 +261,7 @@ function Board({ apps, onOpen, onMove }) {
   return (
     <>
       <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible md:px-0">
-        {BOARD.map((s) => <Column key={s} status={s} apps={{ here: byStatus(s), all: apps }} onOpen={onOpen} onMove={onMove} />)}
+        {BOARD.map((s) => <Column key={s} status={s} apps={{ here: byStatus(s), all: apps }} onOpen={onOpen} onMove={onMove} actions={actions} />)}
       </div>
       {closed.length ? (
         <div className="mt-6">
@@ -227,8 +272,8 @@ function Board({ apps, onOpen, onMove }) {
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {closed.map((a) => (
                 <div key={a._id} className="relative">
-                  <Card a={a} onOpen={onOpen} draggable />
-                  <StatusChip status={a.status} className="absolute top-2 right-2" />
+                  <Card a={a} onOpen={onOpen} actions={actions} draggable />
+                  <StatusChip status={a.status} className="pointer-events-none absolute right-9 bottom-3" />
                 </div>
               ))}
             </div>
@@ -239,7 +284,7 @@ function Board({ apps, onOpen, onMove }) {
   );
 }
 
-function ListView({ apps, onOpen }) {
+function ListView({ apps, onOpen, actions }) {
   const [filter, setFilter] = useState("active");
   const [q, setQ] = useState("");
   const rows = useMemo(() => {
@@ -266,6 +311,7 @@ function ListView({ apps, onOpen }) {
           { title: "Status", dataIndex: "status", render: (s) => <StatusChip status={s} />, sorter: (x, y) => STATUSES.findIndex((s) => s.id === x.status) - STATUSES.findIndex((s) => s.id === y.status) },
           { title: "Deadline", render: (_, a) => <DeadlineChip deadline={a.job?.deadline} open={ACTIVE.slice(0, 2).includes(a.status)} />, sorter: (x, y) => new Date(x.job?.deadline || 8.64e15) - new Date(y.job?.deadline || 8.64e15) },
           { title: "Next step", render: (_, a) => <span className="text-sm text-slate-500">{nextStep(a)?.label || "—"}</span> },
+          { title: "", width: 48, align: "right", render: (_, a) => <AppMenu a={a} actions={actions} /> },
         ]}
       />
     </div>

@@ -17,7 +17,7 @@ put on the **AI verification queue** (§4) to be checked against the real model 
 | F. AI plumbing (polish, Rewrite and Strengthen, assistant proposals) | Built, stub-tested; real-model checks on the queue (§4) |
 | G. Phase 4 (biodata, Bangla spike, reminders, Job Search Pass, .ics) | Done; Bangla CV decided against for now (`spikes/bangla-pdf.md`) |
 | H. Whole-product pass | Automated and browser checks done; go-live list below |
-| I. V2.1 and V2.2 early | Interview prep per application and search insights (Pro/Premium plan features); "Got the job?" adds an offer to the profile |
+| I. V2.1 and V2.2 early | Interview prep per application and search insights (Pro/Premium plan features); "Got the job?" adds an offer to the profile; an optional AI prep sheet for the job (`interviewAi`, one call, checked like polish) |
 
 **Before switching V2 on for everyone:** run the AI queue (§4); set up email (SMTP) and the
 two Cloud Scheduler jobs; review pricing-page wording once V2 shows its limits there; then turn on "V2 workspace for

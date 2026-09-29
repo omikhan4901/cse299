@@ -15,6 +15,7 @@ const AI_FEATURES = [
     { key: 'parse', name: 'Import resume', description: 'Add an old resume (PDF or Word), pasted text or your own words to a resume or your profile.' },
     { key: 'coverLetter', name: 'Cover letter', description: 'Write a cover letter for a specific job.' },
     { key: 'polish', name: 'AI polish for a job', description: 'Rewrite a tailored resume’s summary and top points in the job’s language, using only your facts.' },
+    { key: 'interviewAi', name: 'AI interview prep', description: 'Likely questions for this exact job, with answer outlines built on your own experience.', v2: true },
 ];
 
 // Non-AI features that plans can switch on or off.
@@ -53,7 +54,7 @@ const DEFAULTS = {
     v2: { enabled: false },
     // Job Search Pass (V2): one payment (Paddle's PADDLE_PRICE_PASS) for a plan for some days.
     pass: { enabled: false, plan: 'pro', days: 90 },
-    featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2, polish: 2 },
+    featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2, polish: 2, interviewAi: 3 },
     // What the AI provider charges, in US dollars per million tokens, by model (the name
     // Google reports, e.g. "gemini-2.5-flash"; "default" covers any other). For the AI
     // economics view only: check Google's price list and keep these current.
@@ -73,7 +74,7 @@ const DEFAULTS = {
         {
             id: 'free', name: 'Free', tagline: 'Everything you need for your first resume.',
             price: 0, yearlyPrice: 0, credits: 10, creditPeriod: 'day', highlight: false,
-            features: { ...allOn, parse: false, coverLetter: false, audit: false, polish: false, interviewPrep: false, insights: false },
+            features: { ...allOn, parse: false, coverLetter: false, audit: false, polish: false, interviewAi: false, interviewPrep: false, insights: false },
             limits: { applications: 5, tailored: 1, batch: 0 },
             perks: ['Live PDF builder', 'ATS-Optimized and Student templates', 'ATS check with keyword match', '10 AI credits a day'],
         },

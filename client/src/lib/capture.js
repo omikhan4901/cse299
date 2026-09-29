@@ -95,6 +95,9 @@ function findTitle(text, lines) {
 
 const ORG_SUFFIX = /\b(ltd|limited|plc|inc|llc|corp(?:oration)?|company|group|bank|university|college|school|institute|foundation|ngo|agency|ministry|directorate|department|bureau|authority|commission|hospital|pvt|private|telecom|bangladesh|technologies|solutions|software|systems|labs?|studio|consult(?:ing|ants)?)\b/i;
 
+// Email providers anyone can use: their domain says nothing about the employer.
+const FREE_MAIL = new Set(["gmail", "yahoo", "hotmail", "outlook", "live", "icloud", "aol", "proton", "protonmail", "ymail", "mail", "gmx", "zoho", "bdjobs", "linkedin", "google", "forms", "docs", "bit", "tinyurl"]);
+
 function findOrganisation(text, lines, title) {
   const labelled = field(text, "company(?: name)?|organi[sz]ation(?: name)?|employer|institution|প্রতিষ্ঠানের নাম|প্রতিষ্ঠান|অফিসের নাম");
   if (labelled) return labelled;
@@ -103,7 +106,11 @@ function findOrganisation(text, lines, title) {
   const invites = text.match(/((?:[A-Z][\w&.'-]*[ ]?){1,7})\s+(?:is (?:looking|seeking|hiring)|invites|is inviting|seeks)/);
   if (invites) return clean(invites[1]);
   const org = lines.slice(0, 8).find((l) => l !== title && ORG_SUFFIX.test(l) && l.split(/\s+/).length <= 10 && !ROLE.test(l.replace(ORG_SUFFIX, "")));
-  return org ? clean(org) : "";
+  if (org) return clean(org);
+  // Last resort: the company's own email or web domain ("career@relisource.com" → "Relisource").
+  const domain = text.match(/@([a-z0-9-]+)\.[a-z.]{2,}|https?:\/\/(?:www\.)?([a-z0-9-]+)\./i);
+  const name = (domain?.[1] || domain?.[2] || "").toLowerCase();
+  return name && name.length >= 3 && !FREE_MAIL.has(name) ? name[0].toUpperCase() + name.slice(1) : "";
 }
 
 const CITIES = ["Dhaka", "Chattogram", "Chittagong", "Sylhet", "Khulna", "Rajshahi", "Barishal", "Barisal", "Rangpur", "Mymensingh", "Gazipur", "Narayanganj", "Cumilla", "Comilla", "Cox's Bazar", "Bogura", "Savar", "Jessore", "Jashore", "Dinajpur"];
@@ -162,9 +169,10 @@ export function captureJob(input, { now = new Date() } = {}) {
   let deadline = findDeadline(text);
   // A deadline long past is more likely a misread (e.g. a publication date) than a real one.
   if (deadline && new Date(deadline) < new Date(now.getTime() - 365 * 864e5)) deadline = "";
+  const organisation = findOrganisation(text, lines, title);
   return {
     title,
-    organisation: findOrganisation(text, lines, title),
+    organisation,
     deadline,
     location: findLocation(text),
     jobType: findJobType(text),
@@ -172,6 +180,6 @@ export function captureJob(input, { now = new Date() } = {}) {
     applyVia: findApplyVia(text),
     email,
     url,
-    keywords: jobKeywords(text).slice(0, 25).map((k) => k.name),
+    keywords: jobKeywords(text, { ignore: [organisation].filter(Boolean) }).slice(0, 25).map((k) => k.name),
   };
 }

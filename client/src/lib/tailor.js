@@ -48,9 +48,9 @@ const budgetFor = (profile) => {
  * Chooses what goes into the resume. Returns a plan:
  *   { select: { [section]: [profile ids] }, points: { [item id]: [points] }, summary, skills }
  */
-export function planFor(profileIn, jobText, { now = new Date() } = {}) {
+export function planFor(profileIn, jobText, { now = new Date(), ignore = [] } = {}) {
   const profile = normalizeResume(profileIn);
-  const keywords = jobKeywords(jobText);
+  const keywords = jobKeywords(jobText, { ignore });
   const academic = ACADEMIC.test(jobText.slice(0, 600));
   const budget = budgetFor(profile);
   const select = {};
@@ -129,8 +129,8 @@ export function tailor(profileIn, jobText, opts = {}) {
   const profile = normalizeResume(profileIn);
   const plan = planFor(profileIn, jobText, opts);
   const content = contentFrom(profileIn, plan);
-  const before = jobMatch(resumeFromProfile(profileIn), jobText);
-  const after = jobMatch(content, jobText);
+  const before = jobMatch(resumeFromProfile(profileIn), jobText, null, { ignore: opts.ignore });
+  const after = jobMatch(content, jobText, null, { ignore: opts.ignore });
   // Keywords missing from the tailored resume that the profile does have, and where.
   const findable = (after?.missing || []).map((name) => ({ name, at: locate(profile, name, jobText) })).filter((x) => x.at);
   const count = (list) => list.reduce((n, s) => n + (plan.select[s]?.length || 0), 0);

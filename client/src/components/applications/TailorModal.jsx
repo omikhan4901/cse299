@@ -24,11 +24,20 @@ export default function TailorModal({ open, onClose, apps, token, onDone }) {
   const [profile, setProfile] = useState(undefined);
   const [resumes, setResumes] = useState(null);
 
+  // Picks from the Career Profile; without one, a single job can still be tailored from the
+  // resume chosen for it (same content shape).
+  const single = apps.length === 1 ? apps[0] : null;
   useEffect(() => {
     if (!open) return;
-    api("/profile", { token }).then((d) => setProfile(d.data)).catch(() => setProfile(null));
+    api("/profile", { token })
+      .then(async (d) => {
+        if (d.data || !single?.resume) return setProfile(d.data);
+        const r = await api(`/resumes/${single.resume}`, { token }).catch(() => null);
+        setProfile(r?.data ? { ...r.data, fromResume: r.data.nickname || "your resume" } : null);
+      })
+      .catch(() => setProfile(null));
     api("/resumes", { token }).then((d) => setResumes(d.data)).catch(() => setResumes([]));
-  }, [open, token]);
+  }, [open, token, single?.resume]);
 
   const tailoredCount = resumes?.filter((r) => r.tailoredFor).length || 0;
   const templateFor = (category) => {
@@ -42,8 +51,8 @@ export default function TailorModal({ open, onClose, apps, token, onDone }) {
         <Skeleton active paragraph={{ rows: 6 }} />
       ) : !profile ? (
         <div className="py-4 text-center">
-          <h2 className="font-display text-lg font-bold text-ink">Set up your Career Profile first</h2>
-          <p className="mt-1 text-sm text-slate-500">Tailored resumes are picked from everything in your profile.</p>
+          <h2 className="font-display text-lg font-bold text-ink">{single ? "Choose a resume or set up your profile" : "Set up your Career Profile first"}</h2>
+          <p className="mt-1 text-sm text-slate-500">{single ? "Tailoring picks from your Career Profile, or from the resume you choose for this job." : "Tailored resumes are picked from everything in your profile."}</p>
           <Button type="primary" className="!mt-5" href="/career">Go to my profile</Button>
         </div>
       ) : apps.length === 1 ? (
@@ -79,11 +88,12 @@ function One({ app, profile, token, templateFor, tailoredCount, onDone, onClose 
   const router = useRouter();
   const billing = useBilling();
   const text = app.job?.description || "";
-  const first = useMemo(() => tailor(profile, text), [profile, text]);
+  const ignore = useMemo(() => [app.job?.organisation].filter(Boolean), [app.job?.organisation]);
+  const first = useMemo(() => tailor(profile, text, { ignore }), [profile, text, ignore]);
   const [plan, setPlan] = useState(first.plan);
   const [busy, setBusy] = useState(false);
   const content = useMemo(() => contentFrom(profile, plan), [profile, plan]);
-  const after = useMemo(() => jobMatch(content, text), [content, text]);
+  const after = useMemo(() => jobMatch(content, text, null, { ignore }), [content, text, ignore]);
   const findable = first.report.findable.filter((f) => after?.missing.includes(f.name));
   const notInProfile = (after?.missing || []).filter((m) => !first.report.findable.some((f) => f.name === m));
 
@@ -107,7 +117,7 @@ function One({ app, profile, token, templateFor, tailoredCount, onDone, onClose 
       <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-teal-600 text-white shadow-md shadow-brand/25"><Wand2 size={18} /></span>
       <h2 className="mt-4 font-display text-lg font-bold text-ink">Tailored for {jobName(app)}</h2>
       <p className="text-sm text-slate-500">
-        Picked from your profile: {p.jobs[0]} of {p.jobs[1]} jobs, {p.points[0]} of {p.points[1]} points{p.projects[1] ? `, ${p.projects[0]} of ${p.projects[1]} projects` : ""}. The skills this job asks for come first.
+        Picked from {profile.fromResume ? `“${profile.fromResume}”` : "your profile"}: {p.jobs[0]} of {p.jobs[1]} jobs, {p.points[0]} of {p.points[1]} points{p.projects[1] ? `, ${p.projects[0]} of ${p.projects[1]} projects` : ""}. The skills this job asks for come first.
       </p>
       <div className="mt-4">
         <Meter before={first.report.before} after={after?.score ?? null} />
@@ -129,11 +139,14 @@ function One({ app, profile, token, templateFor, tailoredCount, onDone, onClose 
           Not in your profile: {notInProfile.slice(0, 8).join(", ")}. If you have {notInProfile.length === 1 ? "it" : "them"}, add {notInProfile.length === 1 ? "it" : "them"} to your profile first; tailoring never makes things up.
         </p>
       ) : null}
-      <div className="mt-6 flex justify-end gap-2">
-        <Button onClick={onClose}>Cancel</Button>
-        <Button type="primary" loading={busy} icon={<ArrowRight size={15} />} iconPlacement="end" onClick={create}>
-          Create and open
-        </Button>
+      <div className="mt-6 flex items-center justify-between gap-2">
+        <span className="text-xs text-slate-400">Free, no AI credits</span>
+        <div className="flex gap-2">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="primary" loading={busy} icon={<ArrowRight size={15} />} iconPlacement="end" onClick={create}>
+            Create and open
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -142,7 +155,7 @@ function One({ app, profile, token, templateFor, tailoredCount, onDone, onClose 
 function Many({ apps, profile, token, templateFor, tailoredCount, onDone, onClose }) {
   const { message } = App.useApp();
   const billing = useBilling();
-  const results = useMemo(() => apps.map((a) => ({ a, t: tailor(profile, a.job?.description || "") })), [apps, profile]);
+  const results = useMemo(() => apps.map((a) => ({ a, t: tailor(profile, a.job?.description || "", { ignore: [a.job?.organisation].filter(Boolean) }) })), [apps, profile]);
   const [picked, setPicked] = useState(() => new Set(apps.map((a) => a._id)));
   const [busy, setBusy] = useState(false);
   const [polish, setPolish] = useState(false);

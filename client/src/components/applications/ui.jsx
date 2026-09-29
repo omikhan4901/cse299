@@ -1,7 +1,8 @@
 "use client";
 
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Zap } from "lucide-react";
 import { daysUntil, statusOf } from "@/lib/applications";
+import { useBilling } from "../BillingProvider";
 
 /** Status colours: one quiet tone per status, used for dots, chips and column headers. */
 export const TONE = {
@@ -39,3 +40,14 @@ export function DeadlineChip({ deadline, open = true }) {
 }
 
 export const jobName = (a) => a.job?.title || a.job?.organisation || "Untitled";
+
+/** An AI action's credit cost, inline ("⚡ 2"), from the admin's settings. */
+export function Cost({ feature, className = "" }) {
+  const n = useBilling()?.costOf(feature);
+  if (n == null) return null;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium text-slate-500 ${className}`}>
+      <Zap size={11} className="fill-amber-400 text-amber-500" /> {n === 0 ? "Free" : n}
+    </span>
+  );
+}

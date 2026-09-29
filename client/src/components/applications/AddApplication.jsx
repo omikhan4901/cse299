@@ -79,7 +79,7 @@ export default function AddApplication({ open, onClose, token, onCreate }) {
             <Briefcase size={18} />
           </span>
           <h2 className="mt-4 font-display text-lg font-bold text-ink">Add an application</h2>
-          <p className="text-sm text-slate-500">Paste the job link or the whole circular. We&apos;ll pick out the title, organisation and deadline.</p>
+          <p className="text-sm text-slate-500">Paste the job link or the whole circular. We&apos;ll pick out the title, organisation and deadline. Free, no AI credits.</p>
           <Input.TextArea
             className="!mt-4"
             value={input}
@@ -104,7 +104,10 @@ export default function AddApplication({ open, onClose, token, onCreate }) {
           </button>
           <h2 className="mt-3 font-display text-lg font-bold text-ink">{found.title || found.organisation ? "Is this right?" : "Add the details"}</h2>
           <div className="mt-4 space-y-3">
-            <Input size="large" placeholder="Job title" value={found.title} onChange={set("title")} prefix={<Briefcase size={15} className="text-slate-400" />} />
+            <div>
+              <Input size="large" placeholder="Job title" autoFocus={!found.title} status={found.description && !found.title.trim() ? "warning" : undefined} value={found.title} onChange={set("title")} prefix={<Briefcase size={15} className="text-slate-400" />} />
+              {found.description && !found.title.trim() ? <p className="mt-1 text-xs text-amber-700">We couldn&apos;t spot the job title. Add it: the match and interview prep use it.</p> : null}
+            </div>
             <Input placeholder="Organisation" value={found.organisation} onChange={set("organisation")} />
             <div className="grid grid-cols-2 gap-3">
               <label className="block">

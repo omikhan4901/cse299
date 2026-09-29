@@ -134,6 +134,7 @@ Scale: ●●● high, ●● medium, ● low. AI cost is per use.
 | Bangla-language CV | ●● | Local jobs asking for Bangla | none | ●●● (PDF text shaping risk) | ● | ● | ●●● | **Spike first** (see risks) |
 | Public profile page (portfolio link) | ●● | Students, developers | none | ●● (share links exist) | ●● | ● | ● | V2.1 |
 | Interview prep (question bank per role, deterministic) | ●● | People with interviews | none | ●● (content work) | ●● | ● | ● | V2.1 |
+| AI prep sheet for one job (owner's request, Sept 2026) | ●● | People with interviews | 1 call, credits | ● (reuses the checks) | ●● | ● | ● | **Yes, one call**: likely questions and answer outlines for that job; quotes must be the person's own lines and outline lines that name facts from neither the resume nor the job are dropped. A one-shot sheet, not a coach |
 | AI mock interview / interview coach | ● (quality hard to guarantee) | — | high, many turns | ●●● | ● | ● | ● | **No** |
 | Salary predictor | ● (no reliable BD data) | — | — | ●● | ● | ● | ● | **No** |
 | Job feed / scraping job boards | ●●● if legal | — | — | ●●● and legal/ToS risk | ●●● | ●● | ●● | **No** until partnerships |
@@ -465,7 +466,7 @@ Don't build streaks, badges or daily engagement mechanics; they don't fit the ta
 
 ## 9. Explicitly not in V2
 
-AI mock interviews or interview coach; salary predictor; scraping job boards or LinkedIn;
+AI mock interviews or a many-turn interview coach (the one-call prep sheet in §4 is not one); salary predictor; scraping job boards or LinkedIn;
 auto-apply; document vault for sensitive files; email, calendar or LinkedIn integrations;
 networking CRM; community features; gamification; a native mobile app (the site works on
 mobile); more AI features of the "AI ___ generator" kind.
@@ -484,7 +485,7 @@ next one slips.
 | **2. Applications** | Tracker (capture from text/link, statuses, board and list, snapshot on Applied, checklist, contacts, notes), home "what to do today", in-app reminders, free limit of 5 active | The retention engine; no AI cost | ~2–3 weeks |
 | **3. Tailoring** | Deterministic tailoring from profile to job with match report; Pull updates / Save to profile; AI polish priced up front; batch with estimate and per-job refunds; cover letter from application | The "n resumes from one profile" promise, cheap to run | ~2–3 weeks |
 | **4. Bangladesh and reach** | Biodata templates, Bangla/English circular parsing, email digests (Cloud Scheduler), country pricing, Job Search Pass | Differentiation and conversion | ~2 weeks |
-| **V2.1** | Version compare, public profile page, deterministic interview prep per role (**built**: prep sheet per application, Pro), .ics export (**built**), Bangla CV (spike failed: not yet) | Valuable, not foundational | partly done |
+| **V2.1** | Version compare, public profile page, deterministic interview prep per role (**built**: prep sheet per application, Pro; plus an optional one-call AI sheet for the job, 3 credits by default), .ics export (**built**), Bangla CV (spike failed: not yet) | Valuable, not foundational | partly done |
 | **V2.2 Outcome insights** (**built early**: dashboard, after 8 applications sent, groups of 3+, Pro) | Learn from the user's own history: "23 software applications, 5 interviews; resume B → 3 interviews"; "interviews from 4 of 12 applications that included Project X". Shown only above a minimum sample, worded as observations, never as advice | A moat built from first-party outcome data; needs months of tracked applications first | later |
 
 ### Success measures

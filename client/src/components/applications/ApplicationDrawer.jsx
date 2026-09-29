@@ -18,6 +18,8 @@ import { StatusChip } from "./ui";
 import TailorModal from "./TailorModal";
 import InterviewPrep from "./InterviewPrep";
 import PlanTag from "../billing/PlanTag";
+import { CreditTooltip } from "../Credits";
+import { Cost } from "./ui";
 
 const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 const fmt = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -125,7 +127,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
   const steps = checklistFor(a);
   const step = nextStep(a);
   const tick = (key, value = true) => save({ checklist: { [key]: value } }, { checklist: { ...(a.checklist || {}), [key]: value ? new Date().toISOString() : undefined } });
-  const match = useMemo(() => (resume && a.job.description ? jobMatch(resume, a.job.description, profile || null) : null), [resume, a.job.description, profile]);
+  const match = useMemo(() => (resume && a.job.description ? jobMatch(resume, a.job.description, profile || null, { ignore: [a.job.organisation] }) : null), [resume, a.job.description, profile, a.job.organisation]);
 
   const doStep = (s) => {
     if (s.key === "description") return setShowJob(true);
@@ -287,10 +289,13 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
               <Button icon={<FilePlus2 size={14} />} loading={making} onClick={makeFromProfile}>From my profile</Button>
             ) : null}
           </div>
-          {profile && a.job.description && !a.snapshot?.at ? (
-            <Button className="!mt-3" type={a.resume ? "default" : "primary"} icon={<Wand2 size={15} />} onClick={() => setTailoring(true)}>
-              {a.resume ? "Tailor a new one for this job" : "Tailor a resume for this job"}
-            </Button>
+          {a.job.description && (profile || a.resume) ? (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Button type={a.resume ? "default" : "primary"} icon={<Wand2 size={15} />} onClick={() => setTailoring(true)}>
+                {a.resume ? "Tailor a version for this job" : "Tailor a resume for this job"}
+              </Button>
+              <span className="text-xs text-slate-400">Free, no AI credits</span>
+            </div>
           ) : null}
           {a.snapshot?.at && a.resume ? (
             <button type="button" className="mt-2 text-xs text-slate-400 hover:text-brand" onClick={() => api(`/applications/${a._id}/snapshot`, { token, method: "POST" }).then((d) => setFull(d.data)).then(() => message.success("Sent copy replaced with the current version"))}>
@@ -320,6 +325,16 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
               {match.score != null ? <li className="pt-1 text-xs text-slate-400">Keyword coverage {match.score}%. A guide, not a pass mark.</li> : null}
             </ul>
           )}
+          {/* Only when tailoring would help: the profile has skills this resume leaves out. */}
+          {match && match.score != null && match.score < 70 && match.inProfile?.length ? (
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/50 px-3 py-2.5">
+              <Wand2 size={16} className="shrink-0 text-brand" />
+              <p className="min-w-0 flex-1 text-sm text-slate-700">
+                Your profile has {match.inProfile.slice(0, 3).join(", ")}. A tailored version puts {match.inProfile.length === 1 ? "it" : "them"} first.
+              </p>
+              <Button size="small" type="primary" onClick={() => setTailoring(true)}>Tailor</Button>
+            </div>
+          ) : null}
         </Section>
       ) : null}
 
@@ -366,11 +381,15 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
       <Section
         title="Cover letter"
         action={AI_ENABLED ? (
-          <Button size="small" type="link" className="!px-0" icon={<Sparkles size={13} />} onClick={() => {
-            if (!resume) return message.info("Choose a resume first: the letter is written from it.");
-            if (billing && !billing.requireFeature("coverLetter", "The cover letter writer")) return;
-            setCoverOpen(true);
-          }}>Write with AI</Button>
+          <CreditTooltip feature="coverLetter">
+            <Button size="small" type="link" className="!px-0" icon={<Sparkles size={13} />} onClick={() => {
+              if (!resume) return message.info("Choose a resume first: the letter is written from it.");
+              if (billing && !billing.requireFeature("coverLetter", "The cover letter writer")) return;
+              setCoverOpen(true);
+            }}>
+              Write with AI <Cost feature="coverLetter" /> <PlanTag feature="coverLetter" />
+            </Button>
+          </CreditTooltip>
         ) : null}
       >
         <Input.TextArea
@@ -394,7 +413,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
         )}
       </Section>
 
-      <InterviewPrep open={prepOpen} onClose={() => setPrepOpen(false)} app={a} profile={profile} resume={resume} prepared={!!a.checklist?.interviewPrep} onPrepared={() => tick("interviewPrep")} />
+      <InterviewPrep open={prepOpen} onClose={() => setPrepOpen(false)} app={a} profile={profile} resume={resume} token={token} prepared={!!a.checklist?.interviewPrep} onPrepared={() => tick("interviewPrep")} onAi={(prepAi) => setFull((f) => (f ? { ...f, prepAi } : f))} />
       <TailorModal open={tailoring} onClose={() => setTailoring(false)} apps={[a]} token={token} />
       <SentCopy open={sentOpen} onClose={() => setSentOpen(false)} snapshot={a.snapshot} />
       {coverOpen && resume ? (
