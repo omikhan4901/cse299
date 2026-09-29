@@ -1,189 +1,158 @@
-# Beta readiness plan
+# Beta readiness plan (revised)
 
-Goal: open ResumeX (V2 included) to a few hundred university students, many of them CSE
-graduates who will poke at it, without losing money, data or uptime. Nothing here is
-built until the owner says go. Each phase ends with its tests green, lint and build
-clean, a browser check, and a push.
+Goal: an invite-only beta for about 80 university students (many CSE graduates who will
+poke at everything), with V2 on for everyone, on a budget of about $50 of Google Cloud
+credit and the free MongoDB tier, without losing money, data or uptime.
 
-Principles: money is protected by the server, never only the UI; every limit is an
-admin setting, not a constant; anything that can be abused gets a limit and a test; the
-calm, uncluttered look stays.
+**Rules for the whole plan**
+- Money and access are enforced by the server; the UI only explains them up front.
+- Every number and switch introduced here is an admin setting with a sensible default,
+  shown where it applies, recorded in the audit log when changed.
+- Every new route gets a rate limit, server tests and fuzz coverage; `access.js` stays
+  identical to the server (parity test); every user-facing change is checked in a browser.
+- The calm look stays: one clear next action per screen, the site's own card markup.
+- I decide the details myself and note each decision here; I only ask about pricing, what's
+  free, and legal wording.
 
----
+## Decisions (from the owner)
 
-## Phase 1. Money safety (first, because it protects everything else)
-
-**1.1 Monthly AI spending cap (item A)**
-- Admin › Credits & access: "Pause AI when this month's AI cost reaches $___" and "Email me
-  at __%". Defaults: $40 cap, 80% alert.
-- The cost is the real one: tokens logged per request × the model prices in the AI cost
-  table. A running month total is kept in the database (one document per month, added to
-  after each call), so it holds across server instances and restarts.
-- When the cap is reached: AI requests are refused before any credit or token is spent,
-  with a calm "AI is paused until {date}" message; the builder, ATS check, tracker and
-  everything else keep working. Admins are exempt so you can test.
-- Option to pause only Free and campaign users first (soft cap), everyone at the hard cap.
-- Admin also gets a manual "Pause AI now" switch (an emergency brake).
-- Overrun is bounded: at most the requests already running when the cap is hit, which the
-  input and output limits below keep to cents.
-
-**1.2 Input and output limits on every AI feature (your "word limit" idea)**
-Yes, and it's the best cost control there is. Three layers, all admin-adjustable per feature:
-- **Input limits, in characters** (words don't work for Bangla or pasted code): e.g.
-  assistant message 1,500 and the last 10 turns only; rewrite 3,000; job descriptions
-  8,000; Add anything text 15,000; files 10 pages. The UI shows a live counter
-  ("1,240 / 1,500") and the server refuses anything longer before calling the AI, with no
-  charge. A pasted Bee Movie script is stopped at the door.
-- **Output caps** (`maxOutputTokens`) per feature, sized to what each really needs.
-- **Thinking budget**: Gemini 2.5 Flash "thinks" before answering and bills those tokens as
-  output (the expensive side). Simple tasks (rewrite, assistant, cover letter) get a small
-  or zero thinking budget; imports keep enough to stay accurate. I'll check each feature's
-  quality with the stubbed tests and a small live comparison you approve first.
-- Result: every feature has a known **worst-case cost per request**, which makes 1.1 and
-  1.3 exact instead of guesses.
-
-**1.3 Campaign feature switches + worst-case cost (item C)**
-- Campaigns get "AI features members can use": ticks per feature (e.g. everything except
-  interview prep and cover letters), on top of the plan. Enforced on the server, shown up
-  front in the UI (locks, plan tags, upgrade dialog), and kept identical in
-  `client/src/lib/access.js` (parity test).
-- The campaign form shows, as you type: **worst case** = places × credits per period ×
-  periods in the campaign × the highest worst-case cost per credit among the allowed
-  features, next to a **typical** figure (25% use) and your remaining monthly AI cap. A
-  warning appears when the worst case is above the cap, and a louder one for "per day"
-  credits.
-- Campaign list shows spend so far (from the AI cost logs) per campaign.
-
-**1.4 Payments switch (item 3)**
-- Admin › Payments: Off / Test / Live. Off: no checkout, no plan changes, no pass; the
-  pricing page shows plans with "Coming soon" instead of buttons; the server refuses
-  checkout and change-plan too (so nobody can call the API directly). Webhooks still
-  processed, so test data stays consistent. Test mode shows a small "test" note to admins.
-
-## Phase 2. Plans and storage
-
-**2.1 Resumes per plan (item 1)**
-- New plan limit "Resumes": Pro 15, Premium 30, Free: your call (I suggest 3). Editable in
-  Admin › Plans, shown on the pricing page, enforced on create/duplicate/import/tailor on
-  the server, with the upgrade dialog (and its preview) when reached. Existing resumes over
-  the limit are kept, only new ones are blocked. Replaces today's flat 50 cap.
-- Campaign plans and free mode follow the same rules as every other limit.
-
-**2.2 Storage**
-- Photos are stored inside each resume (up to 3 MB each today). Compress on upload to about
-  200 KB and leave them out of application snapshots (the snapshot keeps a reference), which
-  is most of the storage per user.
-- Admin overview gets "storage used" and "biggest accounts".
-
-## Phase 3. Hardening against abuse and load
-
-**3.1 Heavy work off the main thread**
-- Today PDF and Word reading runs on the server's only thread: a crafted PDF can freeze the
-  API for everyone even after the 20 s timeout (the timeout stops waiting, not the work).
-  Move file reading to a worker pool with a hard kill, memory and page limits. Covers the
-  ATS checker, imports and Add anything. Also a zip-bomb guard for Word files.
-
-**3.2 Sign-up farming** (someone making 50 accounts for free credits)
-- AI credits only after the email is verified (the verification code already exists).
-- Block throwaway email domains (a maintained list, admin-editable).
-- Per-network sign-up limit already exists; campaigns can require a university domain.
-
-**3.3 Campus networks**
-- A whole lab behind one Wi-Fi address shares one per-address limit today (600 requests a
-  minute for everything). Raise per-address ceilings for signed-in traffic and lean on
-  per-account limits, so one campus doesn't lock itself out; keep strict per-address limits
-  for sign-up, login and the public ATS checker.
-
-**3.4 Many server instances**
-- Cloud Run is set to 1 instance. For the beta: 3 to 5 instances, concurrency tuned, 1 GB
-  memory. Rate limits are counted in memory per instance, so the important ones (AI burst,
-  sign-up, login) move to the database; the rest stay in memory (fine per instance).
-- Check database indexes on every hot query, connection pool size, and slow-query logging.
-- Graceful shutdown and a readiness check so deploys don't drop requests.
-
-**3.5 Security review** (written up, each finding fixed or explained)
-OWASP top ten against every route: access to other people's data (IDOR), NoSQL injection,
-XSS on public resume pages and in PDF text, CSRF (token auth), open redirects, JWT and
-session revocation, 2FA bypass, password reset, campaign code guessing, share-link
-enumeration, webhook signatures, file uploads, headers (CSP, HSTS), secrets, error messages
-that leak internals, and the admin console.
-
-## Phase 4. Testing, rigorously
-
-- **Load tests** (autocannon, against a local copy with the stubbed AI): 300 users signing
-  in, editing, autosaving, capturing jobs and exporting at once; spikes; a slow database;
-  the AI slow or down; Paddle down. Targets: no errors under the expected peak, p95 under
-  300 ms for normal requests, graceful "busy" messages above it, memory flat over 30 min.
-- **Abuse tests**: huge and malformed bodies, deep JSON, crafted PDFs and Word files,
-  endless redirects on job links, parallel requests racing for credits, campaign places and
-  plan limits, many tabs editing the same resume, clock edge cases (month end, time zones).
-- **End-to-end browser tests** (Playwright) for every main journey on desktop and phone:
-  sign up, verify, build, import, ATS, tailor, applications, interview prep, share, export,
-  upgrade prompts, free mode on and off, campaign sign-up, deleting an account.
-- **AI routes** keep using the stubbed model; one small live check at the end, only with your OK.
-- Everything added to the suite stays fast (the suite stays around 4 to 5 minutes).
-
-## Phase 5. Beta finishing touches (my additions)
-
-- **In-app feedback**: a small "Feedback" button (with an optional screenshot of the page and
-  the page address), stored for you in an Admin › Feedback inbox. Beta testers will find
-  things; this makes them easy to report.
-- **Error reporting**: browser errors and server 500s collected (rate-limited, no personal
-  data) into an Admin › Errors view, so you see problems before users tell you.
-- **Beta label** and a short "what's new / known issues" note.
-- **Maintenance switch**: read-only mode with a banner, for risky moments.
-- **Backups**: confirm the database's automatic backups, and a one-command export for you.
-- **Status**: a simple public status line on the site when AI is paused or in maintenance.
-
-## Phase 6. Public pages (item 2)
-
-- Pricing: resumes per plan, applications, tailored resumes, batches, interview prep (and
-  the AI one), insights, the new "See it" previews, credit costs, the payments switch state.
-- Home, About, FAQ, templates, guides: an applications/tailoring section and FAQ entries
-  (the "Job search" content exists but is hidden until V2 is on for everyone, as the
-  standing rule says public pages only claim what visitors can use). For the beta you
-  switch V2 on, and all of it appears together. Sitemap, meta descriptions and structured
-  data updated.
-- Legal: privacy policy (job descriptions and recruiter contacts people store; feedback and
-  error reports; AI limits), terms (beta, fair use, limits), refunds (payments off during beta).
-
-## Phase 7. Marketing (items 4 and 5)
-
-- Update the marketing plan, Facebook posts, outreach templates and README with everything
-  since the last pass: V2 (profile, tracker, tailoring, interview prep, insights, previews,
-  Add anything, the assistant), a beta launch sequence for universities, ambassador and
-  campaign codes.
-- **Animated mockups for Facebook**: short loops (8 to 15 s) made from the real app with sample
-  data, recorded in the browser and exported as MP4 (square 1080×1080 and 4:5 1080×1350) plus
-  GIF: the builder with live preview, the ATS scan, job capture to board, tailoring for a job,
-  interview prep, and the templates carousel. Each with post copy.
+| Topic | Decision |
+|---|---|
+| Beta size | Invite-only, **80 sign-ups** (Registration: campaign only; one campaign, 80 places) |
+| Free plan | **Builder only**: 1 resume, ATS check, the assistant and rewrite on its credits. Career Profile, Applications (with tailoring, interview prep, insights) are **paid or campaign only**; Free users see animated previews and an upgrade button in those tabs |
+| Resumes per plan | Free 1, Pro 15, Premium 30 (editable) |
+| AI spending cap | Default **$40/month**; when reached, **AI pauses for everyone** (admins exempt) |
+| AI credits | Only after the **email is verified** |
+| Servers | Cloud Run up to **2 instances** for the beta (bounded worst case), budget alerts at $20/$35/$45 |
+| Database | MongoDB Atlas **M0 (free)**: 512 MB, no backups, so storage is actively managed |
+| V2 | On for everyone at the beta |
+| Payments | Admin switch; while off the pricing page says **"Coming soon"** |
+| Campaign credits | Suggested **60 per month** each (worst case about $28–48) |
+| Mockups | Several formats: 1:1, 4:5, 9:16 MP4 and a wide GIF |
 
 ---
 
-## Order and rough effort
+## Phase 1. Money safety
 
-| Phase | What | Effort |
-|---|---|---|
-| 1 | Money safety: cap, limits, campaign switches + estimate, payments switch | 2–3 days |
-| 2 | Resumes per plan, storage | 1 day |
-| 3 | Hardening: workers, sign-ups, campus limits, instances, security review | 2–3 days |
-| 4 | Load, abuse and end-to-end tests (and fixing what they find) | 2–3 days |
-| 5 | Feedback, errors, beta label, maintenance, backups | 1–2 days |
-| 6 | Pricing and public pages, legal | 1 day |
-| 7 | Marketing refresh and animated mockups | 1–2 days |
+1. **Monthly AI spending cap.** The month's real AI cost (tokens × model prices, kept as one
+   running total per month in the database, so it holds across instances). Settings: cap
+   ($40), alert at (80%), who is exempt (admins). At the cap every AI request is refused
+   before any credit or token is spent ("AI is paused until 1 Nov"); everything else keeps
+   working. Email to the owner at the alert and at the cap. Admin › AI costs shows spend vs
+   cap with a bar, the day it will run out at the current rate, and a manual **Pause AI** /
+   **Resume** switch.
+2. **Input, output and thinking limits per AI feature** (Admin › Credits & access, one row per
+   feature): max characters in (the assistant also: max message length and turns kept), max
+   file pages, max output tokens, thinking budget. Live counters in the UI; over-long input
+   refused before the AI is called, with no charge. Each feature then has a computed
+   **worst-case cost per request**, shown next to its credit cost, with a warning when a
+   credit is priced below what it can cost.
+3. **Model prices kept right.** The AI cost table gets `gemini-2.5-flash` and the fallback
+   model by default, and warns (as now) about unpriced models, since the cap depends on them.
+4. **Campaign feature switches and cost estimate.** Per campaign: the AI and app features its
+   members get (overriding the plan either way), credits and period, places, duration,
+   email domain, end date. The form computes, live: worst case (places × credits × periods ×
+   the highest worst-case cost per credit among allowed features), a typical case (25% use),
+   and how it compares to the remaining AI cap, with warnings. The campaign list shows
+   sign-ups, active members and AI spend so far.
+5. **Payments switch**: Off / Test / Live. Off: no checkout, plan changes or passes (server
+   refuses them); pricing shows "Coming soon". Webhooks still processed. Test: only admins
+   (and accounts you mark as testers) can open checkout.
+6. **Sign-up controls**: registration mode (open / campaign only / closed, exists), a hard
+   **"close sign-ups after N accounts"**, the campaign's own places, and email verification
+   required before credits.
 
-Phases 1 to 4 are what make the beta safe; 5 to 7 make it good. I'd do them in this order
-and report after each.
+## Phase 2. Plans, access and storage
 
-## Decisions needed from you
+1. **Resumes per plan** as a plan limit (Free 1, Pro 15, Premium 30), replacing the flat 50.
+   Enforced on create, duplicate, import and tailoring; existing resumes over the limit are
+   kept, only new ones blocked; upgrade dialog with preview; shown on pricing.
+2. **Career Profile and Applications as plan features** (off on Free). Server refuses every
+   profile/applications/tailoring/prep/insights route for accounts without it. Free users
+   see a promo page in those tabs (the animated previews, what they get, upgrade button), a
+   small promo in the dashboard's Today panel, and plan tags in the menu. Campaign switches
+   can turn them on.
+3. **Per-user overrides** in Admin › Users: plan and expiry (exists), credits (exists),
+   resume limit, features on/off, AI blocked, V2 on/off, "tester" (can use test payments).
+4. **Storage**: photos compressed on upload (about 200 KB, done in the browser, server
+   refuses larger), photos left out of application snapshots, per-account storage caps
+   (resumes × size), and Admin › Overview storage meter (MB used of 512, biggest accounts),
+   alert at 70%.
 
-1. **Free plan resumes**: how many? (I suggest 3.)
-2. **AI cap**: $40 of your $50 as the default? Pause everyone, or Free and campaign users
-   first and paying users only at the hard cap?
-3. **Verified email before AI credits**: OK? (Recommended for the beta.)
-4. **Database**: which MongoDB Atlas tier are you on (the free M0 has 512 MB)? That sets how
-   hard to push on storage.
-5. **Cloud Run**: OK to allow up to 3–5 instances? They cost nothing when idle, a little when busy.
-6. **Beta and V2**: will V2 be on for everyone at the beta? (Decides what the public pages show.)
-7. **Payments off**: pricing page shows plans with "Coming soon", or hides prices entirely?
-8. **Facebook videos**: MP4 in 1:1 and 4:5 OK? Any posts or features you want first?
+## Phase 3. Admin visibility ("see everything")
+
+1. **Sign-ups feed**: newest accounts first with how they came in (campaign code, invite,
+   organic, created by admin), verified or not, plan, first actions (made a resume, used AI).
+   Filters by date range, source, campaign, plan, verified.
+2. **User detail**: timeline (signed up, verified, logins, resumes, applications, AI use per
+   feature with credits and real cost, plan changes, payments, admin actions), storage used,
+   devices/networks count (for spotting farms), quick actions.
+3. **Overview**: sign-ups per day, active users today/7d, AI spend today/month vs cap,
+   storage, errors today, feedback waiting, sign-ups left in the beta.
+4. **Campaign detail**: members, their activity and cost, places left.
+5. **Alerts** by email (and a bell in the console): cap alert, storage 70%, error spikes,
+   sign-ups closing, suspicious sign-up bursts from one network.
+
+## Phase 4. Hardening against abuse and load
+
+1. **File reading off the main thread**: PDF/Word parsing in a worker pool with hard
+   time/memory/page limits and kill, plus a zip-bomb guard (ATS checker, imports, Add anything).
+2. **Sign-up farming**: credits only after verification; throwaway-domain list (admin
+   editable); per-network sign-up limit (exists); alert on bursts.
+3. **Campus networks**: per-address ceilings raised for signed-in traffic; per-account limits
+   do the work; strict per-address limits stay on sign-up, login, reset and the public ATS.
+4. **Several instances**: shared (database) counters for the limits that matter (AI burst,
+   sign-up, login, reset, verification codes); connection pool sized for M0; indexes on hot
+   queries; graceful shutdown; request timeouts; memory checks.
+5. **Security review** against the OWASP top ten on every route, written up in
+   `docs/security-review.md`, each finding fixed or explained: data of other accounts,
+   injection, XSS (public pages, PDF text, names), auth and sessions, 2FA, reset, campaign
+   code guessing, share links, webhooks, uploads, headers, error leaks, admin console.
+
+## Phase 5. Testing, rigorously
+
+1. **Load**: 80–300 simulated users (sign in, autosave, capture jobs, export, ATS, AI with the
+   stub) on 1 and 2 instances; spikes; slow database; AI slow/down; Paddle down. Pass: no
+   5xx at the expected peak, p95 under 300 ms for normal requests, clear "busy" messages
+   beyond it, flat memory over 30 minutes, M0 connection count safe.
+2. **Abuse**: huge, deep and malformed bodies; crafted PDFs/Word files; redirect loops;
+   racing requests for credits, campaign places, resume and application limits, the cap;
+   many tabs editing one resume; month-end and time-zone edges; banned and deleted accounts
+   mid-session.
+3. **End to end** (Playwright, desktop and phone): sign up with a code, verify, build, ATS,
+   Add anything, assistant, profile, applications, tailor, prep, share, export, upgrade
+   prompts for Free, campaign expiry back to Free, AI paused, payments off, delete account.
+4. Everything stays fast; AI stays stubbed; one small live check at the end only with your OK.
+
+## Phase 6. Beta finishing touches
+
+1. **Feedback button** (page address and optional screenshot) → Admin › Feedback inbox with
+   status (new / seen / fixed) and a reply by email.
+2. **Error reporting**: browser errors and server 500s (no personal data, rate limited) →
+   Admin › Errors, grouped, with counts.
+3. **Beta label**, a "what's new / known issues" note, and a short welcome for campaign users.
+4. **Maintenance mode**: read-only with a banner; **AI paused** banner when the cap hits.
+5. **Backups**: a one-command export of the database (M0 has no backups) and instructions.
+
+## Phase 7. Public pages and legal
+
+- Pricing: resumes per plan, Profile and Applications as paid features, credits per feature,
+  "See it" previews, "Coming soon" while payments are off.
+- Home, About, FAQ, guides: applications, tailoring, interview prep, insights, Add anything
+  and the assistant (V2 is on for everyone, so the gated content shows); sitemap and meta.
+- Privacy (job descriptions, recruiter contacts, feedback, error reports, limits), Terms
+  (beta, fair use, limits), Refunds (payments off during the beta).
+
+## Phase 8. Marketing
+
+- Refresh the marketing plan, Facebook posts, outreach templates and README with everything
+  built since the last pass, plus a beta launch sequence for the 80 invites.
+- **Animated mockups** from the real app with sample data, recorded in the browser: builder
+  with live preview, ATS scan, Add anything, job capture to board, tailoring, interview
+  prep, templates carousel, the assistant. Formats: MP4 1:1, 4:5 and 9:16, and a wide GIF
+  for GitHub. Each with post copy.
+
+## Order
+
+Phases 1–5 make the beta safe, 6–8 make it good. Each phase is committed and reported
+separately. Rough total: 12–16 working days of effort.
