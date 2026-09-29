@@ -415,7 +415,7 @@ function jdDegreeLevel(jd) {
   return levels.length ? Math.min(...levels) : 0; // "Bachelor's or Master's" -> Bachelor's is the minimum
 }
 
-function matchChecks({ resume, jobDescription }) {
+export function matchChecks({ resume, jobDescription }) {
   const checks = [];
   const keywords = jobKeywords(jobDescription);
   const context = [

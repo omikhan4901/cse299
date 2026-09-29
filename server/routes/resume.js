@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
 const Resume = require("../models/Resume");
+const Application = require("../models/Application");
 const { protect } = require("./auth");
 const { limit } = require("../lib/rateLimit");
 const User = require("../models/User");
@@ -158,6 +159,8 @@ router.delete("/:id", protect, perAccount, async (req, res) => {
     const resume = await findOwned(req, res);
     if (!resume) return;
     await resume.deleteOne();
+    // Applications keep the frozen copy they were sent with; they just stop pointing at it.
+    await Application.updateMany({ user: req.userId, resume: resume._id }, { $unset: { resume: 1 } });
     res.status(200).json({ success: true, data: {} });
   } catch (err) {
     handleError(res, err, "Server error while deleting the resume.");

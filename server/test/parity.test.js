@@ -107,3 +107,12 @@ describe('browser and server agree on access', () => {
         assert.equal(Object.keys(CATEGORY_OF).length, ids.length);
     });
 });
+
+describe('browser and server agree on the tracker', () => {
+    it('same statuses, and the same ones count as active', async () => {
+        const client = await import(path.join(__dirname, '../../client/src/lib/applications.js'));
+        const Application = require('../models/Application');
+        assert.deepEqual(client.STATUSES.map((s) => s.id), Application.STATUSES);
+        assert.deepEqual(client.ACTIVE, Application.ACTIVE);
+    });
+});
