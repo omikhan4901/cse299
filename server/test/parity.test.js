@@ -70,6 +70,25 @@ describe('browser and server agree on access', () => {
         assert.ok(checks > 10000);
     });
 
+    it('features with an account\'s own switches (admin or campaign): same answer, and an "off" wins over free mode', async () => {
+        const { canUseFeature } = await clientAccess();
+        const { activeOverrides } = require('../lib/credits');
+        const r = rng(7);
+        const features = [...AI_FEATURES, ...APP_FEATURES].map((f) => f.key);
+        for (let i = 0; i < 1500; i++) {
+            const settings = randomSettings(r);
+            const own = Object.fromEntries(features.filter(() => r() < 0.4).map((f) => [f, r() < 0.5]));
+            const expired = r() < 0.2;
+            const user = { plan: pick(r, PLAN_IDS), planExpiresAt: null, features: own, featuresExpireAt: expired ? new Date(Date.now() - 1000) : r() < 0.5 ? null : new Date(Date.now() + 864e5) };
+            for (const f of features) {
+                const server = canUse(user, settings, f);
+                assert.equal(canUseFeature(settings, user.plan, f, activeOverrides(user)), server, `${f} own=${own[f]} expired=${expired}`);
+                if (!expired && own[f] === false) assert.equal(server, false, 'an explicit off wins');
+                if (!expired && own[f] === true) assert.equal(server, true, 'an explicit on grants');
+            }
+        }
+    });
+
     it('templates: same answer for every plan and template over 500 random settings', async () => {
         const { canUseTemplate } = await clientAccess();
         const r = rng(7);

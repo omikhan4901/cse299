@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag, Tooltip } from "antd";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Segmented, Select, Switch, Table, Tag, Tooltip } from "antd";
+import { Calculator, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { campaignEstimate } from "@/lib/campaignCost";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
 
 const PLAN_OPTIONS = [
@@ -11,7 +12,69 @@ const PLAN_OPTIONS = [
   { value: "premium", label: "Premium" },
 ];
 
+const usd = (v, digits = 2) => `$${(v || 0).toFixed(digits)}`;
+
+/** One switch per feature: follow the plan, or always on / off for members. */
+function FeatureSwitches({ value = {}, onChange, features, plan, freeMode }) {
+  const set = (key, v) => {
+    const next = { ...value };
+    if (v === "plan") delete next[key];
+    else next[key] = v === "on";
+    onChange?.(next);
+  };
+  return (
+    <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+      {features.map((f) => {
+        const byPlan = freeMode || !!plan?.features?.[f.key];
+        const v = typeof value[f.key] === "boolean" ? (value[f.key] ? "on" : "off") : "plan";
+        return (
+          <div key={f.key} className="flex items-center justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate text-slate-700">{f.name}</span>
+            <Segmented
+              size="small"
+              value={v}
+              onChange={(x) => set(f.key, x)}
+              options={[{ value: "plan", label: `Plan (${byPlan ? "on" : "off"})` }, { value: "on", label: "On" }, { value: "off", label: "Off" }]}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The worst and typical AI cost of the campaign as it's being filled in, against this month's cap. */
+function Estimate({ values, settings, aiFeatures, spend }) {
+  const c = { ...values, creditLimit: values.customCredits ? values.creditLimit : null, creditPeriod: values.customCredits ? values.creditPeriod : null };
+  const e = campaignEstimate(c, settings, aiFeatures);
+  const left = spend?.enabled ? Math.max(0, spend.cap - spend.spent) : null;
+  const over = left != null && e.worst > left;
+  return (
+    <div className={`mb-4 rounded-xl border p-3 ${over ? "border-amber-300 bg-amber-50/60" : "border-slate-200 bg-slate-50/60"}`}>
+      <p className="flex items-center gap-1.5 text-sm font-medium text-ink"><Calculator size={14} className="text-brand" /> What it could cost in AI</p>
+      <div className="mt-2 grid grid-cols-2 gap-3">
+        <div>
+          <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.worst)}</p>
+          <p className="text-xs text-slate-500">Worst case: all {e.places} members use every credit on the dearest feature{e.feature ? ` (${e.feature.name})` : ""}</p>
+        </div>
+        <div>
+          <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.typical)}</p>
+          <p className="text-xs text-slate-500">Typical: about a quarter of that</p>
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">
+        {e.credits} credits a {e.period} × up to {e.periods} {e.period === "day" ? "days" : "calendar months (credits reset on the 1st)"} × {usd(e.perCredit, 4)} a credit at most.
+        {left != null ? ` ${usd(left)} left under this month's AI cap.` : " The AI cap is off."}
+      </p>
+      {over ? <p className="mt-1.5 text-xs font-medium text-amber-800">The worst case is more than what&apos;s left under the cap: if it happened, AI would pause for everyone. Fewer places or credits lower it.</p> : null}
+      {e.period === "day" ? <p className="mt-1.5 text-xs font-medium text-amber-800">Credits per day add up fast: {e.credits} a day is {e.credits * 30} a month per member.</p> : null}
+    </div>
+  );
+}
+
 function CampaignModal({ campaign, onClose, onSaved, call }) {
+  const meta = useAdmin(campaign ? "/settings" : null).data;
+  const spend = useAdmin(campaign ? "/ai-spend" : null).data;
   const { message } = App.useApp();
   const [saving, setSaving] = useState(false);
   const isNew = campaign && !campaign._id;
@@ -36,7 +99,16 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
     }
   };
   return (
-    <Modal open={!!campaign} onCancel={onClose} footer={null} title={isNew ? "New campaign" : `Edit ${campaign?.name}`} destroyOnHidden width={560}>
+    <Modal
+      open={!!campaign}
+      onCancel={onClose}
+      footer={null}
+      title={isNew ? "New campaign" : `Edit ${campaign?.name}`}
+      destroyOnHidden
+      width={620}
+      styles={{ body: { maxHeight: "min(78vh, 760px)", overflowY: "auto", overscrollBehavior: "contain" } }}
+      classNames={{ body: "thin-scroll -mx-6 px-6" }}
+    >
       {campaign ? (
         <Form
           layout="vertical"
@@ -55,6 +127,7 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
             emailDomain: campaign.emailDomain,
             expiresAt: toDateInput(campaign.expiresAt),
             active: campaign.active ?? true,
+            features: campaign.features || {},
           }}
         >
           <div className="grid grid-cols-2 gap-x-3">
@@ -87,6 +160,20 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
               }
             </Form.Item>
           </div>
+          {meta ? (
+            <>
+              <Form.Item noStyle shouldUpdate={(a, b) => a.plan !== b.plan}>
+                {({ getFieldValue }) => (
+                  <Form.Item name="features" label="Features for members" tooltip="Follow the plan, or turn a feature on or off for members whatever their plan says, for as long as the campaign gives.">
+                    <FeatureSwitches features={[...meta.aiFeatures, ...meta.appFeatures]} plan={meta.settings.plans.find((p) => p.id === getFieldValue("plan"))} freeMode={meta.settings.freeMode.enabled} />
+                  </Form.Item>
+                )}
+              </Form.Item>
+              <Form.Item noStyle shouldUpdate>
+                {({ getFieldsValue }) => <Estimate values={getFieldsValue(true)} settings={meta.settings} aiFeatures={meta.aiFeatures} spend={spend} />}
+              </Form.Item>
+            </>
+          ) : null}
           <div className="grid grid-cols-2 gap-x-3">
             <Form.Item name="emailDomain" label="Email domain (optional)" tooltip="Only emails at this domain can use the code, e.g. northsouth.edu">
               <Input prefix="@" placeholder="northsouth.edu" />
@@ -140,6 +227,26 @@ export default function CampaignsTab() {
           <span className="text-xs text-slate-500 tabular-nums">{c.uses} / {c.maxUses}</span>
           <Progress percent={Math.round((c.uses / c.maxUses) * 100)} showInfo={false} size="small" strokeColor="#0d9488" />
         </div>
+      ),
+    },
+    {
+      title: "Members",
+      key: "members",
+      render: (_, c) => (
+        <span className="text-sm text-slate-600 tabular-nums">
+          {c.stats?.members ?? 0}
+          <span className="block text-xs text-slate-400">{c.stats?.active ?? 0} active this week</span>
+        </span>
+      ),
+    },
+    {
+      title: "AI so far",
+      key: "ai",
+      render: (_, c) => (
+        <span className="text-sm text-slate-600 tabular-nums">
+          {usd(c.stats?.aiCost ?? 0)}
+          <span className="block text-xs text-slate-400">{c.stats?.credits ?? 0} credits</span>
+        </span>
       ),
     },
     {

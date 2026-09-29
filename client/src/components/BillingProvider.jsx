@@ -227,7 +227,7 @@ export function BillingProvider({ children }) {
     const plan = config?.plans?.find((p) => p.id === planId);
     const features = [...(config?.aiFeatures || []), ...(config?.appFeatures || [])];
     // Until the settings load (or while free mode is on) nothing is locked.
-    const canUse = (key) => canUseFeature(config, planId, key);
+    const canUse = (key) => canUseFeature(config, planId, key, usage?.features);
     const upgradePlanFor = (key) => config?.plans?.find((p) => p.features?.[key]);
     return {
       config,

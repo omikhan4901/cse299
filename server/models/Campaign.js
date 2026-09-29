@@ -18,6 +18,9 @@ const CampaignSchema = new mongoose.Schema(
         uses: { type: Number, default: 0 },
         // Optional: only emails ending in this domain can use the code (e.g. northsouth.edu).
         emailDomain: { type: String, trim: true, lowercase: true, default: '' },
+        // Features members get or lose, whatever their plan says: { [featureKey]: true | false }
+        // (only the ones set; the rest follow the plan). Copied to each member at sign-up.
+        features: { type: mongoose.Schema.Types.Mixed, default: {} },
         expiresAt: { type: Date, default: null },
         active: { type: Boolean, default: true },
     },

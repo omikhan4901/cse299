@@ -196,6 +196,10 @@ router.post('/register', registerByIp, async (req, res) => {
                           creditLimit: campaign.creditLimit,
                           creditPeriod: campaign.creditPeriod,
                           creditLimitExpiresAt: campaign.creditLimit != null ? new Date(Date.now() + campaign.durationDays * 864e5) : undefined,
+                          // The campaign's feature switches, for as long as the campaign gives.
+                          ...(campaign.features && Object.keys(campaign.features).length
+                              ? { features: campaign.features, featuresExpireAt: new Date(Date.now() + campaign.durationDays * 864e5) }
+                              : {}),
                       }
                     : {}),
             });

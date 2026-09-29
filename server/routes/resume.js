@@ -7,7 +7,7 @@ const { protect } = require("./auth");
 const { limit } = require("../lib/rateLimit");
 const User = require("../models/User");
 const { getSettings } = require("../lib/settings");
-const { canUse } = require("../lib/credits");
+const { canUse, USER_FIELDS: ACCESS_FIELDS } = require("../lib/credits");
 const { templateAllowed, templateTier } = require("../lib/templates");
 const { CONTENT_KEYS, pick } = require("../lib/resumeInput");
 
@@ -16,7 +16,7 @@ const { CONTENT_KEYS, pick } = require("../lib/resumeInput");
 // Switching to a template the account's plan doesn't include is refused (resumes that already
 // use one keep it, e.g. after a plan ends). The builder normally stops this before it's sent.
 const templateOk = async (req, res, id) => {
-  const [user, settings] = await Promise.all([User.findById(req.userId).select("plan planExpiresAt passPlan passUntil").lean(), getSettings()]);
+  const [user, settings] = await Promise.all([User.findById(req.userId).select(ACCESS_FIELDS).lean(), getSettings()]);
   if (templateAllowed(user, settings, id)) return true;
   const tier = templateTier(id, settings.templates);
   const plan = settings.plans.find((p) => p.id === tier);
@@ -25,7 +25,7 @@ const templateOk = async (req, res, id) => {
 };
 
 const shareAllowed = async (req, res) => {
-  const [user, settings] = await Promise.all([User.findById(req.userId).select("plan planExpiresAt passPlan passUntil").lean(), getSettings()]);
+  const [user, settings] = await Promise.all([User.findById(req.userId).select(ACCESS_FIELDS).lean(), getSettings()]);
   if (canUse(user, settings, "shareLinks")) return true;
   const plan = settings.plans.find((p) => p.features.shareLinks);
   res.status(403).json({ success: false, code: "upgrade", feature: "shareLinks", error: `Share links are part of the ${plan?.name || "paid"} plan.` });

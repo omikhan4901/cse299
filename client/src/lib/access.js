@@ -21,7 +21,9 @@ export function planIncludes(planId, template, access) {
 }
 
 /** Whether an account on `planId` may use a feature. Nothing is locked until settings load, or in free mode. */
-export function canUseFeature(config, planId, key) {
+export function canUseFeature(config, planId, key, own = null) {
+  // The account's own switch (from an admin or a campaign) wins, even over free mode.
+  if (typeof own?.[key] === "boolean") return own[key];
   if (!config || config.freeMode?.enabled) return true;
   const plan = config.plans?.find((p) => p.id === planId) || config.plans?.[0];
   return !!plan?.features?.[key];

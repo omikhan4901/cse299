@@ -53,6 +53,10 @@ const UserSchema = new mongoose.Schema({
     banned: { type: Boolean, default: false },
     bannedReason: { type: String, default: '' },
     campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },
+    // Features this account gets or loses whatever its plan says ({ [featureKey]: boolean }),
+    // set by an admin or copied from a campaign; they end at featuresExpireAt (empty = no end).
+    features: { type: mongoose.Schema.Types.Mixed },
+    featuresExpireAt: { type: Date },
     lastLoginAt: { type: Date },
     // Set once the owner proves they receive email at this address (required for super admins).
     emailVerifiedAt: { type: Date },

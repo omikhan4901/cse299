@@ -44,7 +44,20 @@ function allowanceFor(user, settings) {
     return { plan, limit: plan.credits, period: plan.creditPeriod, source: 'plan' };
 }
 
-const canUse = (user, settings, feature) => settings.freeMode.enabled || !!planById(settings, effectivePlanId(user)).features[feature];
+/** The account's own feature switches while they last (from an admin or a campaign), else null. */
+const activeOverrides = (user) =>
+    user?.features && typeof user.features === 'object' && (!user.featuresExpireAt || new Date(user.featuresExpireAt) > new Date()) ? user.features : null;
+
+/**
+ * Whether the account may use a feature: its own switch when it has one (an explicit "off"
+ * wins even in free mode), else free mode, else its plan. Same rule as canUseFeature in
+ * client/src/lib/access.js (parity test).
+ */
+const canUse = (user, settings, feature) => {
+    const own = activeOverrides(user)?.[feature];
+    if (typeof own === 'boolean') return own;
+    return settings.freeMode.enabled || !!planById(settings, effectivePlanId(user)).features[feature];
+};
 
 /** A numeric plan limit (V2: applications, tailored, batch). null = no limit (also in free mode). */
 const planLimit = (user, settings, key) => {
@@ -61,7 +74,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'email role plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
+const USER_FIELDS = 'email role features featuresExpireAt plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -80,6 +93,8 @@ async function usageSummary(userOrId) {
         source: a.source,
         plan: { id: a.plan.id, name: a.plan.name },
         freeMode: settings.freeMode.enabled,
+        // The account's own feature switches (for the page to lock and unlock the same way).
+        features: activeOverrides(user),
         planExpiresAt: user.planExpiresAt || null,
         passUntil: user.passPlan && user.passUntil && new Date(user.passUntil) > new Date() ? user.passUntil : null,
         held: user.heldPlan && user.heldUntil && new Date(user.heldUntil) > new Date() ? { plan: user.heldPlan, until: user.heldUntil } : null,
@@ -214,4 +229,4 @@ function aiQuota(feature) {
     ];
 }
 
-module.exports = { aiQuota, usageSummary, effectivePlanId, allowanceFor, canUse, planLimit, periodKey };
+module.exports = { aiQuota, usageSummary, effectivePlanId, allowanceFor, canUse, activeOverrides, planLimit, periodKey, USER_FIELDS };

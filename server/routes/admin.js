@@ -14,7 +14,7 @@ const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email')
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { deleteUserData } = require('../lib/userData');
 const { aiEconomics } = require('../lib/economics');
-const { pauseState, monthKey, nextMonth } = require('../lib/aiSpend');
+const { pauseState, monthKey, nextMonth, callCost } = require('../lib/aiSpend');
 const { revenueReport, paymentsCsv } = require('../lib/revenue');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
@@ -32,7 +32,7 @@ const bad = (res, error, status = 400) => res.status(status).json({ success: fal
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
-const USER_FIELDS = 'name email plan planExpiresAt passPlan passUntil creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
+const USER_FIELDS = 'name email plan planExpiresAt passPlan passUntil heldPlan heldUntil features featuresExpireAt creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
 
 /** Adds role, current plan, credit usage and resume counts to a page of users. */
 async function describeUsers(users) {
@@ -69,7 +69,7 @@ router.get('/overview', wrap(async (req, res) => {
         User.countDocuments({ createdAt: { $gte: since7 } }),
         User.countDocuments({ createdAt: { $gte: since30 } }),
         User.countDocuments({ banned: true }),
-        User.find().select('plan planExpiresAt passPlan passUntil').lean(),
+        User.find().select('plan planExpiresAt passPlan passUntil heldPlan heldUntil').lean(),
         Resume.countDocuments(),
         Resume.countDocuments({ isPublic: true }),
         AiEvent.find({ at: { $gte: since30 }, ok: { $ne: false } }).select('user feature credits at').limit(100000).lean(),
@@ -387,7 +387,12 @@ router.put('/settings', wrap(async (req, res) => {
 
 // ---------- Campaigns ----------
 
-const CAMPAIGN_FIELDS = ['name', 'code', 'description', 'plan', 'creditLimit', 'creditPeriod', 'durationDays', 'maxUses', 'emailDomain', 'expiresAt', 'active'];
+const CAMPAIGN_FIELDS = ['name', 'code', 'description', 'plan', 'creditLimit', 'creditPeriod', 'durationDays', 'maxUses', 'emailDomain', 'expiresAt', 'active', 'features'];
+/** Feature switches: known feature keys with true or false only (the rest follow the plan). */
+const cleanFeatures = (v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+        ? Object.fromEntries(Object.entries(v).filter(([k, on]) => [...AI_FEATURES, ...APP_FEATURES].some((f) => f.key === k) && typeof on === 'boolean'))
+        : {};
 const pickCampaign = (body = {}) => {
     const out = {};
     for (const k of CAMPAIGN_FIELDS) if (body[k] !== undefined) out[k] = body[k];
@@ -396,6 +401,7 @@ const pickCampaign = (body = {}) => {
     if (out.creditPeriod === '' ) out.creditPeriod = null;
     if (out.expiresAt === '') out.expiresAt = null;
     if (typeof out.emailDomain === 'string') out.emailDomain = out.emailDomain.replace(/^@/, '');
+    if (out.features !== undefined) out.features = cleanFeatures(out.features);
     return out;
 };
 const campaignError = (res, err) => {
@@ -405,8 +411,26 @@ const campaignError = (res, err) => {
 };
 
 router.get('/campaigns', wrap(async (req, res) => {
-    const campaigns = await Campaign.find().sort({ createdAt: -1 }).lean();
-    res.json({ success: true, data: campaigns });
+    const [campaigns, settings] = await Promise.all([Campaign.find().sort({ createdAt: -1 }).lean(), getSettings()]);
+    // Per campaign: members, members active in the last 7 days, and what their AI has cost.
+    const ids = campaigns.map((c) => c._id);
+    const members = await User.find({ campaign: { $in: ids } }).select('campaign lastLoginAt').lean();
+    const since = Date.now() - 7 * 864e5;
+    const campaignOf = new Map(members.map((u) => [String(u._id), String(u.campaign)]));
+    const events = members.length ? await AiEvent.find({ user: { $in: members.map((u) => u._id) } }).select('user credits model inputTokens outputTokens').lean() : [];
+    const stats = new Map(ids.map((id) => [String(id), { members: 0, active: 0, credits: 0, aiCost: 0 }]));
+    for (const u of members) {
+        const st = stats.get(String(u.campaign));
+        st.members += 1;
+        if (u.lastLoginAt && new Date(u.lastLoginAt) > since) st.active += 1;
+    }
+    for (const e of events) {
+        const st = stats.get(campaignOf.get(String(e.user)));
+        if (!st) continue;
+        st.credits += e.credits || 0;
+        st.aiCost += callCost(e, settings.aiPrices);
+    }
+    res.json({ success: true, data: campaigns.map((c) => ({ ...c, stats: stats.get(String(c._id)) })) });
 }));
 
 router.post('/campaigns', wrap(async (req, res) => {
