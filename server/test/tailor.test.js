@@ -97,3 +97,26 @@ describe('tailoring', () => {
         }
     });
 });
+
+describe('job match percentage', () => {
+    const JOB = 'Backend Engineer\n\nRequirements:\n- 3+ years with Node.js\n- Strong PostgreSQL and Redis\n- Experience designing REST APIs\n- Docker and Kubernetes\n- AWS experience is a plus';
+    const resume = (skills) => ({ personal: { name: 'A' }, experience: [{ id: 1, title: 'Engineer', company: 'X', description: `Built services with ${skills}` }], skills });
+
+    it('never shows 100% while a skill the job asks for is missing', async () => {
+        const { jobMatch } = await matchLib();
+        const m = jobMatch(resume('Node.js, PostgreSQL, Redis, REST APIs, Docker, AWS'), JOB);
+        assert.ok(m.missing.includes('Kubernetes'), m.missing.join());
+        assert.ok(m.score < 100, `score ${m.score}`);
+        assert.ok(m.score > 50, `score ${m.score}`);
+    });
+
+    it('is 100% when every skill is there, and goes up as skills are added', async () => {
+        const { jobMatch } = await matchLib();
+        const full = jobMatch(resume('Node.js, PostgreSQL, Redis, REST APIs, Docker, Kubernetes, AWS'), JOB);
+        assert.deepEqual(full.missing, []);
+        assert.equal(full.score, 100);
+        const less = jobMatch(resume('Node.js, PostgreSQL'), JOB);
+        assert.ok(less.score < full.score, `${less.score} < ${full.score}`);
+        assert.equal(jobMatch(resume('x'), 'too short'), null);
+    });
+});

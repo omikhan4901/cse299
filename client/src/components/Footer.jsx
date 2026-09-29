@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="md:col-span-2">
           <Logo href="/" light />
           <p className="mt-4 max-w-sm text-sm leading-relaxed">
-            A free ATS resume builder and CV maker with 50 designer templates, a live PDF preview, a real ATS check and one-click downloads. Built to help students and professionals land their next role.
+            A free ATS resume builder and CV maker with 50+ designer templates, a live PDF preview, a real ATS check and one-click downloads. Built to help students and professionals land their next role.
           </p>
         </div>
         <div>

@@ -5,7 +5,7 @@ import TemplateCard from "@/components/TemplateCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 
 export const metadata = {
-  title: "50 Free Resume Templates (ATS-Friendly & Creative)",
+  title: "50+ Free Resume Templates (ATS-Friendly & Creative)",
   description: `${TEMPLATES.length} free, professionally designed resume templates in seven styles — ATS-optimized, modern minimalist, creative, executive, academic, student and two-column. Customise colours and fonts and download as PDF.`,
   alternates: { canonical: "/templates" },
 };

@@ -7,10 +7,10 @@ A practical plan for getting ResumeX its first few thousand users, written for s
 | File | What it is |
 |---|---|
 | `marketing-plan.md` | This plan: who to target, where, what to post and when |
-| [`facebook-posts.md`](facebook-posts.md) | 28 ready-to-post Facebook posts (22 English, 6 Bangla), plus page setup text |
+| [`facebook-posts.md`](facebook-posts.md) | 37 ready-to-post Facebook posts (22 English, 7 for the job-search launch, 8 Bangla), plus page setup text |
 | [`outreach-templates.md`](outreach-templates.md) | Messages for group admins, clubs, career offices, ambassadors, and replies to common comments |
 | [`seo-checklist.md`](seo-checklist.md) | One-time search engine setup, and a monthly SEO routine |
-| [`graphics/`](graphics) | 10 post graphics, a Facebook cover and a profile picture, ready to upload |
+| [`graphics/`](graphics) | 16 post graphics (6 for the job-search launch), a Facebook cover and a profile picture |
 
 ---
 
@@ -32,8 +32,9 @@ Students are the easiest first audience because:
 | Person | Situation | What they care about | What to show them |
 |---|---|---|---|
 | **Final-year student, "Nabila", 22** | Applying for internships, first CV, no experience | Looking professional, "what do I even write?" | Fresh graduate guide, student templates, AI bullet-point help |
-| **Fresh graduate, "Rafi", 24** | Applying on Bdjobs and LinkedIn, few replies | Getting past filters, standing out | ATS checker, keyword match, weak vs strong bullets |
-| **Young professional, "Tanvir", 27** | Switching jobs, CV is outdated | Speed, a modern design | 50 templates, import an old CV, one-click PDF |
+| **Fresh graduate, "Rafi", 24** | Applying on Bdjobs and LinkedIn, few replies | Getting past filters, standing out | ATS checker, keyword match, weak vs strong bullets; later a tailored CV for each job |
+| **Young professional, "Tanvir", 27** | Switching jobs, CV is outdated | Speed, a modern design | 50+ templates, import an old CV, one-click PDF; later the Career Profile and tracker |
+| **Active job seeker, "Sadia", 25** | Applying to 10+ jobs a month, mixing government and private | Staying organised, never missing a deadline | Application board, reminders, tailored CVs, biodata templates (after the job-search launch) |
 | **Privacy-conscious user** | Doesn't want data stored | Safety | Private mode |
 
 Write every post for **one** of these people.
@@ -44,10 +45,16 @@ Write every post for **one** of these people.
 
 1. **Free PDF, no watermark.** Many resume builders let you design for free and then charge you to download. ResumeX doesn't. This is your strongest hook.
 2. **A real ATS check.** It reads the actual PDF like an applicant tracking system and runs 30+ checks, including keyword match against a job description.
-3. **50 designer templates** with any colour and 11 fonts.
+3. **50+ designer templates** with any colour and 11 fonts.
 4. **Live PDF preview.** What you see is exactly what you download.
 5. **Private mode.** Nothing is stored on the servers.
-6. **AI help** for bullet points and cover letters (when AI is on).
+6. **AI help** for bullet points and cover letters (when AI is on). It shows every change for approval and never invents experience.
+
+**After the job-search launch** (only once "V2 workspace for everyone" is on), add:
+
+7. **A CV for every job, in seconds.** Paste the circular; ResumeX picks from your Career Profile. No AI, and nothing is made up.
+8. **One board for the whole search:** deadlines, interviews, reminders and the exact CV you sent.
+9. **Biodata done privately:** formal biodata templates, with personal details kept in that one CV.
 
 **Never promise jobs** ("guaranteed interview", "get hired in 7 days"). Promise a better CV, faster.
 
@@ -93,6 +100,23 @@ Do these once. About 2 to 3 hours in total.
 | **Day 7** | Review: which posts got clicks and sign-ups? Write it in the sheet. Do more of what worked. |
 
 **Launch-week goal:** 150 to 300 sign-ups, and every comment and message answered.
+
+---
+
+## 2b. Job-search launch week (when V2 goes live)
+
+Do this once you've switched on **Admin › Plans › V2 workspace for everyone**, and ideally after email reminders work. The home page shows the new "Your whole job search" section automatically once it's on.
+
+| Day | What to do |
+|---|---|
+| **Day 1** | Personal-profile post: why you built it (your own job-hunt chaos). Page: J1, pinned. Replace the page bio and About text (see the posts file). |
+| **Day 2** | Record a 30-second screen video: paste a circular → tailored CV → keyword match goes up. Post it as a Reel. |
+| **Day 3** | Page: J2 (tailoring). Bangla: B7. |
+| **Day 4** | Groups: a value-first post on keeping track of applications, with J6's question at the end. |
+| **Day 5** | Page: J3 (Career Profile). Message your ambassadors: a new reason to share. |
+| **Day 7** | Check Admin › Overview: how many people created a profile and tracked a job? Note it in the sheet. |
+
+Then add J4, J5 and B8 to the weekly routine, one a week.
 
 ---
 
@@ -212,6 +236,7 @@ Keep it simple. One row per week in a Google Sheet:
 |---|---|---|---|---|---|---|---|---|---|---|
 
 - **New users and resumes:** Admin console → Overview.
+- **After the job-search launch:** Admin console → Overview also shows Career Profiles, applications tracked (and this week's) and tailored resumes. Add them to the sheet.
 - **Reach and link clicks:** Facebook Page → Insights / Professional dashboard.
 - **Campaign sign-ups:** Admin console → Campaigns.
 - **Search traffic:** Google Search Console → Performance (after a few weeks).
@@ -224,12 +249,12 @@ One number matters most: **new users per week**. If it's growing, keep going. If
 
 ## Making money (later)
 
-You've decided to keep ResumeX free for now, which is the right call: users first, revenue second.
+Paid plans are built (Pro and Premium through Paddle, plus an optional one-time **Job Search Pass**), and **free mode** keeps everything open until you decide to charge. Paddle goes live only once V2 is complete and tested.
 
 When you have about 1,000 or more active users and real feedback:
 - **Keep the core free forever:** building, ATS check and PDF download. It's your marketing.
-- **Charge for extras:** more AI credits, premium templates, cover letters and job-match checks.
-- **Students in Bangladesh prefer one-time passes to subscriptions.** Consider a "Job Hunt Pass" (for example 3 months) at a student-friendly price, alongside a monthly plan for international users. Test prices with a small group first.
+- **Charge for extras:** more AI credits, premium templates, more tracked jobs and tailored CVs, batch tailoring. All of these limits are set in Admin › Plans.
+- **Students in Bangladesh prefer one-time payments to subscriptions.** That's what the Job Search Pass is for: one payment for a plan for a set number of days (set in Admin › Plans). Test the price with a small group first.
 - **Local payments matter.** Paddle handles cards and international users. Most Bangladeshi students pay with bKash or Nagad, so a local gateway (for example SSLCommerz, or bKash's own payment API) will convert much better locally. Look into it once people are asking to pay.
 - Use **campaign codes for discounts** (for example `LAUNCH50`) and for university partnerships.
 
@@ -261,4 +286,7 @@ When you run out of ideas:
 - Interview tips after the CV works
 - A behind-the-scenes founder story ("how two students built this")
 - Feature announcements: every new template or feature is a post
+- "My job-search board this month" (your own, or a volunteer's with permission)
+- Before and after keyword match for one real circular (tailoring)
+- Government job season: biodata tips and deadline reminders
 - Holiday greetings (Eid, Pohela Boishakh, Victory Day) with a subtle brand touch

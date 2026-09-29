@@ -5,6 +5,8 @@ const Resume = require('../models/Resume');
 const Usage = require('../models/Usage');
 const AiEvent = require('../models/AiEvent');
 const Campaign = require('../models/Campaign');
+const CareerProfile = require('../models/CareerProfile');
+const Application = require('../models/Application');
 const { protect, requireAdmin, roleOf, isSuperadmin, hashPassword, passwordProblem } = require('./auth');
 const AdminLog = require('../models/AdminLog');
 const { audit } = require('../lib/audit');
@@ -60,7 +62,7 @@ router.get('/overview', wrap(async (req, res) => {
     const since30 = new Date(now - 30 * 864e5);
     const since7 = new Date(now - 7 * 864e5);
     const today = dayKey(now);
-    const [total, new7, new30, banned, byPlanRaw, resumesTotal, resumesPublic, events, campaignsActive] = await Promise.all([
+    const [total, new7, new30, banned, byPlanRaw, resumesTotal, resumesPublic, events, campaignsActive, profiles, applications, applications7, tailored] = await Promise.all([
         User.countDocuments(),
         User.countDocuments({ createdAt: { $gte: since7 } }),
         User.countDocuments({ createdAt: { $gte: since30 } }),
@@ -70,6 +72,11 @@ router.get('/overview', wrap(async (req, res) => {
         Resume.countDocuments({ isPublic: true }),
         AiEvent.find({ at: { $gte: since30 }, ok: { $ne: false } }).select('user feature credits at').limit(100000).lean(),
         Campaign.countDocuments({ active: true }),
+        // V2 adoption: the numbers the job-search launch is measured by.
+        CareerProfile.countDocuments(),
+        Application.countDocuments(),
+        Application.countDocuments({ createdAt: { $gte: since7 } }),
+        Resume.countDocuments({ tailoredFor: { $exists: true, $ne: null } }),
     ]);
 
     const byPlan = Object.fromEntries(PLAN_IDS.map((p) => [p, 0]));
@@ -103,6 +110,7 @@ router.get('/overview', wrap(async (req, res) => {
                 topUsers: topIds.map(([id, credits]) => ({ ...topUsers.find((u) => String(u._id) === id), credits })).filter((u) => u._id),
             },
             campaigns: { active: campaignsActive },
+            jobSearch: { profiles, applications, applications7, tailored },
         },
     });
 }));

@@ -193,3 +193,24 @@ describe('settings', () => {
         assert.equal((await settings.getSettings()).featureCosts.refine, 4);
     });
 });
+
+describe('overview: job-search adoption', () => {
+    it('counts Career Profiles, applications (and this week\'s) and tailored resumes, without leaking into other numbers', async () => {
+        const boss = await superadmin();
+        const before = (await api('GET', '/admin/overview', { token: boss.token })).body.data.jobSearch;
+        assert.deepEqual(Object.keys(before).sort(), ['applications', 'applications7', 'profiles', 'tailored']);
+        await setSettings({ v2: { enabled: true } });
+        const u = await register();
+        assert.equal((await api('PUT', '/profile', { token: u.token, body: { personal: { name: 'A' }, skills: 'Go', baseRev: 0 } })).status, 201);
+        const app = await api('POST', '/applications', { token: u.token, body: { job: { title: 'Engineer', organisation: 'X' } } });
+        assert.equal(app.status, 201);
+        const made = await api('POST', '/applications/tailored', { token: u.token, body: { items: [{ application: app.body.data._id, nickname: 'For X', template: 'Classic', content: { personal: { name: 'A' } } }] } });
+        assert.equal(made.status, 201);
+        await api('POST', '/resumes', { token: u.token, body: { nickname: 'Plain' } });
+        const after = (await api('GET', '/admin/overview', { token: boss.token })).body.data.jobSearch;
+        assert.equal(after.profiles, before.profiles + 1);
+        assert.equal(after.applications, before.applications + 1);
+        assert.equal(after.applications7, before.applications7 + 1);
+        assert.equal(after.tailored, before.tailored + 1, 'a plain resume is not a tailored one');
+    });
+});

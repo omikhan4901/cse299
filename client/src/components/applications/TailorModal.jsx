@@ -126,7 +126,7 @@ function One({ app, profile, token, templateFor, tailoredCount, onDone, onClose 
       ) : null}
       {notInProfile.length ? (
         <p className="mt-3 text-xs text-slate-500">
-          Not in your profile: {notInProfile.slice(0, 8).join(", ")}. If you have them, add them to your profile first; tailoring never makes things up.
+          Not in your profile: {notInProfile.slice(0, 8).join(", ")}. If you have {notInProfile.length === 1 ? "it" : "them"}, add {notInProfile.length === 1 ? "it" : "them"} to your profile first; tailoring never makes things up.
         </p>
       ) : null}
       <div className="mt-6 flex justify-end gap-2">

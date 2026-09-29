@@ -88,6 +88,15 @@ Copy, personalise (name, university, club) and send. A short personal message wo
 **"Can I make a CV in Bangla?"**
 > Right now the templates are designed for English CVs, which most employers in Bangladesh expect. Bangla support is on our list. Thanks for asking! 🙏
 
+**"Can I track my applications?"** *(once the job-search tools are live)*
+> Yes! Save each job to your board and follow it from saved to offer. You'll see deadlines and interviews, get reminders, and we keep the exact CV you sent. 👉 https://resumex.cc/applications
+
+**"Does tailoring use AI? Will it make things up?"** *(once live)*
+> No AI, and it never adds anything. It picks from what's already in your Career Profile and puts what the job asks for first. If the job wants a skill you haven't added, it simply tells you.
+
+**"Is my biodata information safe?"** *(once live)*
+> Biodata details (parents' names, addresses and so on) stay in that one CV only. They aren't saved to your profile, aren't sent to any AI and never appear on share links.
+
 **"Does it work on mobile?"**
 > Yes, it works on your phone. For the best editing experience a laptop is a bit easier, but you can do everything on mobile.
 

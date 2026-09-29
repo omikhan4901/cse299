@@ -11,6 +11,7 @@ import { AI_ENABLED, SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/config"
 import { CATEGORY_PAGES, jsonLdHtml } from "@/lib/seo";
 import { GUIDES } from "@/content/guides";
 import { BuilderLink } from "@/components/BuilderLauncher";
+import JobSearchShowcase from "@/components/JobSearchShowcase";
 
 export const metadata = { alternates: { canonical: "/" } };
 
@@ -94,7 +95,7 @@ export default function HomePage() {
               — nothing is saved on our servers or in your browser.
             </StaggerItem>
             <StaggerItem as="ul" className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
-              {["50 professional templates", "Pixel-perfect PDF", "Private mode: nothing saved"].map((t) => (
+              {[`${TEMPLATES.length} professional templates`, "Pixel-perfect PDF", "Private mode: nothing saved"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <CheckCircle2 size={16} className="text-brand" /> {t}
                 </li>
@@ -188,10 +189,12 @@ export default function HomePage() {
             <h3 className="text-lg font-semibold">
               AI writing assistant {AI_ENABLED ? null : <span className="ml-2 rounded-full bg-white/15 px-2 py-0.5 align-middle text-xs font-medium">Coming back soon</span>}
             </h3>
-            <p className="mt-1 text-white/75">Polish bullet points, check your resume against a job description and draft cover letters — powered by Google Gemini.</p>
+            <p className="mt-1 text-white/75">Rewrite and strengthen bullet points, check your resume against a job and draft cover letters. You see every change before it&apos;s made, and it never invents experience — powered by Google Gemini.</p>
           </div>
         </Reveal>
       </section>
+
+      <JobSearchShowcase />
 
       {/* Reviews */}
       <section className="bg-slate-50 py-20">

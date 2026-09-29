@@ -147,6 +147,8 @@ export function jobMatch(resumeIn, jobText, profileIn = null) {
     const c = checks.find((x) => x.id === id);
     if (c) lines.push({ ok: c.status === "pass", text: c.detail });
   }
-  const score = checks.find((c) => c.id === "keywords")?.points;
-  return { lines, shown, missing, inProfile, score: score == null ? null : Math.round(score * 100) };
+  // The share of the job's keywords (weighted) the resume has: not the ATS check's points,
+  // which count 85% as full marks and would show 100% with a skill still missing.
+  const coverage = checks.find((c) => c.id === "keywords")?.coverage;
+  return { lines, shown, missing, inProfile, score: coverage == null ? null : Math.round(coverage * 100) };
 }

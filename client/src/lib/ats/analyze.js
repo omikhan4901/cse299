@@ -447,7 +447,7 @@ export function matchChecks({ resume, jobDescription }) {
         ? "We couldn't find specific skills in that job description. Paste the full posting, including requirements."
         : `Your resume covers ${pct(coverage)} of the job's keywords, weighted by how much the posting stresses them. ATS rankings rely heavily on this.`,
       4,
-      { points: keywords.length ? Math.min(1, coverage / 0.85) : 0.5 }
+      { points: keywords.length ? Math.min(1, coverage / 0.85) : 0.5, coverage: keywords.length ? coverage : null }
     )
   );
 

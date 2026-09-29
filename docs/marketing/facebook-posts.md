@@ -1,6 +1,6 @@
 # Facebook posts
 
-Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each post lists the graphic to attach (from [`graphics/`](graphics)). The **Bangla posts are at the end**. Read them once before posting and adjust any wording that doesn't sound natural to you.
+Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each post lists the graphic to attach (from [`graphics/`](graphics)). The **job-search launch posts** (Career Profile, applications, tailoring) come after the English posts, and the **Bangla posts are at the end**. Read them once before posting and adjust any wording that doesn't sound natural to you.
 
 **Tips**
 - Copy the text, attach the graphic and post. Edit the details (numbers, your name, university) to make them true for you.
@@ -19,12 +19,12 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 **Category:** Software (or Website, or Education)
 
 **Bio (short, up to 100 characters):**
-> Free resume builder: 50 templates, ATS check and instant PDF. Build your CV in 10 minutes. 🚀
+> Free resume builder: 50+ templates, ATS check and instant PDF. Build your CV in 10 minutes. 🚀
 
 **About / Intro (longer):**
 > ResumeX is a free resume and CV builder made for students, fresh graduates and job seekers.
 >
-> ✅ 50 professional templates (ATS-friendly, modern, creative, academic)
+> ✅ 50+ professional templates (ATS-friendly, modern, creative, academic)
 > ✅ Live PDF preview: what you see is what you download
 > ✅ Free ATS check: see if hiring software can read your CV and which keywords you're missing
 > ✅ AI help for bullet points and cover letters
@@ -33,6 +33,14 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 >
 > Start free at https://resumex.cc
 > Questions? support@resumex.cc
+
+**When the job-search tools launch,** switch the bio to:
+> Free CV builder and job-search tracker: one profile, a CV for every job, never miss a deadline. 🚀
+
+and add these lines to the About text, under the templates line:
+> ✅ Career Profile: write your experience once, make a CV for any job in seconds
+> ✅ Track every application, with deadline and interview reminders
+> ✅ Biodata templates, with personal details kept private
 
 **Action button:** Sign up → `https://resumex.cc`
 
@@ -50,7 +58,7 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 > It started as our CSE299 project. Every resume builder we tried either looked outdated or let you design for free and then asked you to pay to download your own CV.
 >
 > So we built **ResumeX**:
-> 📄 50 professional templates
+> 📄 50+ professional templates
 > 👀 A live PDF preview that updates as you type
 > 🔍 A real ATS check that tells you if hiring software can read your CV, and which keywords you're missing
 > 🔒 A private mode that saves nothing on our servers
@@ -69,7 +77,7 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 >
 > Build a job-ready resume in 10 minutes, for free.
 >
-> ✅ 50 designer templates
+> ✅ 50+ designer templates
 > ✅ Live PDF preview
 > ✅ Free ATS check with keyword match
 > ✅ One-click PDF. No watermark, no paywall.
@@ -85,7 +93,7 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 
 > Your CV is the first thing a recruiter sees. Make it look the part. ✨
 >
-> ResumeX has **50 free resume templates** in 7 styles:
+> ResumeX has **50+ free resume templates** in 7 styles:
 > 🟢 ATS-friendly (for job portals)
 > ⚪ Modern & minimalist
 > 🎨 Creative
@@ -392,6 +400,115 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 
 ---
 
+## Job-search launch posts
+
+**Post these only after "V2 workspace for everyone" is switched on in Admin › Plans.** Until then, visitors can't open these tools and the posts would promise something they can't use. Launch-week order: J1 (pin it), J2 two days later, then one a week. Every plan can use these tools; the Free plan has limits (a few tracked jobs and tailored CVs, set in Admin › Plans), so say "free to start" or "free to try", never "unlimited". Post J4 only once reminder emails are set up (SMTP and the Cloud Scheduler jobs).
+
+### J1. Launch: your whole job search in one place (pin this)
+**Graphic:** `11-job-search.png`
+
+> 🚀 **ResumeX is now more than a CV builder.**
+>
+> Job hunting means 20 tabs, 5 versions of your CV and a deadline you forgot. So we built the tools to keep it all in one place:
+>
+> 👤 **Career Profile:** write your experience once
+> 🎯 **A CV for every job:** paste the circular, get a CV that leads with what it asks for
+> 📋 **Application board:** saved → applied → interview → offer
+> 🔔 **Reminders** for deadlines and interviews, plus calendar export
+>
+> Free to start 👉 https://resumex.cc
+
+---
+
+### J2. Tailoring explained
+**Graphic:** `13-tailor.png`
+
+> Sending the same CV to every job? Recruiters notice. So does the ATS. 🤖
+>
+> With ResumeX, paste the job circular and we'll make a CV **picked from your own profile**:
+> ✅ the jobs and points that match go first
+> ✅ the skills the job asks for lead your skills list
+> ✅ you see your keyword match go up (for example 46% → 82%)
+>
+> And it's honest: tailoring **never adds anything you didn't write**. If the job wants a skill you don't have in your profile, we just tell you. 🙌
+>
+> Free to try 👉 https://resumex.cc
+
+---
+
+### J3. Write your career once
+**Graphic:** `12-profile.png`
+
+> Updating 4 different CVs every time you finish a project? 😮‍💨
+>
+> Put everything in your **Career Profile** once: every job, project, skill and achievement. Then:
+> • make a new CV from it in one click,
+> • pull profile updates into an old CV,
+> • or save a great new bullet point back to your profile.
+>
+> Your CVs stay short. Your profile keeps everything. 💡
+>
+> 👉 https://resumex.cc
+
+---
+
+### J4. Never miss a deadline
+**Graphic:** `14-deadlines.png`
+
+> How many job circulars have you saved… and then missed the deadline? 😅
+>
+> Save each job to your ResumeX board and we'll:
+> 📅 show what's due today and this week
+> 📧 email you before a deadline or interview
+> 🗓️ add dates to Google Calendar or your phone in one click
+> 📄 keep the exact CV you sent, so you know what they read before the interview
+>
+> 👉 https://resumex.cc
+
+---
+
+### J5. Biodata
+**Graphic:** `15-biodata.png`
+
+> Some jobs in Bangladesh still ask for a **biodata**: father's and mother's name, date of birth, permanent address…
+>
+> ResumeX now has two formal biodata templates. 📄
+> 🔒 Those personal details stay **in that one CV only**: they're not saved to your profile, never sent to AI and never shown on share links.
+>
+> Only add them when an employer asks. For most private-sector jobs, a normal CV is better.
+>
+> 👉 https://resumex.cc/templates
+
+---
+
+### J6. Engagement: how do you track applications?
+**Graphic:** none (text post) or `11-job-search.png`
+
+> Honest question for job seekers 👇
+>
+> How do you keep track of the jobs you've applied to?
+> 1️⃣ Excel or Google Sheets
+> 2️⃣ Notes app
+> 3️⃣ Screenshots of circulars 📸
+> 4️⃣ I don't… and I've forgotten some 😬
+>
+> Comment your number! (If it's 4, our free tracker is at resumex.cc 😉)
+
+---
+
+### J7. Job Search Pass (only if the pass is switched on in Admin › Plans)
+**Graphic:** `01-launch.png` or a text post
+
+> Job hunting for a few months, but don't want a subscription? 💳
+>
+> The **ResumeX Job Search Pass** gives you [PLAN] for [DAYS] days with one payment. No renewal, nothing to cancel.
+>
+> See what's included 👉 https://resumex.cc/pricing
+
+*Fill in the plan and number of days from Admin › Plans, and check the price on the pricing page before posting.*
+
+---
+
 ## Bangla posts
 
 ### B1. লঞ্চ পোস্ট
@@ -481,3 +598,34 @@ Ready-to-post copy for the ResumeX page, your personal profiles and groups. Each
 > ⭐ সিভিতে লেখার মতো বাস্তব মার্কেটিং অভিজ্ঞতা
 >
 > আগ্রহী? আপনার নাম, ইউনিভার্সিটি আর বর্ষ লিখে পেজে মেসেজ দিন 📩
+
+---
+
+### B7. প্রতিটি চাকরির জন্য আলাদা সিভি (চালু হওয়ার পর)
+**Graphic:** `16-bangla-tailor.png`
+
+> সব চাকরিতে একই সিভি পাঠাচ্ছেন? 🤔
+>
+> ResumeX-এ এখন আপনার **ক্যারিয়ার প্রোফাইল** থেকে প্রতিটি চাকরির জন্য আলাদা সিভি বানাতে পারবেন:
+> ✅ সার্কুলার পেস্ট করুন
+> ✅ চাকরির সাথে মেলে এমন অভিজ্ঞতা আর স্কিল আগে আসবে
+> ✅ কিওয়ার্ড মিল কত বাড়ল দেখুন
+>
+> আর আপনি যা লেখেননি, তা কখনো যোগ হবে না। 🙌
+>
+> ফ্রি 👉 https://resumex.cc
+
+---
+
+### B8. ডেডলাইন আর মিস নয় (চালু হওয়ার পর)
+**Graphic:** `14-deadlines.png`
+
+> কতগুলো সার্কুলার সেভ করে রেখে ডেডলাইন মিস করেছেন? 😅
+>
+> ResumeX বোর্ডে প্রতিটি চাকরি রাখুন:
+> 📅 আজ আর এই সপ্তাহে কী জমা দিতে হবে, এক নজরে
+> 📧 ডেডলাইন আর ইন্টারভিউয়ের আগে ইমেইল রিমাইন্ডার
+> 🗓️ এক ক্লিকে ক্যালেন্ডারে যোগ করুন
+>
+> 👉 https://resumex.cc
+

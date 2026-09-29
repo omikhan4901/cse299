@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Skeleton, Tooltip } from "antd";
-import { Users, Zap, FileText, Megaphone } from "lucide-react";
+import { Users, Zap, FileText, Megaphone, CircleUserRound, SquareKanban, Wand2 } from "lucide-react";
 import { useAdmin } from "./useAdmin";
 
 function Stat({ icon: Icon, label, value, sub }) {
@@ -79,7 +79,7 @@ export default function Overview() {
   const { data, error, loading } = useAdmin("/overview");
   if (loading && !data) return <Skeleton active paragraph={{ rows: 8 }} />;
   if (error) return <Alert type="error" showIcon title={error} />;
-  const { users, resumes, ai, campaigns } = data;
+  const { users, resumes, ai, campaigns, jobSearch } = data;
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -88,6 +88,13 @@ export default function Overview() {
         <Stat icon={FileText} label="Resumes" value={resumes.total} sub={`${resumes.public} shared publicly`} />
         <Stat icon={Megaphone} label="Active campaigns" value={campaigns.active} sub={`Free ${users.byPlan.free} · Pro ${users.byPlan.pro} · Premium ${users.byPlan.premium}`} />
       </div>
+      {jobSearch && (jobSearch.profiles || jobSearch.applications) ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat icon={CircleUserRound} label="Career Profiles" value={jobSearch.profiles} sub={`${users.total ? Math.round((jobSearch.profiles / users.total) * 100) : 0}% of users`} />
+          <Stat icon={SquareKanban} label="Applications tracked" value={jobSearch.applications} sub={`${jobSearch.applications7} added this week`} />
+          <Stat icon={Wand2} label="Tailored resumes" value={jobSearch.tailored} sub="Made from a profile for one job" />
+        </div>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <DailyChart days={ai.daily} />
         <FeatureBars features={ai.byFeature} />

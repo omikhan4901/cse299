@@ -2,6 +2,7 @@ import { Lightbulb, Layers, Hammer, Rocket, ArrowRight } from "lucide-react";
 import { GithubIcon as Github } from "@/components/BrandIcons";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { BuilderLink } from "@/components/BuilderLauncher";
+import { JobSearchFaq } from "@/components/JobSearchShowcase";
 
 export const metadata = {
   title: "About ResumeX & FAQ",
@@ -98,6 +99,7 @@ export default function AboutPage() {
               <p className="mt-3 leading-relaxed text-slate-600">{f.a}</p>
             </details>
           ))}
+          <JobSearchFaq />
         </Reveal>
         <div className="mt-12 text-center">
           <BuilderLink className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3.5 font-semibold text-white shadow-lg shadow-brand/25 hover:bg-brand-dark">
