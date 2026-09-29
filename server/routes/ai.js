@@ -1,6 +1,5 @@
 const express = require('express');
 const multer = require('multer');
-const mammoth = require('mammoth');
 const { protect } = require('./auth');
 const { toResume, TRANSCRIPT_SCHEMA, TRANSCRIBE_INSTRUCTION } = require('../lib/resumeImport');
 const { loadResumeGuide } = require('../lib/resumeGuide');
@@ -10,7 +9,8 @@ const { INSTRUCTION: INGEST_INSTRUCTION, RESPONSE_SCHEMA: INGEST_SCHEMA, prompt:
 const CHAT_SCHEMA = { type: 'OBJECT', properties: { reply: { type: 'STRING' }, operations: INGEST_SCHEMA.properties.operations }, required: ['reply', 'operations'] };
 // The operation part of the import instructions, reused to explain the format to the assistant.
 const OPERATIONS_GUIDE = INGEST_INSTRUCTION.slice(INGEST_INSTRUCTION.indexOf('- "add"'), INGEST_INSTRUCTION.indexOf('Rules:')).trim();
-const { readPdf, pdfPageCount } = require('../lib/pdfText');
+// PDFs and Word files are read in worker threads with time and memory limits (lib/files.js).
+const { readPdf, pdfPageCount, docxText } = require('../lib/files');
 const polish = require('../lib/polish');
 const Resume = require('../models/Resume');
 const Application = require('../models/Application');
@@ -183,7 +183,7 @@ const generate = async (systemInstruction, contents, generationConfig, req) => {
 // Failed requests are refunded (lib/credits.js), so the message says so.
 const sendError = (res, err) => {
     console.error('AI route error:', err.message);
-    const message = err instanceof AiError ? err.message : 'AI request failed.';
+    const message = err instanceof AiError || err.expose ? err.message : 'AI request failed.';
     res.status(err.status || 500).json({ success: false, error: `${message} You weren't charged for this.` });
 };
 
@@ -487,7 +487,7 @@ router.post('/parse', protect, aiQuota('parse'), upload.single('resumeFile'), as
             if (await tooManyPages(req, res, file.buffer)) return;
             part = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } };
         } else if (isZip(file.buffer) && /\.docx$/i.test(file.originalname)) {
-            const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+            const text = await docxText(file.buffer);
             if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
             part = { text: clip(text, inputCap(req, 30000)) };
         } else {
@@ -539,7 +539,7 @@ router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), a
                 if (text.replace(/\s/g, '').length > 150) fileText = text;
                 else pdfPart = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } }; // a scanned PDF
             } else if (isZip(file.buffer) && /\.docx$/i.test(file.originalname)) {
-                const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
+                const text = await docxText(file.buffer);
                 if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
                 fileText = text;
             } else {

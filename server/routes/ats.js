@@ -1,7 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const { limit, clientIp } = require('../lib/rateLimit');
-const { readPdf } = require('../lib/pdfText');
+// Read in a worker thread with time and memory limits (lib/files.js).
+const { readPdf } = require('../lib/files');
 
 /**
  * The public ATS checker: reads an uploaded resume PDF and returns what an ATS
@@ -34,10 +35,8 @@ router.post('/scan', (req, res, next) => {
     });
 }, scanLimit, async (req, res) => {
     try {
-        const result = await Promise.race([
-            readPdf(req.file.buffer),
-            new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('That PDF took too long to read. Try exporting it again.'), { status: 400 })), 20000)),
-        ]);
+        // The worker stops a file that takes too long (and frees its memory), with a 422.
+        const result = await readPdf(req.file.buffer);
         res.json({ success: true, ...result });
     } catch (err) {
         if (err.status) return res.status(err.status).json({ success: false, error: err.message });

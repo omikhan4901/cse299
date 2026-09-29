@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag, Tooltip } from "antd";
-import { Calculator, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Calculator, Copy, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { campaignEstimate } from "@/lib/campaignCost";
 import { FeatureSwitches, FirstSteps } from "./parts";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
@@ -44,7 +44,16 @@ function Estimate({ values, settings, aiFeatures, spend }) {
   );
 }
 
+// Invite codes people can't guess (no 0/O or 1/I to misread): "BETA-7KQ2XM".
+const randomCode = (prefix = "BETA") => {
+  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return `${prefix}-${[...bytes].map((b) => abc[b % abc.length]).join("")}`;
+};
+const guessable = (code) => !code || code.replace(/[^A-Za-z0-9]/g, "").length < 8;
+
 function CampaignModal({ campaign, onClose, onSaved, call }) {
+  const [form] = Form.useForm();
   const meta = useAdmin(campaign ? "/settings" : null).data;
   const spend = useAdmin(campaign ? "/ai-spend" : null).data;
   const { message } = App.useApp();
@@ -83,12 +92,13 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
     >
       {campaign ? (
         <Form
+          form={form}
           layout="vertical"
           requiredMark={false}
           onFinish={submit}
           initialValues={{
             name: campaign.name,
-            code: campaign.code,
+            code: campaign.code || (isNew ? randomCode() : ""),
             description: campaign.description,
             plan: campaign.plan || "free",
             durationDays: campaign.durationDays ?? 30,
@@ -104,8 +114,26 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
         >
           <div className="grid grid-cols-2 gap-x-3">
             <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input placeholder="NSU CSE Fall 2026" /></Form.Item>
-            <Form.Item name="code" label="Code" rules={[{ required: true, pattern: /^[A-Za-z0-9_-]{3,32}$/, message: "3–32 letters, numbers, - or _" }]}>
-              <Input placeholder="NSU2026" className="uppercase" />
+            <Form.Item noStyle shouldUpdate={(a, b) => a.code !== b.code}>
+              {({ getFieldValue }) => (
+                <Form.Item
+                  name="code"
+                  label="Code"
+                  rules={[{ required: true, pattern: /^[A-Za-z0-9_-]{3,32}$/, message: "3–32 letters, numbers, - or _" }]}
+                  extra={guessable(getFieldValue("code")) ? <span className="text-amber-700">Short codes are easy to guess. Anyone with it can take a place.</span> : null}
+                >
+                  <Input
+                    className="uppercase"
+                    suffix={
+                      <Tooltip title="Make a new random code">
+                        <button type="button" className="text-slate-400 hover:text-brand" onClick={() => form.setFieldValue("code", randomCode())} aria-label="New random code">
+                          <RefreshCw size={14} />
+                        </button>
+                      </Tooltip>
+                    }
+                  />
+                </Form.Item>
+              )}
             </Form.Item>
           </div>
           <Form.Item name="description" label="Message on the invite page"><Input.TextArea autoSize={{ minRows: 2 }} placeholder="Free resume tools for NSU CSE students" /></Form.Item>

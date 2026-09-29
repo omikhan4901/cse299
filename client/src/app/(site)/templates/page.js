@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CATEGORIES, TEMPLATES, templatesIn } from "@/pdf/registry";
-import { categoryPageFor, abs } from "@/lib/seo";
+import { categoryPageFor, abs, jsonLdHtml } from "@/lib/seo";
 import TemplateCard from "@/components/TemplateCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 
@@ -19,7 +19,7 @@ export default function TemplatesPage() {
   };
   return (
     <div className="bg-gradient-to-b from-brand-50/70 to-white">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(jsonLd)} />
       <div className="container-x py-14 md:py-20">
         <Reveal className="mx-auto max-w-2xl text-center">
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Free resume templates</h1>

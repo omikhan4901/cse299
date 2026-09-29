@@ -78,8 +78,26 @@ const stripOperators = (value) => {
     }
     return value;
 };
-// Per-IP ceiling for the whole API (each route also has its own, stricter limits).
-app.use('/api', limit({ name: 'api-ip', windowMs: 60 * 1000, max: 600, key: clientIp, message: 'Too many requests.', label: 'Whole API (per IP)', group: 'Overall', description: 'Ceiling for every request from one network. Every other limit is stricter.', min: 60 }));
+// Ceilings for the whole API (each route also has its own, stricter limits). A campus puts
+// hundreds of students behind one address, so signed-in requests count per account, and a
+// much higher per-network ceiling catches floods spread over many accounts.
+const jwt = require('jsonwebtoken');
+const accountOf = (req) => {
+    const h = req.headers.authorization || '';
+    if (!h.startsWith('Bearer ')) return null;
+    try {
+        const d = jwt.verify(h.slice(7), process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        return d.purpose ? null : String(d.id);
+    } catch {
+        return null;
+    }
+};
+app.use('/api', (req, res, next) => {
+    req.accountKey = accountOf(req);
+    next();
+});
+app.use('/api', limit({ name: 'api-ip', windowMs: 60 * 1000, max: 600, key: (req) => (req.accountKey ? `u:${req.accountKey}` : clientIp(req)), message: 'Too many requests.', label: 'Whole API (per account, or per IP when signed out)', group: 'Overall', description: 'Ceiling for every request from one account (or one network when signed out). Every other limit is stricter.', min: 60 }));
+app.use('/api', limit({ name: 'api-network', windowMs: 60 * 1000, max: 6000, key: (req) => (req.accountKey ? clientIp(req) : null), message: 'Too many requests from this network.', label: 'Whole API, signed in (per IP)', group: 'Overall', description: 'Signed-in requests from one network, all accounts together. High, because a campus shares one address.', min: 600 }));
 
 // API responses carry personal data: never let browsers or proxies cache them unless a route says otherwise.
 app.use('/api', (req, res, next) => {

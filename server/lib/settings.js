@@ -77,7 +77,12 @@ const DEFAULTS = {
     payments: { mode: 'off' },
     // Sign-ups: a hard cap on accounts (null = none; super admins can always sign up), and AI
     // credits only once the email is verified (when the server can send email).
-    signups: { cap: null, requireVerifiedEmail: true },
+    signups: {
+        cap: null,
+        requireVerifiedEmail: true,
+        // Throwaway email services (sign-ups refused, subdomains too); editable in Credits & access.
+        blockedDomains: ['mailinator.com', 'guerrillamail.com', 'guerrillamail.net', 'sharklasers.com', 'grr.la', '10minutemail.com', '10minutemail.net', 'tempmail.com', 'temp-mail.org', 'temp-mail.io', 'tempmail.dev', 'tempmailo.com', 'yopmail.com', 'yopmail.net', 'trashmail.com', 'trashmail.de', 'getnada.com', 'nada.email', 'dispostable.com', 'maildrop.cc', 'mailnesia.com', 'mintemail.com', 'throwawaymail.com', 'fakeinbox.com', 'emailondeck.com', 'moakt.com', 'mohmal.com', 'burnermail.io', 'spamgourmet.com', 'mailcatch.com', 'tempr.email', 'discard.email', '33mail.com', 'inboxkitten.com', 'mail.tm', 'emailfake.com', 'fakemail.net', 'tempinbox.com', 'mytemp.email', 'luxusmail.org'],
+    },
     // Monthly running costs the admin enters (hosting, domain, email…), in the payout
     // currency, for the profit figure in the Revenue view. AI and Paddle fees are measured.
     fixedCosts: [],
@@ -216,6 +221,9 @@ function clean(input) {
         signups: {
             cap: s.signups?.cap === null || s.signups?.cap === '' || s.signups?.cap === undefined ? null : Math.round(num(s.signups.cap, 80, { min: 0, max: 1e6 })),
             requireVerifiedEmail: s.signups?.requireVerifiedEmail !== false,
+            blockedDomains: Array.isArray(s.signups?.blockedDomains)
+                ? [...new Set(s.signups.blockedDomains.map((d) => String(d).trim().toLowerCase().replace(/^@/, '')).filter((d) => /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(d) && d.length <= 100))].slice(0, 2000)
+                : DEFAULTS.signups.blockedDomains,
         },
         storage: {
             quotaMb: Math.round(num(s.storage?.quotaMb, 512, { min: 64, max: 1024 * 1024 })),

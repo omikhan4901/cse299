@@ -67,6 +67,8 @@ If a connection is a real product decision (pricing, what's free, legal wording)
 - **Tests:** rigorous and edge-case heavy, but fast (the whole server suite runs in ~4 min;
   never add slow tests). Don't call the live AI or run `server/eval` unless asked: AI
   credit is limited. AI routes are tested with the stubbed model only.
+- **V2 is the main version** (owner, Sep 2026): design, copy, tests and new work assume it; the
+  admin switch stays only to open it to everyone at launch and as a kill switch (the owner flips it).
 - **V2** is built behind the admin "V2 preview" switch, in the order of `docs/v2/PLAN.md`,
   keeping the spec's philosophy (deterministic first, AI proposes and the user approves).
   Paddle goes live only after V2 is complete and tested. No separate Job Search Pass: V2 tools are the

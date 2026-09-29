@@ -244,3 +244,21 @@ separately. Rough total: 12–16 working days of effort.
   in the console (a badge for ones not yet seen in this browser) and emailed to the super
   admins: AI spend thresholds, storage 70% and 90%, sign-ups nearly full (10% or 3 left) and
   full, and 5 or more sign-ups from one network within an hour (once a day per network).
+
+**Phase 4 (hardening)**
+- PDFs and Word files are read in 2 worker threads (160 MB each, 20 s per file, queue of
+  20): a stuck or hungry file is killed with its thread and a fresh one takes over; Word
+  files are checked for zip bombs from their table of contents first. Their error
+  messages now reach people instead of "AI request failed".
+- Sign-up, login, reset, verification codes, 2FA, campaign look-ups and AI bursts are
+  counted in the database (one small document per key and window, removed by the
+  database), so two instances can't double them; the rest stay in memory.
+- Campus sizing: login per address 150 per 15 min (per email stays 8), sign-ups per
+  address 40 an hour; the whole-API limit counts signed-in traffic per account, with a
+  6,000 a minute per-address ceiling for floods across many accounts.
+- Throwaway email domains (40 common ones, editable in Credits & access, subdomains too)
+  can't sign up.
+- New campaigns get a random, unguessable code (short ones show a warning).
+- Database pool 20 per instance (M0 allows 500), request timeouts, graceful shutdown on
+  SIGTERM. Deploy doc: 2 instances, 1 GiB each, with the exact console clicks.
+- `docs/security-review.md` walks the OWASP Top 10; npm audit is clean.

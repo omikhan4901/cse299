@@ -6,7 +6,8 @@
 const crypto = require('crypto');
 
 function networkPrefix(ip) {
-    const s = String(ip || '').replace(/^::ffff:/, '');
+    // clientIp() marks addresses forwarded by the site's server with "fwd:".
+    const s = String(ip || '').replace(/^fwd:/, '').replace(/^::ffff:/, '');
     if (/^\d+\.\d+\.\d+\.\d+$/.test(s)) return s.split('.').slice(0, 3).join('.');
     if (s.includes(':')) {
         // Expand "::" so the first three groups are real groups.

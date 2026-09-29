@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Alert, Input, InputNumber, Radio, Skeleton, Switch, Tooltip } from "antd";
 import { worstCase, worstPerCredit } from "@/lib/aiCost";
 import { Gift, Lock, Zap } from "lucide-react";
@@ -7,6 +8,24 @@ import { useSettingsDraft } from "./useSettingsDraft";
 import SaveBar from "./SaveBar";
 
 /** Free mode, credit cost per AI feature and who can sign up. */
+/** One domain per line; the list is taken when the field is left (so typing a new line works). */
+function DomainList({ value, onChange }) {
+  const [text, setText] = useState(null);
+  return (
+    <Input.TextArea
+      rows={4}
+      className="thin-scroll !font-mono !text-xs"
+      value={text ?? value.join("\n")}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (text == null) return;
+        onChange([...new Set(text.split(/[\s,]+/).map((d) => d.trim().toLowerCase().replace(/^@/, "")).filter(Boolean))]);
+        setText(null);
+      }}
+    />
+  );
+}
+
 export default function CreditsTab() {
   const { settings, meta, error, loading, update, save, saving, dirty, discard } = useSettingsDraft();
   if (loading && !settings) return <Skeleton active paragraph={{ rows: 10 }} />;
@@ -75,6 +94,11 @@ export default function CreditsTab() {
             <span>AI credits only after the email is verified<span className="block text-xs text-slate-500">Stops made-up accounts farming free credits. Needs email set up on the server.</span></span>
           </label>
         </div>
+        <label className="mt-4 block border-t border-slate-100 pt-4">
+          <span className="mb-1 block text-xs font-medium text-slate-600">Blocked email domains ({settings.signups.blockedDomains.length}), one per line</span>
+          <DomainList value={settings.signups.blockedDomains} onChange={(list) => update((s) => ((s.signups = { ...s.signups, blockedDomains: list }), s))} />
+          <span className="mt-1 block text-xs text-slate-500">Throwaway email services people use to farm free credits. Subdomains are blocked too.</span>
+        </label>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">

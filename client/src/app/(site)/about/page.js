@@ -3,6 +3,7 @@ import { GithubIcon as Github } from "@/components/BrandIcons";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { BuilderLink } from "@/components/BuilderLauncher";
 import { JobSearchFaq } from "@/components/JobSearchShowcase";
+import { jsonLdHtml } from "@/lib/seo";
 
 export const metadata = {
   title: "About ResumeX & FAQ",
@@ -34,7 +35,7 @@ export default function AboutPage() {
   };
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(jsonLd)} />
       <section className="bg-gradient-to-b from-brand-50 to-white">
         <div className="container-x py-16 text-center md:py-24">
           <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-brand ring-1 ring-brand-200">About ResumeX</span>

@@ -75,7 +75,18 @@ From the repository root, in Cloud Shell or with the gcloud CLI:
 
 ```bash
 gcloud run deploy resumex-api --source . --region asia-south1 \
-  --allow-unauthenticated --max-instances 1 --port 8080 --timeout 300 \
+  --allow-unauthenticated --max-instances 2 --memory 1Gi --concurrency 80 --port 8080 --timeout 300 \
   --set-env-vars TRUST_PROXY=1,CLIENT_ORIGIN=https://resumex.vercel.app \
   --set-env-vars MONGO_URI='…',JWT_SECRET='…',GEMINI_API_KEY='…'
 ```
+
+## Instances and memory (beta)
+
+The beta runs on at most **2 instances with 1 GiB each**: the limits that matter (sign-up,
+login, password reset, codes, AI bursts) are counted in the database, so they hold across
+both, and PDFs and Word files are read in two worker threads of up to 160 MB each.
+
+In the console: **Cloud Run → resumex-api → Edit & deploy new revision → Container(s)**:
+Memory **1 GiB**, CPU **1**; **Revision scaling**: Maximum number of instances **2**; then
+**Deploy**. A redeploy from the trigger keeps these settings.
+

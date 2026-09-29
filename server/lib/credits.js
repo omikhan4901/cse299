@@ -111,6 +111,7 @@ async function usageSummary(userOrId) {
 
 const aiBurst = limit({
     name: 'ai-minute',
+    shared: true,
     windowMs: 60 * 1000,
     max: Number(process.env.AI_RATE_PER_MINUTE) || 8,
     key: (req) => req.userId,

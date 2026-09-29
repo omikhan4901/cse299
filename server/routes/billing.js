@@ -171,7 +171,7 @@ router.post('/change-plan', protect, billingActions, async (req, res) => {
 
 // @route GET /api/billing/campaign/:code — what a campaign code gives (for the join page)
 // Tight limit so campaign codes can't be guessed by brute force.
-router.get('/campaign/:code', limit({ name: 'campaign-ip', windowMs: 15 * 60 * 1000, max: 40, key: clientIp, message: 'Too many attempts.', label: 'Campaign code checks', group: 'Public pages', description: 'Invite links opened from one network (stops codes being guessed).' }), async (req, res, next) => {
+router.get('/campaign/:code', limit({ name: 'campaign-ip', shared: true, windowMs: 15 * 60 * 1000, max: 40, key: clientIp, message: 'Too many attempts.', label: 'Campaign code checks', group: 'Public pages', description: 'Invite links opened from one network (stops codes being guessed).' }), async (req, res, next) => {
     try {
         const code = String(req.params.code || '').trim().toUpperCase();
         const campaign = /^[A-Z0-9_-]{3,32}$/.test(code) ? await Campaign.findOne({ code }).lean() : null;
