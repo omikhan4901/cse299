@@ -163,9 +163,11 @@ describe('/ai/ingest', () => {
         ai.reply = JSON.stringify({ operations: [{ op: 'add', section: 'projects', item: { name: 'Attendance system', technologies: 'Python, OpenCV' }, bullets: ['Cut processing time by 40%'], evidence: 'attendance system' }] });
         const r = await api('POST', '/ai/ingest', { token, body: { text: 'In third year I built an attendance system with Python and OpenCV that cut processing time by 40%.', outline } });
         assert.equal(r.status, 200);
-        assert.equal(r.body.operations.length, 1);
+        // The project, plus its technologies as skills (the model left that out).
+        assert.equal(r.body.operations.length, 2);
         assert.equal(r.body.operations[0].key, 'op1');
         assert.equal(r.body.operations[0].flags, undefined);
+        assert.deepEqual(r.body.operations[1], { op: 'addValues', field: 'skills', values: ['Python', 'OpenCV'], evidence: 'Python, OpenCV', key: 'op2' });
         const usage = (await api('GET', '/billing/me', { token })).body.data;
         assert.equal(usage.used, 3);
     });
@@ -178,5 +180,65 @@ describe('/ai/ingest', () => {
         ai.reply = 'not json';
         assert.equal((await api('POST', '/ai/ingest', { token, body: { text: 'I worked at Acme.' } })).status, 502);
         assert.equal((await api('GET', '/billing/me', { token })).body.data.used, 0);
+    });
+});
+
+describe('checker: abbreviations and word forms are not inventions', () => {
+    const { checker, stem } = require('../lib/ingest');
+    it('the words of a known abbreviation in the text are confirmed; others are not', () => {
+        const c = checker('Final year CSE student at BUET, BBA from NSU');
+        for (const t of ['computer', 'science', 'engineering', 'bangladesh', 'technology', 'business', 'administration', 'north', 'south']) assert.ok(c.known(t), t);
+        for (const t of ['electrical', 'harvard', 'medicine', 'google']) assert.equal(c.known(t), false, t);
+        // Without the abbreviation in the text, its expansion is not confirmed.
+        assert.equal(checker('Final year student').known('computer'), false);
+        // Ambiguous short words are not expanded: "me" is not mechanical engineering.
+        assert.equal(checker('Call me any time').known('mechanical'), false);
+    });
+
+    it('word forms confirm each other, but different words and numbers stay strict', () => {
+        const c = checker('I have been teaching English. Managed the office. Coordinated events in 2021 for 20 people.');
+        for (const t of ['teacher', 'teaching', 'manager', 'management', 'coordinator']) assert.ok(c.known(t), t);
+        for (const t of ['senior', 'lead', 'director', 'principal', '2020', '200', '2']) assert.equal(c.known(t), false, t);
+        assert.equal(stem('teacher'), stem('teaching'));
+        assert.equal(stem('manager'), stem('management'));
+        assert.notEqual(stem('senior'), stem('seminar'));
+        // Short words aren't stemmed into each other.
+        assert.equal(checker('I ran a team').known('ranger'), false);
+    });
+});
+
+describe('checkOperations: deterministic tidy-ups', () => {
+    it('"since" with no end date means Present; a stated end date or other wording is left alone', () => {
+        const src = 'I have been teaching at Milestone College since 2018. I worked at Pathao from 2019 to 2021. I was at bKash in 2017.';
+        const { operations } = checkOperations(
+            [
+                { op: 'add', section: 'experience', item: { company: 'Milestone College', title: 'Teacher', startDate: '2018' }, evidence: 'teaching at Milestone College since 2018' },
+                { op: 'add', section: 'experience', item: { company: 'Pathao', startDate: '2019', endDate: '2021' }, evidence: 'Pathao from 2019 to 2021' },
+                { op: 'add', section: 'experience', item: { company: 'bKash', startDate: '2017' }, evidence: 'at bKash in 2017' },
+            ],
+            { source: src }
+        );
+        assert.equal(operations[0].item.endDate, 'Present');
+        assert.equal(operations[1].item.endDate, '2021');
+        assert.equal(operations[2].item.endDate, undefined);
+    });
+
+    it('technologies named on items join skills once, never duplicating what is listed, never unverified', () => {
+        const src = 'Built a bus tracker with Node.js, PostgreSQL and Redis. Skills: Git. I know Python.';
+        const { operations } = checkOperations(
+            [
+                { op: 'add', section: 'projects', item: { name: 'Bus tracker', technologies: 'Node.js, PostgreSQL, Redis, Kafka' }, evidence: 'bus tracker' },
+                { op: 'addValues', field: 'skills', values: ['Python', 'Redis'], evidence: 'I know Python' },
+            ],
+            { source: src, outline: { skills: 'Git, PostgreSQL' } }
+        );
+        const skills = operations.filter((o) => o.op === 'addValues' && o.field === 'skills');
+        assert.equal(skills.length, 1, 'one skills operation');
+        assert.deepEqual(skills[0].values, ['Python', 'Redis', 'Node.js'], 'PostgreSQL already listed; Kafka not in the text');
+    });
+
+    it('adds no skills operation when there are no new technologies', () => {
+        const { operations } = checkOperations([{ op: 'add', section: 'projects', item: { name: 'Site', technologies: 'Git' }, evidence: 'site' }], { source: 'A site. Git.', outline: { skills: 'Git' } });
+        assert.equal(operations.filter((o) => o.op === 'addValues').length, 0);
     });
 });

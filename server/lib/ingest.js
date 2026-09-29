@@ -75,16 +75,17 @@ Section fields:
 ${Object.entries(SECTION_FIELDS).map(([s, f]) => `- ${s}: ${f.filter((x) => x !== POINTS_FIELD[s]).join(', ')}${POINTS_FIELD[s] ? ' (+ bullets)' : ''}`).join('\n')}
 
 Rules:
-1. Use only information that is in INPUT. Never invent or estimate numbers, dates, employers, job titles, technologies, results or links. Leave a field out when INPUT doesn't state it.
+1. Use only information that is in INPUT. Never invent or estimate numbers, dates, employers, job titles, technologies, results or links. Leave a field out when INPUT doesn't state it. Don't work dates out from a duration ("for 2 years", "6 months"): leave those dates out.
 2. If INPUT is about something already in CURRENT RESUME (the same employer, project, school or award, or phrases like "that project", "my job at X"), use its id with "addBullets" or "update". Never add a second copy.
 3. Skip information already in CURRENT RESUME.
 4. Keep the person's facts and wording. You may fix grammar and spelling, split a long sentence into separate points, start points with a strong verb and use past tense for finished work. Never add adjectives or claims they didn't make.
 5. Dates: "Mon YYYY" (e.g. "Mar 2021"), just "YYYY" if only the year or a season is known, or "Present". Education uses startYear and endYear (years only).
-6. Sections: jobs, internships, part-time, tutoring, teaching and research-assistant positions go in experience (always with "company" = the employer or institution, and "title"); personal, academic and thesis projects in projects; each degree is its own education item. Publications take the venue as "publisher" and the year as "date".
+6. Sections: jobs, internships, part-time, tutoring, teaching and research-assistant positions go in experience (always with "company" = the employer or institution, and "title"); personal, academic and thesis projects in projects; each degree is its own education item. Publications take the venue as "publisher" and the year as "date". Volunteering takes the person's "role" when INPUT gives it. Keep award, course and certificate names as written; a count such as "3 times" goes in the description.
 7. Skills: every technology, programming language, tool and method named anywhere in INPUT (in a job, a project or a point) also goes in one "addValues" for skills, written the usual way (e.g. "Node.js"). Spoken languages (with level if given) go in languages.
 8. If INPUT is partly or fully in Bangla, write the resume text in English, keeping names as they are.
 9. "evidence": copy the shortest exact phrase from INPUT that the operation is based on.
-10. If INPUT has nothing for a resume, return an empty list.`;
+10. When INPUT describes the person as a whole (who they are, their experience, what they want next), also "set" the summary from it, without "I".
+11. If INPUT has nothing for a resume, return an empty list.`;
 
 /** The contents for the model: the outline and the new input. */
 function prompt(outline, text) {
@@ -164,6 +165,63 @@ const ALIASES = {
     english: ['ইংরেজি'],
 };
 
+// Abbreviations people use for degrees, subjects and universities, and what they stand for:
+// writing "CSE" out in full isn't inventing anything, so the words of the expansion count as
+// confirmed when the abbreviation is in the text. (Not ambiguous words like "me" or "ce".)
+const ABBREVIATIONS = {
+    cse: 'computer science and engineering',
+    cs: 'computer science',
+    eee: 'electrical and electronic engineering electronics',
+    ece: 'electrical electronics and computer communication engineering',
+    ete: 'electronics and telecommunication engineering',
+    ipe: 'industrial and production engineering',
+    it: 'information technology',
+    ict: 'information and communication technology',
+    bba: 'bachelor of business administration',
+    mba: 'master of business administration',
+    bsc: 'bachelor of science',
+    msc: 'master of science',
+    ba: 'bachelor of arts',
+    ma: 'master of arts',
+    bss: 'bachelor of social science',
+    mss: 'master of social science',
+    llb: 'bachelor of laws',
+    llm: 'master of laws',
+    mbbs: 'bachelor of medicine and bachelor of surgery',
+    bpharm: 'bachelor of pharmacy',
+    phd: 'doctor of philosophy',
+    ssc: 'secondary school certificate',
+    hsc: 'higher secondary certificate',
+    buet: 'bangladesh university of engineering and technology',
+    du: 'dhaka university of dhaka',
+    nsu: 'north south university',
+    bracu: 'brac university',
+    iub: 'independent university bangladesh',
+    aiub: 'american international university bangladesh',
+    ewu: 'east west university',
+    ruet: 'rajshahi university of engineering and technology',
+    kuet: 'khulna university of engineering and technology',
+    cuet: 'chittagong chattogram university of engineering and technology',
+    sust: 'shahjalal university of science and technology',
+    ai: 'artificial intelligence',
+    ml: 'machine learning',
+    hr: 'human resources',
+    ui: 'user interface',
+    ux: 'user experience',
+};
+
+/** A rough stem, so "teaching" confirms "Teacher" and "management" confirms "Manager". */
+function stem(word) {
+    let w = String(word).toLowerCase();
+    for (const suffix of ['ations', 'ation', 'ments', 'ment', 'ings', 'ing', 'ers', 'er', 'ors', 'or', 'ies', 'ied', 'ed', 'es', 's']) {
+        if (w.endsWith(suffix) && w.length - suffix.length >= 4) {
+            w = w.slice(0, -suffix.length);
+            break;
+        }
+    }
+    return w.length > 4 && w.endsWith('e') ? w.slice(0, -1) : w;
+}
+
 const MONTH = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?$/i;
 const COMMON = new Set(['present', 'i', 'bsc', 'msc', 'ba', 'ma', 'phd', 'ceo', 'cto', 'hr', 'it', 'ai', 'ui', 'ux']);
 
@@ -177,14 +235,17 @@ function factTokens(text) {
         const n = m[0].replace(/[.,]+$/, '').replace(/,/g, '');
         if (n) tokens.add(n);
     }
-    const parts = String(text).split(/\s+/);
-    parts.forEach((w, i) => {
-        const clean = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}+#]+$/gu, '');
-        if (clean.length < 2 || /^\d/.test(clean) || MONTH.test(clean) || COMMON.has(clean.toLowerCase())) return;
-        const sentenceStart = i === 0 || /[.!?:;•\-–]$/.test(parts[i - 1] || '');
-        const innerCap = /\p{Lu}/u.test(clean.slice(1));
-        if (innerCap || (/^\p{Lu}/u.test(clean) && !sentenceStart)) tokens.add(clean.toLowerCase());
-    });
+    // Each line starts a sentence too (points are one per line).
+    for (const line of String(text).split('\n')) {
+        const parts = line.trim().split(/\s+/);
+        parts.forEach((w, i) => {
+            const clean = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}+#]+$/gu, '');
+            if (clean.length < 2 || /^\d/.test(clean) || MONTH.test(clean) || COMMON.has(clean.toLowerCase())) return;
+            const sentenceStart = i === 0 || /[.!?:;•\-–]$/.test(parts[i - 1] || '');
+            const innerCap = /\p{Lu}/u.test(clean.slice(1));
+            if (innerCap || (/^\p{Lu}/u.test(clean) && !sentenceStart)) tokens.add(clean.toLowerCase());
+        });
+    }
     return [...tokens];
 }
 
@@ -257,7 +318,16 @@ function checker(text) {
     const corpusDigits = asciiDigits(text).replace(/,/g, '');
     const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const inCorpus = (t) => corpus.includes(norm(t)) || (ALIASES[t.toLowerCase()] || []).some((a) => new RegExp(`(^| )${escape(norm(a))}( |$)`).test(corpus));
-    const known = (t) => (/^\d/.test(t) ? new RegExp(`(^|[^\\d.])${escape(t)}(?![\\d]|\\.\\d)`).test(corpusDigits) : inCorpus(t));
+    const words = new Set(corpus.split(' '));
+    // Words that abbreviations in the text stand for, and the stems of every word in it.
+    const expanded = new Set([...words].flatMap((w) => (ABBREVIATIONS[w] ? ABBREVIATIONS[w].split(' ') : [])));
+    const stems = new Set([...words].filter((w) => w.length >= 4 && /^\p{L}+$/u.test(w)).map(stem));
+    const wordKnown = (t) => {
+        const w = norm(t);
+        if (!w || w.includes(' ')) return false;
+        return expanded.has(w) || (w.length >= 5 && /^\p{L}+$/u.test(w) && stems.has(stem(w)));
+    };
+    const known = (t) => (/^\d/.test(t) ? new RegExp(`(^|[^\\d.])${escape(t)}(?![\\d]|\\.\\d)`).test(corpusDigits) : inCorpus(t) || wordKnown(t));
     return { corpus, inCorpus, known };
 }
 
@@ -339,8 +409,26 @@ function checkOperations(rawOps, { source, outline = {} }) {
         if (missing.length) o.flags = [...(o.flags || []), { kind: 'unverified', tokens: missing }];
         out.push(o);
     }
+    // Deterministic tidy-ups the model sometimes misses (nothing here is new information):
+    // "since 2018" / "currently" with no end date means it's still going on,
+    for (const o of out) {
+        if (o.op !== 'add' || !['experience', 'volunteering'].includes(o.section) || !o.item.startDate || o.item.endDate) continue;
+        if (/\b(since|currently|present|ongoing|till now|to date)\b|এখনও|থেকে এখন/i.test(o.evidence || '')) o.item.endDate = 'Present';
+    }
+    // and technologies named on a project or job belong in skills too (rule 7).
+    const listed = new Set(String(outline.skills || '').split(',').map((v) => norm(v)).filter(Boolean));
+    let skillsOp = out.find((o) => o.op === 'addValues' && o.field === 'skills');
+    for (const v of skillsOp?.values || []) listed.add(norm(v));
+    const tech = out
+        .filter((o) => (o.op === 'add' || o.op === 'update') && o.item?.technologies)
+        .flatMap((o) => String(o.item.technologies).split(',').map((t) => t.trim()).filter(Boolean))
+        .filter((t) => t.length <= 40 && inCorpus(t) && !listed.has(norm(t)) && (listed.add(norm(t)), true));
+    if (tech.length) {
+        if (!skillsOp) out.push((skillsOp = { op: 'addValues', field: 'skills', values: [], evidence: tech.join(', ') }));
+        skillsOp.values = [...skillsOp.values, ...tech];
+    }
     out.forEach((o, i) => (o.key = `op${i + 1}`));
     return { operations: out, skipped };
 }
 
-module.exports = { checker, INSTRUCTION, RESPONSE_SCHEMA, prompt, checkOperations, factTokens, similar, SECTION_FIELDS, POINTS_FIELD };
+module.exports = { ABBREVIATIONS, stem, checker, INSTRUCTION, RESPONSE_SCHEMA, prompt, checkOperations, factTokens, similar, SECTION_FIELDS, POINTS_FIELD };

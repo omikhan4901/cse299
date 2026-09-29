@@ -70,17 +70,19 @@ const SLOW_MESSAGE = 'The AI took too long to answer. Please try again.';
 // the builder stops waiting (60 s; 120 s for imports), so the person always gets an
 // answer, and a refund when it fails.
 const aiBudgetMs = (req) => Number(process.env.AI_TIMEOUT_MS) || (req?.aiLongTask ? 100_000 : 45_000);
+// One attempt: imports of a long CV can take well over 30 s, so they get longer before a retry.
 const PER_TRY_MS = 30_000;
+const PER_TRY_LONG_MS = 70_000;
 
 // Retries server errors and rate limits with backoff, within the time left.
 // Returns the last HTTP response (possibly an error); throws on timeout or a dropped client.
-const fetchWithRetry = async (url, options, { deadline, signal }, maxRetries = 3) => {
+const fetchWithRetry = async (url, options, { deadline, signal, perTry = PER_TRY_MS }, maxRetries = 3) => {
     let lastResponse = null;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         const left = deadline - Date.now();
         if (left < 1000) break;
         try {
-            const response = await fetch(url, { ...options, signal: AbortSignal.any([signal, AbortSignal.timeout(Math.min(left, PER_TRY_MS))].filter(Boolean)) });
+            const response = await fetch(url, { ...options, signal: AbortSignal.any([signal, AbortSignal.timeout(Math.min(left, perTry))].filter(Boolean)) });
             if (response.status < 500 && response.status !== 429) return response;
             lastResponse = response;
         } catch (err) {
@@ -129,7 +131,7 @@ const generate = async (systemInstruction, contents, generationConfig, req) => {
         systemInstruction: { parts: [{ text: systemInstruction }] },
         ...(generationConfig ? { generationConfig } : {}),
     };
-    const limits = { deadline: Date.now() + aiBudgetMs(req), signal: req?.aiSignal };
+    const limits = { deadline: Date.now() + aiBudgetMs(req), signal: req?.aiSignal, perTry: req?.aiLongTask ? PER_TRY_LONG_MS : PER_TRY_MS };
     let response = await callModel(MODEL_NAME, payload, limits);
     // Overloaded, rate-limited or retired model: try the lighter fallback model once, if there's time.
     if ([404, 429, 500, 503].includes(response.status) && FALLBACK_MODEL && FALLBACK_MODEL !== MODEL_NAME && limits.deadline - Date.now() > 3000) {
@@ -221,7 +223,7 @@ ${context}
 TASK: ${task}
 
 RULES:
-1. Never invent qualifications, employers, numbers, degrees or job titles that are not in the text.
+1. Never invent qualifications, employers, numbers, degrees or job titles that are not in the text. Don't add details the text doesn't give either: no new purposes, audiences, scale, topics or adjectives (e.g. "high-throughput", "strategic", "valuable", "for management review"). Keep each point as specific as the original, no more.
 2. Use the context only to match tone and keywords, not to add facts.
 3. If the text contradicts the context, trust the text.
 4. Reply with the rewritten text only — no quotes, labels, markdown or commentary.`;
@@ -252,7 +254,11 @@ router.post('/strengthen', protect, aiQuota('refine'), async (req, res) => {
             return res.json({ success: true, questions });
         }
         const input = `POINT: ${text}\n\nANSWERS:\n${answers.map((x) => `Q: ${x.q}\nA: ${x.a}`).join('\n')}`;
-        const out = (await generate(polish.STRENGTHEN_WRITE, [{ role: 'user', parts: [{ text: input }] }], undefined, req)).replace(/^["'\s•-]+|["'\s]+$/g, '');
+        const write = async (note = '') => (await generate(polish.STRENGTHEN_WRITE, [{ role: 'user', parts: [{ text: input + note }] }], undefined, req)).replace(/^["'\s•-]+|["'\s]+$/g, '');
+        let out = await write();
+        // The numbers they gave are the point of Strengthen: if none made it in, ask once more.
+        const given = [...new Set(answers.flatMap((x) => x.a.match(/\d[\d.,]*/g) || []).map((n) => n.replace(/[.,]+$/, '')))];
+        if (given.length && !given.some((n) => out.includes(n))) out = await write(`\n\nInclude the numbers from the answers (${given.join(', ')}).`);
         res.json({ success: true, text: out, unverified: polish.newFacts(out, `${text} ${answers.map((x) => x.a).join(' ')}`) });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);

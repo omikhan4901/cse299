@@ -16,6 +16,8 @@ import PdfPreview from "../builder/PdfPreview";
 import { downloadPdf } from "@/pdf/client";
 import { StatusChip } from "./ui";
 import TailorModal from "./TailorModal";
+import InterviewPrep from "./InterviewPrep";
+import PlanTag from "../billing/PlanTag";
 
 const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 const fmt = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -107,6 +109,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
   const [profile, setProfile] = useState(undefined);
   const [sentOpen, setSentOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [prepOpen, setPrepOpen] = useState(false);
   const [making, setMaking] = useState(false);
   const [tailoring, setTailoring] = useState(false);
 
@@ -128,7 +131,35 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
     if (s.key === "description") return setShowJob(true);
     if (s.key === "submitted") return save({ status: "applied" });
     if (s.key === "resume") return document.getElementById("app-resume")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (s.key === "interviewPrep") return openPrep();
     tick(s.key);
+  };
+
+  // After an offer: the job isn't in the Career Profile yet (spec §8, "Got the job?").
+  const same = (x, y) => String(x || "").trim().toLowerCase() === String(y || "").trim().toLowerCase();
+  const offerNotInProfile = a.status === "offer" && profile && (a.job.title || a.job.organisation) && !profile.experience?.some((e) => same(e.company, a.job.organisation) && same(e.title, a.job.title));
+  const [adding, setAdding] = useState(false);
+  const addToProfile = async () => {
+    setAdding(true);
+    const item = {
+      id: newId(), title: a.job.title || "", company: a.job.organisation || "", location: a.job.location || "",
+      startDate: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }), endDate: "Present", description: "",
+    };
+    try {
+      const { data } = await api("/profile", { token, method: "PUT", body: { experience: [item, ...(profile.experience || [])], baseRev: profile.rev } });
+      setProfile(data);
+      message.success("Added to your Career Profile");
+    } catch (err) {
+      message.error(err.code === "conflict" ? "Your profile changed in another tab. Open it and add the job there." : err.message);
+      if (err.code === "conflict") api("/profile", { token }).then((d) => setProfile(d.data)).catch(() => {});
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const openPrep = () => {
+    if (billing && !billing.requireFeature("interviewPrep", "Interview prep")) return;
+    setPrepOpen(true);
   };
 
   const makeFromProfile = async () => {
@@ -199,8 +230,16 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
             <p className="font-semibold text-ink">{step.label}</p>
           </div>
           <Button type="primary" size="small" onClick={() => doStep(step)}>
-            {step.key === "submitted" ? "Mark as applied" : step.auto ? "Do it" : "Done"}
+            {step.key === "submitted" ? "Mark as applied" : step.key === "interviewPrep" ? <>Open prep <PlanTag feature="interviewPrep" /></> : step.auto ? "Do it" : "Done"}
           </Button>
+        </div>
+      ) : null}
+
+      {offerNotInProfile ? (
+        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+          <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
+          <p className="min-w-0 flex-1 text-sm text-slate-700"><b className="font-semibold text-ink">Got the job?</b> Add it to your Career Profile so your next resume starts with it.</p>
+          <Button size="small" loading={adding} onClick={addToProfile}>Add to profile</Button>
         </div>
       ) : null}
 
@@ -303,7 +342,14 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
             <Button type="text" icon={<X size={14} />} aria-label="Remove interview" onClick={() => interviews.del(i)} />
           </div>
         ))}
-        <Button type="link" size="small" className="!mt-2 !px-0" icon={<Plus size={14} />} onClick={interviews.add}>Add an interview</Button>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4">
+          <Button type="link" size="small" className="!px-0" icon={<Plus size={14} />} onClick={interviews.add}>Add an interview</Button>
+          {a.status === "interviewing" || interviews.items.length ? (
+            <Button type="link" size="small" className="!px-0" onClick={openPrep}>
+              Prepare for it <PlanTag feature="interviewPrep" />
+            </Button>
+          ) : null}
+        </div>
       </Section>
 
       <Section title="People">
@@ -348,6 +394,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
         )}
       </Section>
 
+      <InterviewPrep open={prepOpen} onClose={() => setPrepOpen(false)} app={a} profile={profile} resume={resume} prepared={!!a.checklist?.interviewPrep} onPrepared={() => tick("interviewPrep")} />
       <TailorModal open={tailoring} onClose={() => setTailoring(false)} apps={[a]} token={token} />
       <SentCopy open={sentOpen} onClose={() => setSentOpen(false)} snapshot={a.snapshot} />
       {coverOpen && resume ? (

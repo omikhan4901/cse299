@@ -484,8 +484,8 @@ next one slips.
 | **2. Applications** | Tracker (capture from text/link, statuses, board and list, snapshot on Applied, checklist, contacts, notes), home "what to do today", in-app reminders, free limit of 5 active | The retention engine; no AI cost | ~2–3 weeks |
 | **3. Tailoring** | Deterministic tailoring from profile to job with match report; Pull updates / Save to profile; AI polish priced up front; batch with estimate and per-job refunds; cover letter from application | The "n resumes from one profile" promise, cheap to run | ~2–3 weeks |
 | **4. Bangladesh and reach** | Biodata templates, Bangla/English circular parsing, email digests (Cloud Scheduler), country pricing, Job Search Pass | Differentiation and conversion | ~2 weeks |
-| **V2.1** | Version compare, public profile page, deterministic interview prep per role, .ics export, Bangla CV (if the spike passes) | Valuable, not foundational | later |
-| **V2.2 Outcome insights** | Learn from the user's own history: "23 software applications, 5 interviews; resume B → 3 interviews"; "interviews from 4 of 12 applications that included Project X". Shown only above a minimum sample, worded as observations, never as advice | A moat built from first-party outcome data; needs months of tracked applications first | later |
+| **V2.1** | Version compare, public profile page, deterministic interview prep per role (**built**: prep sheet per application, Pro), .ics export (**built**), Bangla CV (spike failed: not yet) | Valuable, not foundational | partly done |
+| **V2.2 Outcome insights** (**built early**: dashboard, after 8 applications sent, groups of 3+, Pro) | Learn from the user's own history: "23 software applications, 5 interviews; resume B → 3 interviews"; "interviews from 4 of 12 applications that included Project X". Shown only above a minimum sample, worded as observations, never as advice | A moat built from first-party outcome data; needs months of tracked applications first | later |
 
 ### Success measures
 

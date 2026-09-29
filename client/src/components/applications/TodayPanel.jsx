@@ -4,6 +4,9 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowRight, Bell, Briefcase, CalendarClock, Clock3, MessagesSquare, Send } from "lucide-react";
 import { dueItems, funnel } from "@/lib/applications";
+import { insightsFor } from "@/lib/insights";
+import { useBilling } from "../BillingProvider";
+import PlanTag from "../billing/PlanTag";
 import { useApplications } from "./useApplications";
 
 const WHEN = (d) => (d === 0 ? "today" : d === 1 ? "tomorrow" : d === -1 ? "yesterday" : d < 0 ? `${-d} days ago` : `in ${d} days`);
@@ -14,6 +17,39 @@ const KIND = {
   interview: { icon: MessagesSquare, tone: "text-violet-600 bg-violet-50", text: (i) => `${i.detail || "Interview"} ${WHEN(i.days)}` },
   noResponse: { icon: Clock3, tone: "text-slate-500 bg-slate-100", text: (i) => `No news for ${i.days} days. Mark as no response?` },
 };
+
+/** What the person's own applications show, once there are enough of them (lib/insights.js). */
+function Insights({ apps }) {
+  const billing = useBilling();
+  const ins = insightsFor(apps);
+  if (!ins.sent) return null;
+  if (billing && !billing.canUse("insights")) {
+    return (
+      <button type="button" onClick={() => billing.requireFeature("insights", "Search insights")} className="mt-4 flex w-full items-center gap-2 border-t border-slate-100 pt-3 text-left text-sm text-slate-500 hover:text-brand">
+        See which resumes and roles get you interviews <PlanTag feature="insights" />
+      </button>
+    );
+  }
+  if (!ins.ready) {
+    return <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-400">After {ins.need} applications, you&apos;ll see here what&apos;s getting interviews ({ins.sent} so far).</p>;
+  }
+  const days = ins.medianDaysToInterview;
+  const pair = (groups) => groups.slice(0, 2).map((g) => `${g.label} ${g.interviews} of ${g.sent}`).join(", ");
+  const lines = [
+    `${ins.interviews} interview${ins.interviews === 1 ? "" : "s"} from ${ins.sent} applications (${ins.interviewRate}%).`,
+    ins.byResume.length ? `By resume: ${pair(ins.byResume.map((g) => ({ ...g, label: `“${g.label}”` })))}.` : null,
+    ins.byRole.length ? `By kind of role: ${pair(ins.byRole)}.` : null,
+    [days != null ? `Interviews came ${days === 0 ? "on the day you applied" : days === 1 ? "a day after applying" : `about ${days} days after applying`}.` : null, ins.waiting ? `${ins.waiting} waiting 3+ weeks.` : null].filter(Boolean).join(" ") || null,
+  ].filter(Boolean);
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-3">
+      <p className="text-xs font-medium text-slate-500">What your applications show</p>
+      <ul className="mt-1.5 space-y-1 text-sm text-slate-600">
+        {lines.map((l) => <li key={l}>{l}</li>)}
+      </ul>
+    </div>
+  );
+}
 
 /** The top of the dashboard for V2 accounts: what needs doing now, and how the search is going. */
 export default function TodayPanel({ token }) {
@@ -54,6 +90,7 @@ export default function TodayPanel({ token }) {
           ))}
         </div>
         <p className="mt-3 text-xs text-slate-400">{f.thisWeek ? `${f.thisWeek} sent this week.` : "Nothing sent this week yet."}</p>
+        <Insights apps={apps} />
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between">

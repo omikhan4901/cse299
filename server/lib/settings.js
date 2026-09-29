@@ -21,6 +21,9 @@ const AI_FEATURES = [
 const APP_FEATURES = [
     { key: 'atsCheck', name: 'ATS check', description: 'The ATS score and job keyword match.' },
     { key: 'shareLinks', name: 'Share links', description: 'Publish a resume as a web page.' },
+    // V2 (shown on the pricing page only once V2 is on for everyone).
+    { key: 'interviewPrep', name: 'Interview prep', description: 'A prep sheet for each interview, from the job and your own experience.', v2: true },
+    { key: 'insights', name: 'Search insights', description: 'What your own applications show: interview rate by resume and by kind of role.', v2: true },
 ];
 
 // Numeric plan limits (V2). null = unlimited; 0 = not included.
@@ -67,7 +70,7 @@ const DEFAULTS = {
         {
             id: 'free', name: 'Free', tagline: 'Everything you need for your first resume.',
             price: 0, yearlyPrice: 0, credits: 10, creditPeriod: 'day', highlight: false,
-            features: { ...allOn, parse: false, coverLetter: false, audit: false, polish: false },
+            features: { ...allOn, parse: false, coverLetter: false, audit: false, polish: false, interviewPrep: false, insights: false },
             limits: { applications: 5, tailored: 1, batch: 0 },
             perks: ['Live PDF builder', 'ATS-Optimized and Student templates', 'ATS check with keyword match', '10 AI credits a day'],
         },

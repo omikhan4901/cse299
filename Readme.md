@@ -45,9 +45,14 @@ Tailoring scores every job, point and project in your profile against the job's 
 ![Tailoring](docs/screenshots/tailor.jpg)
 
 ### And around it
+![Interview prep](docs/screenshots/interview-prep.jpg)
+
 - **Biodata CVs:** two formal biodata templates. Parents' names, addresses and the rest stay in that one resume: never in the profile, never sent to AI, never on share links, and no national ID field.
 - **Rewrite and Strengthen:** the assistant rewrites a point and flags anything it couldn't verify; Strengthen asks you questions instead of guessing numbers.
-- **Job Search Pass:** one payment for a plan for a set number of days, beside the Pro and Premium subscriptions. Days are added once however often Paddle retries, and a refund ends the pass.
+- **Interview prep:** for each interview, a prep sheet from the job and your own experience: the skills they'll look for with the point that proves each one, honest gaps, stories to have ready, the questions this kind of role brings and what to ask them. No AI.
+- **Search insights:** once you've sent 8 applications, what your own history shows: interview rate, which resume versions and kinds of role get interviews (only groups of 3 or more), and how long replies take. Observations, never advice.
+- **Got the job?** An offer offers to add the role to your Career Profile, so the next search starts from it.
+- **Pro and Premium** unlock the full search: more tracked jobs and tailored resumes, bulk tailoring, interview prep and insights, all set per plan in the admin console. A one-time Job Search Pass is built too, switched off.
 - **Plan limits** for tracked jobs, tailored resumes and batch size, all set in the admin console and shown on the pricing page.
 - **AI economics:** every AI call records its model and tokens; an admin tab shows AI cost against revenue per paying user. AI can run on Gemini directly or through **Vertex AI** (`AI_PROVIDER=vertex`).
 

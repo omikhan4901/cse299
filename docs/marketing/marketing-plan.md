@@ -249,12 +249,12 @@ One number matters most: **new users per week**. If it's growing, keep going. If
 
 ## Making money (later)
 
-Paid plans are built (Pro and Premium through Paddle, plus an optional one-time **Job Search Pass**), and **free mode** keeps everything open until you decide to charge. Paddle goes live only once V2 is complete and tested.
+Paid plans are built (Pro and Premium through Paddle), and **free mode** keeps everything open until you decide to charge. Paddle goes live only once V2 is complete and tested.
 
 When you have about 1,000 or more active users and real feedback:
 - **Keep the core free forever:** building, ATS check and PDF download. It's your marketing.
 - **Charge for extras:** more AI credits, premium templates, more tracked jobs and tailored CVs, batch tailoring. All of these limits are set in Admin › Plans.
-- **Students in Bangladesh prefer one-time payments to subscriptions.** That's what the Job Search Pass is for: one payment for a plan for a set number of days (set in Admin › Plans). Test the price with a small group first.
+- **The job-search tools are the reason to upgrade.** Free gets a taste (a few tracked jobs, one tailored CV); Pro and Premium get the full search: unlimited tracking, tailored CVs in bulk, interview prep and insights. All of it is set in Admin › Plans. (A one-time Job Search Pass is built but switched off; turn it on only if students ask for a non-subscription option.)
 - **Local payments matter.** Paddle handles cards and international users. Most Bangladeshi students pay with bKash or Nagad, so a local gateway (for example SSLCommerz, or bKash's own payment API) will convert much better locally. Look into it once people are asking to pay.
 - Use **campaign codes for discounts** (for example `LAUNCH50`) and for university partnerships.
 

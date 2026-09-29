@@ -85,7 +85,9 @@ function polishOperations(reply, resume) {
 const QUESTIONS_SCHEMA = { type: 'OBJECT', properties: { questions: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['questions'] };
 const STRENGTHEN_ASK = `You help someone make one resume point stronger without inventing anything.
 Ask 2 to 4 short, concrete questions whose answers would make the point stronger: what changed because of it, by roughly how much (numbers), how many people or users, which tools, was it shipped or used. Ask only about things the point doesn't already say. Plain words, one question each.`;
-const STRENGTHEN_WRITE = `You rewrite one resume point using ONLY the original point and the person's answers.
-Rules: never add numbers, tools, results or claims that aren't in the point or the answers; skip questions they didn't answer; one strong point (or two if the answers clearly describe two achievements), past tense, starting with a verb. Reply with the point text only.`;
+const STRENGTHEN_WRITE = `You rewrite one resume point using the original point and the person's answers.
+Use the answers: include every number, tool and result they give, exactly as they give it, with numbers as digits (e.g. "120 students", "from 6 s to 2 s").
+Add nothing that isn't in the point or the answers. Skip questions they left unanswered or answered with something unrelated.
+Write one strong point (two only if the answers clearly describe two achievements), past tense, starting with a verb. Reply with the point text only.`;
 
 module.exports = { POLISH_SCHEMA, POLISH_INSTRUCTION, polishPrompt, polishOperations, newFacts, QUESTIONS_SCHEMA, STRENGTHEN_ASK, STRENGTHEN_WRITE };

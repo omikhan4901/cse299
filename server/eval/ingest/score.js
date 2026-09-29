@@ -5,12 +5,13 @@
  *   invented:    facts that reached the resume without being in the input or the old
  *                resume (only operations without an "unverified" flag are applied).
  */
-const { factTokens, checker } = require('../../lib/ingest');
+const { factTokens, checker, ABBREVIATIONS } = require('../../lib/ingest');
 
 const STOP = new Set('a an the and or of in on at to for with by from as is was were be been my i me we our this that it its their using used into over per each via w'.split(' '));
 const asciiDigits = (s) => String(s || '').replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - 0x09e6));
 const norm = (s) => asciiDigits(s).toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}+#]+/gu, ' ').trim();
-const content = (s) => norm(s).split(' ').filter((w) => w && !STOP.has(w));
+// "CSE" and "Computer Science and Engineering" are the same degree: abbreviations count as their words too.
+const content = (s) => norm(s).split(' ').flatMap((w) => (ABBREVIATIONS[w] ? [w, ...ABBREVIATIONS[w].split(' ')] : [w])).filter((w) => w && !STOP.has(w));
 
 /** Share of `expected`'s content words found in `actual` (stems loosely: "dashboards" ~ "dashboard"). */
 function coverage(expected, actual) {

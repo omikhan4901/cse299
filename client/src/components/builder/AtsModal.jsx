@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { Modal, Input, Button } from "antd";
 import { AnimatePresence, motion } from "motion/react";
 import { CheckCircle2, ScanSearch, RotateCcw, Sparkles, Info, Loader2 } from "lucide-react";
@@ -16,13 +15,17 @@ import { aiResume } from "./AiModals";
 import { CreditTooltip } from "../Credits";
 import PlanTag from "../billing/PlanTag";
 import AtsReport from "../ats/AtsReport";
+import ResumeThumbnail from "../ResumeThumbnail";
 import { useBilling } from "../BillingProvider";
 
 const { TextArea } = Input;
 
 export default function AtsModal({ open, onClose, resume, token }) {
   return (
-    <Modal open={open} onCancel={onClose} footer={null} width={760} title={<span className="inline-flex items-center gap-2"><ScanSearch size={17} className="text-brand" /> ATS check</span>} destroyOnHidden centered>
+    <Modal open={open} onCancel={onClose} footer={null} width={760} title={<span className="inline-flex items-center gap-2"><ScanSearch size={17} className="text-brand" /> ATS check</span>} destroyOnHidden centered
+      // The report scrolls inside the dialog, so it never fills the screen.
+      styles={{ body: { maxHeight: "min(72vh, 720px)", overflowY: "auto", overscrollBehavior: "contain" }, container: { paddingBottom: 12 } }}
+      classNames={{ body: "thin-scroll -mx-6 px-6" }}>
       <AtsChecker resume={resume} token={token} />
     </Modal>
   );
@@ -49,7 +52,7 @@ function scanSteps(withJob) {
   ];
 }
 
-function ScanProgress({ scan, template }) {
+function ScanProgress({ scan, template, resume }) {
   const { steps, at, result } = scan;
   const total = steps.reduce((s, x) => s + x.ms, 0);
   const elapsed = steps.slice(0, at).reduce((s, x) => s + x.ms, 0);
@@ -69,7 +72,8 @@ function ScanProgress({ scan, template }) {
     <div className="grid gap-8 py-4 sm:grid-cols-[180px_1fr] sm:items-center">
       <div className="relative mx-auto w-40 sm:w-full">
         <div className="relative aspect-[1/1.414] overflow-hidden rounded-lg bg-white shadow-[0_18px_50px_rgba(15,31,42,0.18)] ring-1 ring-slate-900/5">
-          <Image src={`/templates/${template.id}.jpg`} alt="" fill sizes="180px" className="object-cover object-top opacity-80 saturate-50" />
+          {/* The person's own first page (the template's sample until it has rendered). */}
+          <div className="absolute inset-0 opacity-80 saturate-50"><ResumeThumbnail resume={resume} fallback={`/templates/${template.id}.jpg`} width={180} /></div>
           <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.07)_1px,transparent_1px)] bg-[length:100%_10px]" />
           <motion.div
             className="absolute inset-x-0 h-16 bg-gradient-to-b from-transparent via-brand/25 to-transparent"
@@ -200,7 +204,7 @@ function AtsChecker({ resume, token }) {
     }
   };
 
-  if (scan) return <ScanProgress scan={scan} template={templateById(resume.template)} />;
+  if (scan) return <ScanProgress scan={scan} template={templateById(resume.template)} resume={resume} />;
 
   if (!result) {
     return (
@@ -242,7 +246,7 @@ function AtsChecker({ resume, token }) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+      <div className="sticky bottom-0 -mb-px flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white pt-4 pb-1">
         <p className="max-w-md text-xs text-slate-400">
           Based on how ATS parsers extract PDFs and on recruiter guidelines. Every employer configures its ATS differently, so no tool can guarantee a ranking.
         </p>

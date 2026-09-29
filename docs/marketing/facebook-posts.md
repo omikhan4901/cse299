@@ -496,16 +496,21 @@ and add these lines to the About text, under the templates line:
 
 ---
 
-### J7. Job Search Pass (only if the pass is switched on in Admin › Plans)
-**Graphic:** `01-launch.png` or a text post
+### J7. Pro for an active job search (only when the pricing page is shown)
+**Graphic:** `13-tailor.png` or a text post
 
-> Job hunting for a few months, but don't want a subscription? 💳
+> Applying to a lot of jobs this month? 📈
 >
-> The **ResumeX Job Search Pass** gives you [PLAN] for [DAYS] days with one payment. No renewal, nothing to cancel.
+> ResumeX is free to start. **Pro** is made for an active search:
+> ✅ track as many applications as you like
+> ✅ a tailored CV for every job, and several at once
+> ✅ interview prep for each interview, from your own experience
+> ✅ see which CVs and roles get you interviews
+> ✅ every template, and more AI credits
 >
-> See what's included 👉 https://resumex.cc/pricing
+> See the plans 👉 https://resumex.cc/pricing
 
-*Fill in the plan and number of days from Admin › Plans, and check the price on the pricing page before posting.*
+*Check the Pro and Premium limits in Admin › Plans before posting, and change the list to match.*
 
 ---
 

@@ -57,12 +57,16 @@ If a connection is a real product decision (pricing, what's free, legal wording)
 - **Look and feel:** calm, uncluttered screens with little text. Heavy features still show
   one clear next action at a time; details appear only when needed (progressive disclosure).
   Match the existing design (antd + Tailwind, motion); make it eye-catching but easy on the eyes.
+  New sections reuse the existing markup (white/slate-50 bands, bordered cards, brand-50 icon
+  tiles); no dark gradient bands, glows or mock-ups: the owner reads those as "AI-looking".
+  Dialogs never fill the screen: cap their height and scroll inside.
 - **Tests:** rigorous and edge-case heavy, but fast (the whole server suite runs in ~4 min;
   never add slow tests). Don't call the live AI or run `server/eval` unless asked: AI
   credit is limited. AI routes are tested with the stubbed model only.
 - **V2** is built behind the admin "V2 preview" switch, in the order of `docs/v2/PLAN.md`,
   keeping the spec's philosophy (deterministic first, AI proposes and the user approves).
-  Paddle goes live only after V2 is complete and tested.
+  Paddle goes live only after V2 is complete and tested. No separate Job Search Pass: V2 tools are the
+  Pro/Premium incentive (limits and V2 plan features in Admin › Plans).
 - The owner isn't a cloud-console expert: give exact click paths or commands, and always
   the least-privilege option (e.g. `roles/aiplatform.user`, not admin).
 - Credentials the owner shares live only in the session scratchpad; never print or commit them.

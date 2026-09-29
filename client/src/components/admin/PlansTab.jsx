@@ -93,7 +93,7 @@ export default function PlansTab() {
                 <ul className="space-y-1.5 rounded-xl bg-slate-50 p-3">
                   {features.map((f) => (
                     <li key={f.key} className="flex items-center justify-between gap-2 text-sm">
-                      <Tooltip title={f.description}><span className="text-slate-700">{f.name}</span></Tooltip>
+                      <Tooltip title={f.description}><span className="text-slate-700">{f.name}{f.v2 ? <span className="ml-1.5 rounded bg-slate-200 px-1 text-[10px] font-medium text-slate-500">V2</span> : null}</span></Tooltip>
                       <Switch size="small" checked={p.features[f.key]} onChange={(v) => setPlan(i, (x) => (x.features[f.key] = v))} />
                     </li>
                   ))}

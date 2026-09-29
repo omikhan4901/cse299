@@ -1,0 +1,168 @@
+{
+  "at": "2026-09-29T09:44:56.376Z",
+  "rows": [
+    {
+      "kind": "rewrite",
+      "name": "plain duties",
+      "ms": 2401,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "Resolved customer complaints\nGenerated weekly sales reports using Excel\nTrained new staff"
+    },
+    {
+      "kind": "rewrite",
+      "name": "numbers to keep",
+      "ms": 2267,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "Developed payment API using Node.js, scaling to manage 5M transactions daily\nReduced p99 latency by 40% through implementing strategic Redis caching\nMentored 4 junior engineers on best practices and system development"
+    },
+    {
+      "kind": "rewrite",
+      "name": "vague and short",
+      "ms": 2343,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "Maintained website functionality and updated content\nSupported team operations to facilitate project execution"
+    },
+    {
+      "kind": "rewrite",
+      "name": "summary, first person",
+      "ms": 3069,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "I recently graduated with a BBA from North South University and have a strong professional focus on marketing and brand management. My initial exposure to the field included a valuable internship experience at Unilever, where I gained foundational industry knowledge. I am passionate about developing effective brand strategies and eager to contribute my dedication and academic background to a challenging role."
+    },
+    {
+      "kind": "strengthen",
+      "name": "no numbers",
+      "ms": 5950,
+      "questions": [
+        "By what percentage did the cart abandonment rate decrease?",
+        "What specific step or feature was added or removed?",
+        "How many total unique users used the new flow monthly?"
+      ],
+      "flagged": [],
+      "usedAnswer": true,
+      "pass": true,
+      "out": "Rewrote the image loading and removed two heavy libraries from the checkout page, decreasing load time from 6 s to 2 s"
+    },
+    {
+      "kind": "strengthen",
+      "name": "teaching",
+      "ms": 3538,
+      "questions": [
+        "How many students did you teach?",
+        "What grade levels were the students?",
+        "What curriculum or teaching tools did you use?",
+        "By what margin did student test scores improve?"
+      ],
+      "flagged": [],
+      "usedAnswer": true,
+      "pass": true,
+      "out": "Taught English to about 120 students in Classes 9 and 10, with 18 of my students achieving GPA 5 in SSC 2023."
+    },
+    {
+      "kind": "polish",
+      "name": "backend job",
+      "ms": 4312,
+      "proposals": 5,
+      "flagged": [
+        "apis"
+      ],
+      "before": 69,
+      "after": 69,
+      "pass": true,
+      "out": "Experienced Software Engineer specializing in backend development and scalable services. Expertise includes designing and implementing applications using Node.js, particularly those handling critical payment functions. Focused on building robust APIs and managing database interactions. | Developed a core payment payout service using Node.js. | Wrote complex SQL queries to generate comprehensive data reports. | Implemented real-time tracking of live bus positions across 60 routes. | Resolved critical bugs within the production rider application."
+    },
+    {
+      "kind": "rewrite",
+      "name": "plain duties",
+      "ms": 2354,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "Resolved customer complaints\nGenerated weekly sales reports in Excel\nConducted training for new staff"
+    },
+    {
+      "kind": "rewrite",
+      "name": "numbers to keep",
+      "ms": 2434,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "Engineered payment API using Node.js, successfully scaling to handle 5 million transactions daily\nReduced p99 latency by 40% through the implementation of Redis caching\nMentored and guided 4 junior engineers on best practices and system architecture"
+    },
+    {
+      "kind": "rewrite",
+      "name": "vague and short",
+      "ms": 2869,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "Developed website components\nSupported team efforts"
+    },
+    {
+      "kind": "rewrite",
+      "name": "summary, first person",
+      "ms": 2847,
+      "flagged": [],
+      "unflaggedNew": [],
+      "lostNumbers": [],
+      "pass": true,
+      "out": "I am a recent BBA graduate from North South University, eager to apply my academic foundation in a professional setting. My core focus lies in the intersection of marketing and brand management. This interest was further refined and solidified during my recent internship experience at Unilever."
+    },
+    {
+      "kind": "strengthen",
+      "name": "no numbers",
+      "ms": 5218,
+      "questions": [
+        "What was the resulting percentage increase in conversion rate?",
+        "Which specific technologies or frameworks did you use for the improvement?",
+        "By how many seconds did the page load time decrease?"
+      ],
+      "flagged": [],
+      "usedAnswer": true,
+      "pass": true,
+      "out": "Reduced checkout page load time from 6 seconds to 2 seconds by rewriting image loading and removing two heavy libraries."
+    },
+    {
+      "kind": "strengthen",
+      "name": "teaching",
+      "ms": 4729,
+      "questions": [
+        "How many students were in your classes?",
+        "What was the average improvement in student test scores?",
+        "Which specific curriculum or teaching tools did you implement?"
+      ],
+      "flagged": [],
+      "usedAnswer": true,
+      "pass": true,
+      "out": "Taught English to about 120 students in Classes 9 and 10, resulting in 18 students achieving GPA 5 in SSC 2023."
+    },
+    {
+      "kind": "polish",
+      "name": "backend job",
+      "ms": 5306,
+      "proposals": 4,
+      "flagged": [
+        "api"
+      ],
+      "before": 69,
+      "after": 69,
+      "pass": true,
+      "out": "Experienced software engineer specializing in backend services development, with a focus on high-availability systems. Proven ability to utilize Node.js to architect and deploy critical services, including payment services. | Built a critical payment API (payout service) using Node.js. | Wrote complex SQL queries for comprehensive reporting. | Developed a real-time backend system tracking live positions for 60 routes."
+    }
+  ]
+}

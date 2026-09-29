@@ -109,7 +109,8 @@ export default function AtsReport({ result, children }) {
 
       <Collapse
         size="small"
-        defaultActiveKey={result.categories.filter((c) => c.checks.some((x) => x.status !== "pass")).map((c) => c.id)}
+        // Only the first part that needs attention starts open (failures before warnings); the rest is one click away.
+        defaultActiveKey={[(result.categories.find((c) => c.checks.some((x) => x.status === "fail")) || result.categories.find((c) => c.checks.some((x) => x.status === "warn")))?.id].filter(Boolean)}
         items={result.categories.map((c) => ({
           key: c.id,
           label: <span className="font-medium">{c.label} <span className="font-normal text-slate-400">· {c.score}/100</span></span>,
