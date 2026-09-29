@@ -18,6 +18,8 @@ const ResumeSchema = new mongoose.Schema(
     },
     shortId: { type: String, default: generateShortId, unique: true },
     isMaster: { type: Boolean, default: false },
+    // V2: the application this resume was tailored for (counts towards the plan's tailored limit).
+    tailoredFor: { type: mongoose.Schema.Types.ObjectId, ref: "Application", index: true, sparse: true },
     isPublic: { type: Boolean, default: false },
     // Goes up by one on every content save. The builder sends the revision it
     // started from, so an edit made in another tab or device is never overwritten silently.

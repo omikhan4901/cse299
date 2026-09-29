@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { App, Button, Input, Result, Segmented, Skeleton, Table } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Briefcase, Columns3, FileCheck2, List, Plus, Search } from "lucide-react";
+import { ArrowRight, Briefcase, Columns3, FileCheck2, List, Plus, Search, Wand2 } from "lucide-react";
 import { ACTIVE, STATUSES, isActive, nextStep, statusOf } from "@/lib/applications";
 import { useAuth } from "../AuthProvider";
 import { useBilling } from "../BillingProvider";
@@ -13,6 +13,8 @@ import { useApplications } from "./useApplications";
 import AddApplication from "./AddApplication";
 import ApplicationDrawer from "./ApplicationDrawer";
 import { DeadlineChip, StatusChip, TONE, jobName } from "./ui";
+import TailorModal from "./TailorModal";
+import { api } from "@/lib/api";
 
 const BOARD = ["saved", "preparing", "applied", "interviewing", "offer"];
 const CLOSED = ["rejected", "withdrawn", "noResponse"];
@@ -26,6 +28,7 @@ export default function ApplicationsPage() {
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState(null);
   const [view, setView] = useState("board");
+  const [batch, setBatch] = useState(false);
   const params = useSearchParams();
 
   useEffect(() => {
@@ -51,6 +54,8 @@ export default function ApplicationsPage() {
 
   const apps = store.apps;
   const active = apps?.filter(isActive).length || 0;
+  // Jobs with a description and no resume yet: ready to tailor in one go.
+  const untailored = (apps || []).filter((a) => isActive(a) && !a.resume && !a.snapshot?.at && a.job?.hasDescription);
   const max = billing?.limitOf("applications");
   const startAdding = () => {
     if (billing && !billing.requireLimit("applications", active, "More active applications")) return;
@@ -92,6 +97,11 @@ export default function ApplicationsPage() {
               ]}
             />
           ) : null}
+          {untailored.length >= 2 ? (
+            <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)}>
+              <span className="hidden sm:inline">Tailor resumes</span>
+            </Button>
+          ) : null}
           <Button type="primary" size="large" icon={<Plus size={17} />} onClick={startAdding}>
             Add application
           </Button>
@@ -110,6 +120,7 @@ export default function ApplicationsPage() {
 
       <AddApplication open={adding} onClose={() => setAdding(false)} token={token} onCreate={async (body) => setOpenId((await store.create(body))._id)} />
       <ApplicationDrawer id={openId} store={store} token={token} onClose={() => setOpenId(null)} />
+      {batch ? <BatchTailor ids={untailored.map((a) => a._id)} token={token} onClose={() => setBatch(false)} onDone={store.load} /> : null}
     </div>
   );
 }
@@ -244,4 +255,18 @@ function ListView({ apps, onOpen }) {
       />
     </div>
   );
+}
+
+/** Loads the full applications (with their job text) for tailoring several at once. */
+function BatchTailor({ ids, token, onClose, onDone }) {
+  const [apps, setApps] = useState(null);
+  const key = ids.join(",");
+  useEffect(() => {
+    Promise.all(key.split(",").map((id) => api(`/applications/${id}`, { token }).then((d) => d.data)))
+      .then(setApps)
+      .catch(() => onClose());
+    // Loaded once per set of applications.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, token]);
+  return apps ? <TailorModal open onClose={onClose} apps={apps} token={token} onDone={onDone} /> : null;
 }

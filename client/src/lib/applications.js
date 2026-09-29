@@ -51,7 +51,7 @@ export function checklistFor(a) {
   const ticked = (k) => !!(a.checklist && (a.checklist instanceof Map ? a.checklist.get(k) : a.checklist[k]));
   const via = a.job?.applyVia || [];
   const items = [
-    { key: "description", label: "Add the job description", done: !!a.job?.description?.trim() || ticked("description"), auto: true },
+    { key: "description", label: "Add the job description", done: !!a.job?.description?.trim() || !!a.job?.hasDescription || ticked("description"), auto: true },
     { key: "resume", label: "Choose or make the resume for it", done: !!a.resume || !!a.snapshot?.at || ticked("resume"), auto: true },
     { key: "match", label: "Review the job match", done: ticked("match") },
   ];

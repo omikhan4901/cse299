@@ -7,6 +7,8 @@ const { limit } = require('../lib/rateLimit');
 const { requireV2 } = require('../lib/v2');
 const { planLimit } = require('../lib/credits');
 const { fetchPageText, FetchError } = require('../lib/safeFetch');
+const { CONTENT_KEYS, pick } = require('../lib/resumeInput');
+const { templateAllowed } = require('../lib/templates');
 const { STATUSES, ACTIVE } = Application;
 
 /**
@@ -21,6 +23,7 @@ const fetchByUser = limit({ name: 'job-fetch', windowMs: 60 * 60 * 1000, max: 30
 router.use(protect, perAccount, requireV2);
 
 const MAX_APPLICATIONS = 500;
+const MAX_RESUMES = Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
 const APPLY_VIA = ['teletalk', 'bdjobs', 'email', 'post', 'online'];
 const isActive = (a) => !a.archived && ACTIVE.includes(a.status);
 
@@ -106,8 +109,6 @@ async function snapshotOf(userId, resumeId) {
     return { content, nickname, template, theme, at: new Date() };
 }
 
-const LIGHT = '-job.description -snapshot -coverLetter.text';
-
 async function findOwned(req, res) {
     if (!mongoose.isValidObjectId(req.params.id)) {
         res.status(404).json({ success: false, error: 'Application not found.' });
@@ -124,7 +125,12 @@ const invalid = (res, err, next) => (err.name === 'ValidationError' || err.name 
 // @route GET /api/applications — all of them, without the heavy parts
 router.get('/', async (req, res, next) => {
     try {
-        const data = await Application.find({ user: req.userId }).select(LIGHT).sort({ updatedAt: -1 }).lean();
+        const data = await Application.find({ user: req.userId }).select('-snapshot.content -coverLetter.text').sort({ updatedAt: -1 }).lean();
+        // Just whether there is a job text (the text itself is only sent with one application).
+        for (const a of data) {
+            a.job = { ...a.job, hasDescription: !!a.job?.description?.trim() };
+            delete a.job.description;
+        }
         res.json({ success: true, data });
     } catch (err) {
         next(err);
@@ -138,6 +144,47 @@ router.post('/fetch', fetchByUser, async (req, res, next) => {
     } catch (err) {
         if (err instanceof FetchError) return res.status(400).json({ success: false, code: err.code, error: err.message });
         next(err);
+    }
+});
+
+// @route POST /api/applications/tailored — create tailored resumes (made in the browser from
+// the profile, lib/tailor.js), one per application, and link each to its application.
+// Body: { items: [{ application, nickname, template, content }] }. Plan limits: how many
+// tailored resumes in all, and how many in one go (batch).
+router.post('/tailored', async (req, res, next) => {
+    try {
+        const items = Array.isArray(req.body?.items) ? req.body.items : [];
+        if (!items.length || items.length > 30) return res.status(400).json({ success: false, error: 'Choose between 1 and 30 jobs.' });
+        const upgrade = (feature, error) => res.status(403).json({ success: false, code: 'upgrade', feature, error });
+        if (items.length > 1) {
+            const batch = planLimit(req.account, req.settings, 'batch');
+            if (batch !== null && items.length > batch) return upgrade('batch', batch ? `Your plan tailors up to ${batch} jobs at once.` : 'Tailoring several jobs at once is part of a paid plan.');
+        }
+        const max = planLimit(req.account, req.settings, 'tailored');
+        if (max !== null) {
+            const have = await Resume.countDocuments({ user: req.userId, tailoredFor: { $exists: true } });
+            if (have + items.length > max) return upgrade('tailored', `Your plan includes ${max} tailored resume${max === 1 ? '' : 's'}${have ? ` and you've made ${have}` : ''}. Upgrade for more.`);
+        }
+        const ids = items.map((i) => i?.application);
+        if (!ids.every((id) => mongoose.isValidObjectId(id))) return res.status(400).json({ success: false, error: 'Application not found.' });
+        const apps = await Application.find({ _id: { $in: ids }, user: req.userId });
+        if (apps.length !== new Set(ids.map(String)).size) return res.status(400).json({ success: false, error: 'Application not found.' });
+        if ((await Resume.countDocuments({ user: req.userId })) + items.length > MAX_RESUMES) return res.status(400).json({ success: false, error: `You can keep up to ${MAX_RESUMES} resumes. Delete some to make room.` });
+
+        const created = [];
+        for (const item of items) {
+            const content = pick(item.content || {}, CONTENT_KEYS);
+            const template = typeof item.template === 'string' && templateAllowed(req.account, req.settings, item.template) ? item.template : undefined;
+            const resume = await Resume.create({ ...content, nickname: s(item.nickname, 120) || 'Tailored resume', ...(template ? { template } : {}), tailoredFor: item.application, user: req.userId });
+            const app = apps.find((a) => String(a._id) === String(item.application));
+            app.resume = resume._id;
+            app.rev = (app.rev || 0) + 1;
+            await app.save();
+            created.push({ application: app._id, resume: resume._id, rev: app.rev });
+        }
+        res.status(201).json({ success: true, data: created });
+    } catch (err) {
+        invalid(res, err, next);
     }
 });
 

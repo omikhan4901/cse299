@@ -30,7 +30,7 @@ function termRegex(term) {
 }
 const countTerm = (text, term) => (String(text || "").match(termRegex(term)) || []).length;
 const hasTerm = (text, term) => countTerm(text, term) > 0;
-const countAny = (text, aliases) => aliases.reduce((n, a) => n + countTerm(text, a), 0);
+export const countAny = (text, aliases) => aliases.reduce((n, a) => n + countTerm(text, a), 0);
 
 // ---------- dates ----------
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { App, Button, Checkbox, Drawer, Dropdown, Input, Modal, Select, Skeleton, Tooltip } from "antd";
-import { AlertTriangle, Archive, ArrowRight, CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck2, FilePlus2, MoreHorizontal, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Archive, ArrowRight, CheckCircle2, ChevronDown, Download, ExternalLink, FileCheck2, FilePlus2, MoreHorizontal, Plus, Sparkles, Trash2, Wand2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { checklistFor, jobMatch, nextStep, STATUSES } from "@/lib/applications";
 import { normalizeResume, toHref, newId } from "@/lib/resume";
@@ -15,6 +15,7 @@ import { CoverLetterModal } from "../builder/AiModals";
 import PdfPreview from "../builder/PdfPreview";
 import { downloadPdf } from "@/pdf/client";
 import { StatusChip } from "./ui";
+import TailorModal from "./TailorModal";
 
 const toDateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 const fmt = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -102,6 +103,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
   const [sentOpen, setSentOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [making, setMaking] = useState(false);
+  const [tailoring, setTailoring] = useState(false);
 
   useEffect(() => {
     api("/resumes", { token }).then((d) => setResumes(d.data)).catch(() => setResumes([]));
@@ -237,10 +239,15 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
             />
             {a.resume ? (
               <Link href={`/builder?id=${a.resume}`}><Button icon={<ExternalLink size={14} />}>Open</Button></Link>
-            ) : profile ? (
+            ) : profile && !a.job.description ? (
               <Button icon={<FilePlus2 size={14} />} loading={making} onClick={makeFromProfile}>From my profile</Button>
             ) : null}
           </div>
+          {profile && a.job.description && !a.snapshot?.at ? (
+            <Button className="!mt-3" type={a.resume ? "default" : "primary"} icon={<Wand2 size={15} />} onClick={() => setTailoring(true)}>
+              {a.resume ? "Tailor a new one for this job" : "Tailor a resume for this job"}
+            </Button>
+          ) : null}
           {a.snapshot?.at && a.resume ? (
             <button type="button" className="mt-2 text-xs text-slate-400 hover:text-brand" onClick={() => api(`/applications/${a._id}/snapshot`, { token, method: "POST" }).then((d) => setFull(d.data)).then(() => message.success("Sent copy replaced with the current version"))}>
               Sent a newer version? Replace the copy
@@ -336,6 +343,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
         )}
       </Section>
 
+      <TailorModal open={tailoring} onClose={() => setTailoring(false)} apps={[a]} token={token} />
       <SentCopy open={sentOpen} onClose={() => setSentOpen(false)} snapshot={a.snapshot} />
       {coverOpen && resume ? (
         <CoverLetterModal

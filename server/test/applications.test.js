@@ -41,6 +41,7 @@ describe('applications API', () => {
         const list = await api('GET', '/applications', { token });
         assert.equal(list.body.data.length, 1);
         assert.equal(list.body.data[0].job.description, undefined, 'the list leaves out the job text');
+        assert.equal(list.body.data[0].job.hasDescription, true);
         const one = await api('GET', `/applications/${r.body.data._id}`, { token });
         assert.match(one.body.data.job.description, /Go, PostgreSQL/);
     });
@@ -146,6 +147,45 @@ describe('applications API', () => {
             const r = await api('POST', '/applications/fetch', { token, body: { url } });
             assert.equal(r.status, 400, url);
             assert.equal(r.body.code, code, url);
+        }
+    });
+
+    it('tailored resumes: linked to their application, within the plan’s total and batch limits', async () => {
+        await setSettings({ v2: { enabled: true }, freeMode: { enabled: false }, plans: [{ limits: { applications: 10, tailored: 2, batch: 0 } }, { limits: { applications: null, tailored: null, batch: 2 } }, {}] });
+        const { token, user } = await register();
+        const a1 = (await add(token, { job: JOB })).body.data;
+        const a2 = (await add(token, { job: JOB })).body.data;
+        const a3 = (await add(token, { job: JOB })).body.data;
+        const item = (app, extra = {}) => ({ application: app._id, nickname: 'SWE · Pathao', template: 'Classic', content: { summary: 'Tailored', experience: [{ id: 1, profileItemId: 7, company: 'Pathao' }], user: 'x' }, ...extra });
+
+        const batch = await api('POST', '/applications/tailored', { token, body: { items: [item(a1), item(a2)] } });
+        assert.equal(batch.status, 403, 'free plan: one at a time');
+        assert.equal(batch.body.feature, 'batch');
+
+        const one = await api('POST', '/applications/tailored', { token, body: { items: [item(a1, { template: 'Modern' })] } });
+        assert.equal(one.status, 201);
+        const made = (await api('GET', `/resumes/${one.body.data[0].resume}`, { token })).body.data;
+        assert.equal(made.summary, 'Tailored');
+        assert.equal(made.experience[0].profileItemId, 7);
+        assert.equal(made.template, 'Classic', 'a template outside the plan falls back to the default');
+        assert.equal(String(made.tailoredFor), a1._id);
+        const linked = (await api('GET', `/applications/${a1._id}`, { token })).body.data;
+        assert.equal(linked.resume, made._id);
+        assert.equal(linked.rev, one.body.data[0].rev, 'the application’s revision moves on, so an open drawer reloads instead of overwriting');
+
+        assert.equal((await api('POST', '/applications/tailored', { token, body: { items: [item(a2)] } })).status, 201);
+        const third = await api('POST', '/applications/tailored', { token, body: { items: [item(a3)] } });
+        assert.equal(third.status, 403);
+        assert.equal(third.body.feature, 'tailored');
+
+        await mongoose.model('User').updateOne({ _id: user.id }, { plan: 'pro' });
+        assert.equal((await api('POST', '/applications/tailored', { token, body: { items: [item(a3), item(a1)] } })).status, 201, 'Pro: two at once, no total limit');
+        assert.equal((await api('POST', '/applications/tailored', { token, body: { items: [item(a1), item(a2), item(a3)] } })).status, 403, 'over the batch size');
+
+        const other = await register();
+        assert.equal((await api('POST', '/applications/tailored', { token: other.token, body: { items: [item(a1)] } })).status, 400, "someone else's application");
+        for (const body of [{}, { items: [] }, { items: [{ application: 'bad' }] }, { items: Array.from({ length: 31 }, () => item(a1)) }]) {
+            assert.equal((await api('POST', '/applications/tailored', { token, body })).status, 400, JSON.stringify(body).slice(0, 60));
         }
     });
 
