@@ -12,7 +12,7 @@ const hasV2 = (user, settings) => !!user && (!!settings.v2?.enabled || !!user.v2
 /** After `protect`: loads the account (req.account) and the settings (req.settings); 404 when V2 isn't on for it. */
 async function requireV2(req, res, next) {
     try {
-        const [user, settings] = await Promise.all([User.findById(req.userId).select('email role plan planExpiresAt v2Preview').lean(), getSettings()]);
+        const [user, settings] = await Promise.all([User.findById(req.userId).select('email role plan planExpiresAt passPlan passUntil v2Preview').lean(), getSettings()]);
         if (!hasV2(user, settings)) return res.status(404).json({ success: false, error: 'Not found.' });
         req.account = user;
         req.settings = settings;

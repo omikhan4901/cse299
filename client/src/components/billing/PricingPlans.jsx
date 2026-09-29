@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Segmented } from "antd";
-import { Check, Crown, Minus, Sparkles, Zap } from "lucide-react";
+import { Button, Segmented } from "antd";
+import { Check, Crown, Minus, Sparkles, Ticket, Zap } from "lucide-react";
 import { formatPrice, useBilling } from "../BillingProvider";
 import { previewPrices } from "@/lib/paddle";
 import { TEMPLATES, planIncludes } from "@/pdf/registry";
@@ -29,7 +29,8 @@ export default function PricingPlans({ config }) {
   const [local, setLocal] = useState({});
   useEffect(() => {
     if (!paddle) return;
-    const ids = Object.values(paddle.prices).flatMap((p) => Object.values(p)).filter(Boolean);
+    // Plan prices ({ month, year } per plan) and the one-time pass price (a single id).
+    const ids = Object.values(paddle.prices).flatMap((p) => (p && typeof p === "object" ? Object.values(p) : [p])).filter(Boolean);
     previewPrices(paddle, ids).then(setLocal).catch(() => {}); // falls back to the plan prices
   }, [paddle]);
   const shown = (p) => local[paddle?.prices?.[p.id]?.[yearly ? "year" : "month"]] || formatPrice(yearly ? p.yearlyPrice : p.price, currency);
@@ -126,6 +127,22 @@ export default function PricingPlans({ config }) {
           );
         })}
       </div>
+
+      {config.pass && paddle?.prices?.pass ? (
+        <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center gap-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white px-5 py-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"><Ticket size={18} /></span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-ink">Job Search Pass</p>
+            <p className="text-sm text-slate-600">
+              {plans.find((p) => p.id === config.pass.plan)?.name || "Pro"} for {config.pass.days} days, one payment. No subscription to cancel when you&apos;re hired.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-display text-xl font-bold text-ink">{local[paddle.prices.pass] || (config.pass.price != null ? formatPrice(config.pass.price, currency) : "")}</span>
+            <Button type="primary" onClick={() => billing.checkoutPass()}>Get the pass</Button>
+          </div>
+        </div>
+      ) : null}
 
       {paddle && !freeMode.enabled ? (
         <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-slate-500">

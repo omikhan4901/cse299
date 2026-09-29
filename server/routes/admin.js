@@ -28,7 +28,7 @@ const bad = (res, error, status = 400) => res.status(status).json({ success: fal
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
-const USER_FIELDS = 'name email plan planExpiresAt creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
+const USER_FIELDS = 'name email plan planExpiresAt passPlan passUntil creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
 
 /** Adds role, current plan, credit usage and resume counts to a page of users. */
 async function describeUsers(users) {
@@ -65,7 +65,7 @@ router.get('/overview', wrap(async (req, res) => {
         User.countDocuments({ createdAt: { $gte: since7 } }),
         User.countDocuments({ createdAt: { $gte: since30 } }),
         User.countDocuments({ banned: true }),
-        User.find().select('plan planExpiresAt').lean(),
+        User.find().select('plan planExpiresAt passPlan passUntil').lean(),
         Resume.countDocuments(),
         Resume.countDocuments({ isPublic: true }),
         AiEvent.find({ at: { $gte: since30 }, ok: { $ne: false } }).select('user feature credits at').limit(100000).lean(),

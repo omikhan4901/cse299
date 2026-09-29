@@ -27,6 +27,10 @@ const UserSchema = new mongoose.Schema({
     planExpiresAt: { type: Date },
     // "paddle" while the plan comes from a Paddle subscription (so ending it only undoes that).
     planSource: { type: String },
+    // Job Search Pass (V2): a plan bought once for a number of days. Kept apart from the plan
+    // above, so a subscription starting or ending never cuts a pass short.
+    passPlan: { type: String, enum: ['pro', 'premium', null], default: null },
+    passUntil: { type: Date },
     paddleCustomerId: { type: String, index: true, sparse: true },
     // Payments and refunds (from Paddle's webhooks), for the refund check in the admin console.
     firstPaidAt: { type: Date },

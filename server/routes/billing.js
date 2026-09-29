@@ -34,6 +34,8 @@ router.get('/plans', async (req, res, next) => {
                 currency: charged?.currency || s.currency,
                 showPricing: s.showPricing,
                 v2: s.v2,
+                // Job Search Pass: shown only when switched on and Paddle has its price.
+                pass: s.pass.enabled && cfg.prices?.pass ? { ...s.pass, price: charged?.pass ?? null } : null,
                 featureCosts: s.featureCosts,
                 templates: s.templates,
                 plans,

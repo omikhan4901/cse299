@@ -50,6 +50,15 @@ export default function RefundsPage() {
       </section>
 
       <section>
+        <h2>Job Search Pass</h2>
+        <ul>
+          <li>When it&apos;s offered, the Job Search Pass is a single payment for a paid plan for a fixed number of days. It doesn&apos;t renew, so there&apos;s nothing to cancel.</li>
+          <li>It can be refunded within 14 days on the same conditions as a first payment above. A refunded pass ends straight away.</li>
+          <li>Buying another pass while one is running adds its days after the current one ends.</li>
+        </ul>
+      </section>
+
+      <section>
         <h2>Always refunded</h2>
         <ul>
           <li>Being charged twice for the same thing.</li>

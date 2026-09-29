@@ -17,6 +17,9 @@ const PaymentSchema = new mongoose.Schema(
         earnings: { type: Number, default: 0 },
         refunds: [{ _id: false, id: String, total: Number, earnings: Number, at: Date }],
         billedAt: { type: Date, index: true },
+        // A Job Search Pass purchase, and whether its days were added (once, however often Paddle retries).
+        kind: { type: String, enum: ['subscription', 'pass'], default: 'subscription' },
+        passApplied: { type: Boolean, default: false },
     },
     { timestamps: true }
 );

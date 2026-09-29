@@ -16,6 +16,20 @@ const day = (d) => new Date(d).toLocaleDateString(undefined, { day: "numeric", m
 function BillingCard({ billing }) {
   const sub = billing.subscription;
   const planName = (id) => billing.config?.plans?.find((p) => p.id === id)?.name || "Paid";
+  const passUntil = billing.usage?.passUntil;
+  if (passUntil && !sub?.active) {
+    return (
+      <Card icon={CreditCard} title="Plan & billing">
+        <p className="text-sm text-slate-700">
+          <b className="text-ink">Job Search Pass</b>: {billing.usage?.plan?.name} until {day(passUntil)}. It ends by itself; there&apos;s nothing to cancel.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={billing.openPortal}>Billing history</Button>
+          <Link href="/pricing"><Button>See plans</Button></Link>
+        </div>
+      </Card>
+    );
+  }
   if (!sub?.active) {
     return (
       <Card icon={CreditCard} title="Plan & billing">

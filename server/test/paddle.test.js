@@ -338,7 +338,7 @@ describe('billing endpoints', () => {
             return { body: { data: { ...priceObj(id), unit_price: { amount, currency_code: 'USD' } } } };
         };
         const { data } = (await api('GET', '/billing/plans')).body;
-        assert.deepEqual(data.paddle, { environment: 'sandbox', clientToken: 'test_clienttoken', prices: PRICES });
+        assert.deepEqual(data.paddle, { environment: 'sandbox', clientToken: 'test_clienttoken', prices: { ...PRICES, pass: null } });
         const pro = data.plans.find((p) => p.id === 'pro');
         const premium = data.plans.find((p) => p.id === 'premium');
         assert.deepEqual([pro.price, pro.yearlyPrice, premium.price, premium.yearlyPrice], [6.99, 75.49, 12.99, 140.29]);
@@ -461,5 +461,61 @@ describe('AI economics', () => {
         const { settings } = await readSettings();
         assert.deepEqual(Object.keys(settings.aiPrices).sort(), ['default', 'ok-model']);
         assert.deepEqual(settings.aiPrices['ok-model'], { input: 0, output: 0 });
+    });
+});
+
+describe('Job Search Pass', () => {
+    const passTxn = (userId, { id = `txn_${++seq}`, total = '4900' } = {}) => ({
+        id, status: 'completed', customer_id: 'ctm_p', subscription_id: null, custom_data: { userId }, origin: 'web', currency_code: 'USD',
+        collection_mode: 'automatic', billing_details: null, billing_period: null, address_id: null, business_id: null, discount_id: null, invoice_id: null,
+        invoice_number: null, available_payment_methods: [], payments: [], checkout: null, created_at: iso(Date.now()), updated_at: iso(Date.now()), billed_at: iso(Date.now()),
+        items: [{ price: { ...priceObj('pri_pass'), billing_cycle: null }, quantity: 1, proration: null }],
+        details: { tax_rates_used: [], line_items: [], adjusted_totals: null, payout_totals: null, totals: { subtotal: total, discount: '0', tax: '0', total, credit: '0', credit_to_balance: '0', balance: '0', grand_total: total, fee: '200', earnings: '4000', currency_code: 'USD' } },
+    });
+    const me = async (token) => (await api('GET', '/billing/me', { token })).body.data;
+    beforeEach(async () => {
+        process.env.PADDLE_PRICE_PASS = 'pri_pass';
+        await require('./helpers').setSettings({ pass: { enabled: true, plan: 'pro', days: 90 } });
+    });
+    after(() => delete process.env.PADDLE_PRICE_PASS);
+
+    it('gives the plan for its days, once per payment, and a second pass adds on from the end of the first', async () => {
+        const u = await register();
+        const t = passTxn(u.user.id, { id: 'txn_pass_1' });
+        await deliver(event('transaction.completed', t));
+        await deliver(event('transaction.completed', t)); // retried by Paddle
+        let data = await me(u.token);
+        assert.equal(data.plan.id, 'pro');
+        const until = new Date(data.passUntil);
+        const days = (until - Date.now()) / 864e5;
+        assert.ok(days > 89.9 && days <= 90, `${days} days, not 180`);
+        await deliver(event('transaction.completed', passTxn(u.user.id, { id: 'txn_pass_2' })));
+        data = await me(u.token);
+        assert.ok((new Date(data.passUntil) - until) / 864e5 > 89.9, 'the second pass starts where the first ends');
+        const pay = await require('../models/Payment').findOne({ transactionId: 'txn_pass_1' }).lean();
+        assert.equal(pay.kind, 'pass');
+    });
+
+    it('a subscription ending never cuts a pass short; a higher subscription still wins while it lasts', async () => {
+        const u = await register();
+        await deliver(event('transaction.completed', passTxn(u.user.id)));
+        await deliver(event('subscription.created', subscriptionData({ userId: u.user.id, price: PRICES.premium.month }), Date.now() - 1000));
+        assert.equal((await me(u.token)).plan.id, 'premium');
+        await deliver(event('subscription.canceled', subscriptionData({ userId: u.user.id, price: PRICES.premium.month, status: 'canceled' })));
+        assert.equal((await me(u.token)).plan.id, 'pro', 'back to the pass, not to free');
+    });
+
+    it('a refunded pass ends straight away; the pass is only offered when switched on and priced', async () => {
+        const u = await register();
+        await deliver(event('transaction.completed', passTxn(u.user.id, { id: 'txn_pass_r' })));
+        assert.equal((await me(u.token)).plan.id, 'pro');
+        const adj = await deliver(event('adjustment.created', { id: 'adj_pass', action: 'refund', type: 'full', status: 'approved', transaction_id: 'txn_pass_r', subscription_id: null, customer_id: 'ctm_p', reason: 'x', credit_applied_to_balance: false, currency_code: 'USD', items: [], totals: { subtotal: '4900', tax: '0', total: '4900', fee: '0', earnings: '4000', currency_code: 'USD' }, payout_totals: null, created_at: iso(Date.now()), updated_at: iso(Date.now()) }));
+        assert.equal(adj.status, 200, JSON.stringify(adj.body));
+        assert.equal((await me(u.token)).plan.id, 'free');
+        const plans = (await api('GET', '/billing/plans')).body.data;
+        assert.equal(plans.pass.days, 90);
+        assert.equal(plans.paddle.prices.pass, 'pri_pass');
+        await require('./helpers').setSettings({ pass: { enabled: false } });
+        assert.equal((await api('GET', '/billing/plans')).body.data.pass, null);
     });
 });

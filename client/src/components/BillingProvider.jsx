@@ -164,6 +164,21 @@ export function BillingProvider({ children }) {
     [config, token, user, usage, openAuth, message, modal, refreshUsage]
   );
 
+  /** Buys the Job Search Pass: one payment, adds its days to the account. */
+  const checkoutPass = useCallback(async () => {
+    const cfg = config?.paddle;
+    if (!cfg?.prices?.pass || !config?.pass) return;
+    if (!token) {
+      openAuth("register", "/pricing");
+      return;
+    }
+    try {
+      await openCheckout(cfg, { priceId: cfg.prices.pass, email: user?.email, userId: user?.id });
+    } catch (err) {
+      message.error(err.message);
+    }
+  }, [config, token, user, openAuth, message]);
+
   /** Opens Paddle's customer portal: payment method, invoices, cancelling. */
   const openPortal = useCallback(async () => {
     try {
@@ -234,12 +249,13 @@ export function BillingProvider({ children }) {
         return false;
       },
       checkout,
+      checkoutPass,
       openPortal,
       /** True when paying goes through Paddle (otherwise upgrades are by email). */
       canCheckout: !!config?.paddle,
       subscription: usage?.subscription || null,
     };
-  }, [config, usage, user, refreshUsage, refreshConfig, checkout, openPortal]);
+  }, [config, usage, user, refreshUsage, refreshConfig, checkout, checkoutPass, openPortal]);
 
   return (
     <BillingContext.Provider value={value}>

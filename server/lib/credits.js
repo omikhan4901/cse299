@@ -15,8 +15,16 @@ const { limit, retryIn } = require('./rateLimit');
  */
 
 /** The plan an account is on right now (a paid plan past its end date falls back to Free). */
-const effectivePlanId = (user) =>
-    user?.plan && user.plan !== 'free' && (!user.planExpiresAt || new Date(user.planExpiresAt) > new Date()) ? user.plan : 'free';
+const RANK = { free: 0, pro: 1, premium: 2 };
+/**
+ * The plan an account is on right now: the better of its plan (a subscription, an admin or a
+ * campaign; free once past its end date) and a Job Search Pass that hasn't ended.
+ */
+const effectivePlanId = (user) => {
+    const base = user?.plan && user.plan !== 'free' && (!user.planExpiresAt || new Date(user.planExpiresAt) > new Date()) ? user.plan : 'free';
+    const pass = user?.passPlan && user.passUntil && new Date(user.passUntil) > new Date() ? user.passPlan : 'free';
+    return (RANK[pass] || 0) > (RANK[base] || 0) ? pass : base;
+};
 
 /** A custom allowance applies until its end date (campaign allowances end with the campaign period). */
 const hasCustomAllowance = (user) => user?.creditLimit != null && (!user.creditLimitExpiresAt || new Date(user.creditLimitExpiresAt) > new Date());
@@ -48,7 +56,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'plan planExpiresAt creditLimit creditPeriod creditLimitExpiresAt';
+const USER_FIELDS = 'plan planExpiresAt passPlan passUntil creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -68,6 +76,7 @@ async function usageSummary(userOrId) {
         plan: { id: a.plan.id, name: a.plan.name },
         freeMode: settings.freeMode.enabled,
         planExpiresAt: user.planExpiresAt || null,
+        passUntil: user.passPlan && user.passUntil && new Date(user.passUntil) > new Date() ? user.passUntil : null,
     };
 }
 

@@ -90,7 +90,7 @@ async function runReminders({ digest = false, now = new Date() } = {}) {
     const userIds = await Application.distinct('user', { archived: { $ne: true }, status: { $in: ACTIVE } });
     const stats = { users: 0, reminders: 0, digests: 0, failed: 0 };
     for (const userId of userIds) {
-        const user = await User.findById(userId).select('name email role plan planExpiresAt v2Preview banned emailPrefs').lean();
+        const user = await User.findById(userId).select('name email role plan planExpiresAt passPlan passUntil v2Preview banned emailPrefs').lean();
         if (!user || user.banned || !hasV2(user, settings)) continue;
         const apps = await Application.find({ user: userId }).select('-snapshot -coverLetter -job.description').lean();
         const first = (user.name || '').trim().split(/\s+/)[0] || 'there';

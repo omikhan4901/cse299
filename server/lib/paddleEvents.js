@@ -10,7 +10,8 @@ const User = require('../models/User');
 const Payment = require('../models/Payment');
 const Subscription = require('../models/Subscription');
 const PaddleCustomer = require('../models/PaddleCustomer');
-const { paddle, planForPrice, grantsAccess, PLAN_RANK } = require('./paddle');
+const { paddle, planForPrice, grantsAccess, PLAN_RANK, paddleConfig } = require('./paddle');
+const { getSettings } = require('./settings');
 const { emailQuery, validEmail } = require('./email');
 const { effectivePlanId } = require('./credits');
 
@@ -43,7 +44,7 @@ async function linkCustomer(userId, customerId) {
 /** Sets the account's plan from its subscriptions: the best one that grants access, else back to Free. */
 async function syncPlan(userId) {
     if (!userId) return;
-    const [subs, user] = await Promise.all([Subscription.find({ user: userId }).lean(), User.findById(userId).select('plan planExpiresAt planSource').lean()]);
+    const [subs, user] = await Promise.all([Subscription.find({ user: userId }).lean(), User.findById(userId).select('plan planExpiresAt passPlan passUntil planSource').lean()]);
     if (!user) return;
     const best = subs.filter((s) => s.plan && grantsAccess(s)).sort((a, b) => PLAN_RANK[b.plan] - PLAN_RANK[a.plan])[0];
     if (best) {
@@ -134,6 +135,21 @@ async function recordPayment(t, userId, paidAt) {
     );
 }
 
+/** A Job Search Pass purchase adds its days (from the end of a pass still running), once. */
+async function applyPass(t, userId) {
+    const passPrice = paddleConfig().prices?.pass;
+    if (!passPrice || !(t.items || []).some((i) => i.price?.id === passPrice || i.priceId === passPrice)) return;
+    const claimed = await Payment.updateOne({ transactionId: t.id, passApplied: { $ne: true } }, { $set: { passApplied: true, kind: 'pass' } });
+    if (!claimed.modifiedCount) return; // already applied
+    const { pass } = await getSettings();
+    const user = await User.findById(userId).select('passPlan passUntil').lean();
+    const running = user.passUntil && new Date(user.passUntil) > new Date();
+    const from = running ? new Date(user.passUntil) : new Date();
+    const rank = { pro: 1, premium: 2 };
+    const plan = running && rank[user.passPlan] > rank[pass.plan] ? user.passPlan : pass.plan;
+    await User.updateOne({ _id: userId }, { passPlan: plan, passUntil: new Date(from.getTime() + pass.days * 864e5) });
+}
+
 async function onTransaction(event) {
     const t = event.data;
     const user = await findUser({ userId: t.customData?.userId, customerId: t.customerId });
@@ -145,6 +161,7 @@ async function onTransaction(event) {
         const paidAt = toDate(t.billedAt) || toDate(event.occurredAt);
         await User.updateOne({ _id: user._id }, { $min: { firstPaidAt: paidAt }, $max: { lastPaidAt: paidAt } });
         await recordPayment(t, user._id, paidAt);
+        await applyPass(t, user._id);
     }
     await syncPlan(user._id);
 }
@@ -169,8 +186,14 @@ async function onAdjustment(event) {
     if (!fullRefund && !chargeback) return;
     const sub = a.subscriptionId ? await Subscription.findOne({ subscriptionId: a.subscriptionId }).lean() : null;
     // Remember it on the account (by id, so a repeated delivery isn't counted twice): one refund per person.
-    const userId = sub?.user || (await findUser({ customerId: a.customerId }))?._id;
+    const payment = a.transactionId ? await Payment.findOne({ transactionId: a.transactionId }).select('user kind').lean() : null;
+    const userId = sub?.user || payment?.user || (await findUser({ customerId: a.customerId }))?._id;
     if (userId) await User.updateOne({ _id: userId }, { $addToSet: { [fullRefund ? 'refundIds' : 'chargebackIds']: a.id } });
+    // A refunded or charged-back Job Search Pass ends straight away.
+    if (userId && payment?.kind === 'pass') {
+        await User.updateOne({ _id: userId }, { passUntil: new Date() });
+        return;
+    }
     if (!a.subscriptionId || sub?.status === 'canceled') return;
     try {
         const canceled = await paddle().subscriptions.cancel(a.subscriptionId, { effectiveFrom: 'immediately' });

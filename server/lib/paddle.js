@@ -8,6 +8,7 @@
  *   PADDLE_WEBHOOK_SECRET  the notification destination's signing secret
  *   PADDLE_CLIENT_TOKEN    client-side token for Paddle.js (test_… / live_…), public
  *   PADDLE_PRICE_PRO_MONTH, PADDLE_PRICE_PRO_YEAR, PADDLE_PRICE_PREMIUM_MONTH, PADDLE_PRICE_PREMIUM_YEAR
+ *   PADDLE_PRICE_PASS      optional: a one-time price for the Job Search Pass (V2)
  */
 const { Paddle, Environment } = require('@paddle/paddle-node-sdk');
 
@@ -27,6 +28,7 @@ function paddleConfig() {
     if (env === 'sandbox' && token && !token.startsWith('test_')) problems.push('PADDLE_CLIENT_TOKEN must be a sandbox token (test_…) when PADDLE_ENV=sandbox');
     if (env === 'production' && token && !token.startsWith('live_')) problems.push('PADDLE_CLIENT_TOKEN must be a live token (live_…) when PADDLE_ENV=production');
     const prices = Object.fromEntries(PLANS.map((p) => [p, Object.fromEntries(INTERVALS.map((i) => [i, process.env[`PADDLE_PRICE_${p.toUpperCase()}_${i.toUpperCase()}`] || null]))]));
+    prices.pass = process.env.PADDLE_PRICE_PASS || null;
     return { enabled: problems.length === 0, problems, environment: env, clientToken: token, prices };
 }
 
@@ -106,6 +108,7 @@ async function paddlePrices() {
                 out.currency = price.unitPrice.currencyCode;
             }
         }
+        if (cfg.prices.pass) out.pass = Number((await paddle().prices.get(cfg.prices.pass)).unitPrice.amount) / 100;
         priceCache = out;
         priceCachedAt = Date.now();
     } catch (err) {

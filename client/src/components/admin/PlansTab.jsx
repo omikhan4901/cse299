@@ -45,6 +45,13 @@ export default function PlansTab() {
         <Field label="Show pricing page in the menu" hint="The /pricing page always works; this adds it to the top navigation.">
           <Switch checked={settings.showPricing} onChange={(v) => update((s) => ((s.showPricing = v), s))} />
         </Field>
+        <Field label="Job Search Pass" hint="One payment for a plan for some days. Needs PADDLE_PRICE_PASS (a one-time price in Paddle).">
+          <span className="flex items-center gap-2">
+            <Switch checked={!!settings.pass?.enabled} onChange={(v) => update((s) => ((s.pass = { ...s.pass, enabled: v }), s))} />
+            <Select size="small" className="!w-28" value={settings.pass?.plan || "pro"} onChange={(v) => update((s) => ((s.pass = { ...s.pass, plan: v }), s))} options={[{ value: "pro", label: "Pro" }, { value: "premium", label: "Premium" }]} />
+            <InputNumber size="small" min={1} max={730} className="!w-24" addonAfter="days" value={settings.pass?.days ?? 90} onChange={(v) => update((s) => ((s.pass = { ...s.pass, days: v ?? 90 }), s))} />
+          </span>
+        </Field>
         <Field label="V2 workspace for everyone" hint="Career Profile, applications and tailoring. While off, only admins and accounts with V2 preview (Users) see it.">
           <Switch checked={!!settings.v2?.enabled} onChange={(v) => update((s) => ((s.v2 = { ...s.v2, enabled: v }), s))} />
         </Field>

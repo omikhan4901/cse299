@@ -48,6 +48,8 @@ const DEFAULTS = {
     // V2 (Career Profile, applications, tailoring): hidden from everyone but admins and
     // accounts with v2Preview until switched on here.
     v2: { enabled: false },
+    // Job Search Pass (V2): one payment (Paddle's PADDLE_PRICE_PASS) for a plan for some days.
+    pass: { enabled: false, plan: 'pro', days: 90 },
     featureCosts: { chat: 1, refine: 1, audit: 2, parse: 3, coverLetter: 2, polish: 2 },
     // What the AI provider charges, in US dollars per million tokens, by model (the name
     // Google reports, e.g. "gemini-2.5-flash"; "default" covers any other). For the AI
@@ -164,6 +166,11 @@ function clean(input) {
         currency: str(s.currency, 'USD', 8).toUpperCase() || 'USD',
         showPricing: !!s.showPricing,
         v2: { enabled: !!(isObj(s.v2) && s.v2.enabled) },
+        pass: {
+            enabled: !!(isObj(s.pass) && s.pass.enabled),
+            plan: isObj(s.pass) && ['pro', 'premium'].includes(s.pass.plan) ? s.pass.plan : 'pro',
+            days: Math.round(num(isObj(s.pass) ? s.pass.days : 90, 90, { min: 1, max: 730 })),
+        },
         featureCosts: costs,
         templates: { categories, overrides },
         aiPrices,
