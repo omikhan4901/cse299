@@ -36,7 +36,9 @@ export default function PricingPlans({ config }) {
   const aiFeatures = (config.aiFeatures || []).filter((f) => !f.v2 || config.v2?.enabled);
   const hasYearly = plans.some((p) => p.yearlyPrice > 0);
   const billing = useBilling();
-  const paddle = config.paddle;
+  const paddle = billing?.paddle || config.paddle;
+  // Payments off (or in test for someone else): plans are shown with "Coming soon".
+  const open = billing ? billing.paymentsOpen : config.payments === "live";
   const sub = billing?.subscription;
   // Biggest yearly saving, for the switch's label.
   const saving = Math.max(0, ...plans.filter((p) => p.price > 0 && p.yearlyPrice > 0).map((p) => Math.round((1 - p.yearlyPrice / (p.price * 12)) * 100)));
@@ -131,6 +133,8 @@ export default function PricingPlans({ config }) {
                     Manage billing
                   </button>
                 </div>
+              ) : !open ? (
+                <span className="mt-7 block w-full cursor-default rounded-xl border border-dashed border-slate-300 py-2.5 text-center font-semibold text-slate-500">Coming soon</span>
               ) : (
                 <button
                   type="button"

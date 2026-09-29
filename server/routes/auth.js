@@ -169,6 +169,10 @@ router.post('/register', registerByIp, async (req, res) => {
         if (settings.registration === 'closed' && !isSuperadmin({ email: lowerEmail })) {
             return res.status(403).json({ success: false, error: 'Sign-ups are closed right now. Please check back soon.' });
         }
+        // The hard cap on accounts (Admin › Credits & access).
+        if (settings.signups.cap != null && !isSuperadmin({ email: lowerEmail }) && (await User.countDocuments()) >= settings.signups.cap) {
+            return res.status(403).json({ success: false, code: 'signups-full', error: 'Sign-ups are full for now. Please check back soon.' });
+        }
         // A campaign code gives the campaign's plan and credits. Claiming a place is atomic,
         // so a campaign never goes over its limit.
         let campaign = null;

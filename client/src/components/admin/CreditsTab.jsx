@@ -40,6 +40,16 @@ export default function CreditsTab() {
         ) : null}
       </section>
 
+      <section className={`rounded-2xl border p-5 ${settings.payments.mode === "live" ? "border-emerald-300 bg-emerald-50/40" : "border-slate-200 bg-white"}`}>
+        <h2 className="font-semibold text-ink">Payments</h2>
+        <p className="text-sm text-slate-600">Whether people can buy a plan. Subscriptions already paid for keep working in every mode.</p>
+        <Radio.Group className="!mt-4 !flex !flex-col gap-2" value={settings.payments.mode} onChange={(e) => update((s) => ((s.payments = { mode: e.target.value }), s))}>
+          <Radio value="off">Off: pricing shows &ldquo;Coming soon&rdquo;, nobody can pay</Radio>
+          <Radio value="test">Test: only admins and accounts marked as testers can pay</Radio>
+          <Radio value="live">Live: everyone can pay</Radio>
+        </Radio.Group>
+      </section>
+
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="font-semibold text-ink">Who can sign up</h2>
         <p className="text-sm text-slate-600">Super admins can always sign up.</p>
@@ -48,6 +58,23 @@ export default function CreditsTab() {
           <Radio value="campaign">Only people with a campaign code</Radio>
           <Radio value="closed">Nobody (existing users can still log in)</Radio>
         </Radio.Group>
+        <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600">Close sign-ups after (accounts in total)</span>
+            <InputNumber
+              min={0}
+              className="!w-full"
+              placeholder="No limit"
+              value={settings.signups.cap}
+              onChange={(v) => update((s) => ((s.signups = { ...s.signups, cap: v == null ? null : v }), s))}
+            />
+            <span className="mt-1 block text-xs text-slate-500">{meta.userCount != null ? `${meta.userCount} accounts now. ` : ""}Empty for no limit.</span>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <Switch size="small" className="!mt-0.5" checked={settings.signups.requireVerifiedEmail} onChange={(v) => update((s) => ((s.signups = { ...s.signups, requireVerifiedEmail: v }), s))} />
+            <span>AI credits only after the email is verified<span className="block text-xs text-slate-500">Stops made-up accounts farming free credits. Needs email set up on the server.</span></span>
+          </label>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">

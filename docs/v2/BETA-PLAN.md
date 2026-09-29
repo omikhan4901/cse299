@@ -156,3 +156,29 @@ credit and the free MongoDB tier, without losing money, data or uptime.
 
 Phases 1–5 make the beta safe, 6–8 make it good. Each phase is committed and reported
 separately. Rough total: 12–16 working days of effort.
+
+---
+
+## Decision log
+
+**Phase 1 (money safety)**
+- Spend is tracked per month in its own record keyed by the month (concurrent calls can't
+  duplicate it); calls that fail after using tokens still count, since they were paid for.
+- The AI pause (cap or manual) is checked before credits are charged; admins are exempt so
+  the owner can test. Settings reach every server within 30 seconds (the settings cache).
+- Limits default to what each feature needs (assistant: 1,500 characters a message, last 10
+  messages; imports: 20,000 characters, 6 pages; thinking off for chat, rewrite and cover
+  letters, small for the rest). Worst case counts 3 characters a token (safe for Bangla).
+- A model that rejects thinking settings is retried once without them, so switching models
+  in the environment can't break every AI feature.
+- Found and fixed: model names with dots (gemini-2.5-flash) couldn't be saved as prices;
+  PDFs over 10 pages were sent whole to the model as "scanned"; the share-link and template
+  checks ignored a plan kept after a downgrade.
+- Campaign and admin feature switches live on the account (features + featuresExpireAt), so
+  per-user overrides (Phase 2) reuse them. An explicit "off" wins even in free mode.
+- The campaign estimate counts calendar-month allowances a window can touch (a 30-day
+  campaign can touch 3), so it never under-estimates.
+- Payments default to **off**. Test mode shows checkout only to admins and testers (via
+  /billing/me, never the public page). Webhooks are processed in every mode.
+- Verified email is required for AI only when the server can send email, so a missing SMTP
+  setting can't lock AI for everyone.

@@ -1,9 +1,10 @@
 const express = require('express');
 const Campaign = require('../models/Campaign');
 const { protect, campaignProblem } = require('./auth');
-const { getSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
+const { getSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS, paymentsOpenFor } = require('../lib/settings');
 const { usageSummary } = require('../lib/credits');
 const { pauseState } = require('../lib/aiSpend');
+const { canSendMail } = require('../lib/mailer');
 const { limit, clientIp } = require('../lib/rateLimit');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
@@ -21,7 +22,9 @@ router.get('/plans', async (req, res, next) => {
         const s = await getSettings();
         const cfg = paddleConfig();
         // With Paddle connected, its prices are the ones shown (they're what people are charged).
-        const charged = cfg.enabled ? await paddlePrices() : null;
+        // Paddle is only offered while payments are live (test mode: see /billing/me).
+        const live = cfg.enabled && s.payments.mode === 'live';
+        const charged = live ? await paddlePrices() : null;
         const plans = charged
             ? s.plans.map((p) => (charged[p.id] ? { ...p, price: charged[p.id].month, yearlyPrice: charged[p.id].year } : p))
             : s.plans;
@@ -43,7 +46,10 @@ router.get('/plans', async (req, res, next) => {
                 templates: s.templates,
                 plans,
                 // Public by design: Paddle.js needs these in the browser to open checkout.
-                paddle: cfg.enabled ? { environment: cfg.environment, clientToken: cfg.clientToken, prices: cfg.prices } : null,
+                paddle: live ? { environment: cfg.environment, clientToken: cfg.clientToken, prices: cfg.prices } : null,
+                payments: s.payments.mode,
+                // AI credits need a verified email (only when the server can send the code).
+                verifyForAi: s.signups.requireVerifiedEmail && canSendMail(),
                 aiFeatures: AI_FEATURES,
                 appFeatures: APP_FEATURES,
                 planLimits: PLAN_LIMITS,
@@ -67,8 +73,11 @@ async function currentSubscription(userId) {
 // @route GET /api/billing/me — the signed-in account's credits, plan and subscription
 router.get('/me', protect, async (req, res, next) => {
     try {
-        const [usage, subscription] = await Promise.all([usageSummary(req.userId), currentSubscription(req.userId)]);
-        res.json({ success: true, data: { ...usage, subscription } });
+        const [usage, subscription, settings, user] = await Promise.all([usageSummary(req.userId), currentSubscription(req.userId), getSettings(), User.findById(req.userId).select('email role tester').lean()]);
+        // Test mode: Paddle's details only for admins and testers.
+        const cfg = paddleConfig();
+        const paddleForMe = cfg.enabled && settings.payments.mode === 'test' && paymentsOpenFor(settings, user) ? { environment: cfg.environment, clientToken: cfg.clientToken, prices: cfg.prices } : null;
+        res.json({ success: true, data: { ...usage, subscription, paddle: paddleForMe } });
     } catch (err) {
         next(err);
     }
@@ -126,6 +135,8 @@ router.post('/portal', protect, billingActions, async (req, res) => {
 router.post('/change-plan', protect, billingActions, async (req, res) => {
     const { plan, interval } = req.body || {};
     if (!PLANS.includes(plan) || !INTERVALS.includes(interval)) return res.status(400).json({ success: false, error: 'Choose a plan and a billing period.' });
+    const [settings, me] = await Promise.all([getSettings(), User.findById(req.userId).select('email role tester').lean()]);
+    if (!paymentsOpenFor(settings, me)) return res.status(403).json({ success: false, code: 'payments-off', error: 'Payments open soon. Nothing was changed.' });
     const sub = (await Subscription.find({ user: req.userId }).lean()).find(grantsAccess);
     if (!sub) return res.status(404).json({ success: false, error: "You don't have an active subscription to change." });
     const cfg = paddleConfig();

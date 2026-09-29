@@ -103,6 +103,9 @@ export default function UpgradeModal({ request, onClose, billing }) {
             <Link href="/pricing" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-sm font-semibold text-ink transition hover:border-brand hover:text-brand">
               Compare plans
             </Link>
+            {!billing.paymentsOpen ? (
+              <span className="inline-flex h-10 items-center justify-center rounded-xl border border-dashed border-slate-300 px-4 text-sm font-semibold text-slate-500">Paid plans: coming soon</span>
+            ) : (
             <button
               type="button"
               onClick={() => {
@@ -113,6 +116,7 @@ export default function UpgradeModal({ request, onClose, billing }) {
             >
               <Crown size={15} /> {billing.subscription?.active ? `Switch to ${plan?.name || "a paid plan"}` : `Get ${plan?.name || "a paid plan"}`}
             </button>
+            )}
           </div>
           {billing.canCheckout && plan?.yearlyPrice > 0 && !billing.subscription?.active ? (
             <p className="mt-3 text-right text-xs text-slate-500">

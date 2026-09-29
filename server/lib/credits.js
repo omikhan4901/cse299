@@ -5,6 +5,7 @@ const { getSettings, planById, AI_FEATURES } = require('./settings');
 const { limit, retryIn } = require('./rateLimit');
 const { pauseState, recordSpend } = require('./aiSpend');
 const { isAdmin } = require('./roles');
+const { canSendMail } = require('./mailer');
 
 /**
  * AI credits. Every AI feature has a credit cost (set in the admin console).
@@ -74,7 +75,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'email role features featuresExpireAt plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
+const USER_FIELDS = 'email emailVerifiedAt role features featuresExpireAt plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -164,6 +165,11 @@ function aiQuota(feature) {
                                 : "AI features are paused for a little while. Everything else works as usual, and you weren't charged.",
                         });
                     }
+                }
+                // AI credits only once the email is verified (stops made-up accounts farming free
+                // credits). Only when the server can send the code, or nobody could ever verify.
+                if (settings.signups.requireVerifiedEmail && !user.emailVerifiedAt && !isAdmin(user) && canSendMail()) {
+                    return res.status(403).json({ success: false, code: 'verify-email', error: 'Verify your email to use AI features. It takes a minute.' });
                 }
                 const cost = settings.featureCosts[feature] ?? 1;
                 // The feature's input, output and thinking limits (lib/aiLimits.js), for the route

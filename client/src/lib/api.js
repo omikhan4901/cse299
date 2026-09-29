@@ -15,6 +15,8 @@ export const SETTINGS_CHANGED = "resumex:settings-changed";
 
 /** Fired when the server refuses something because of the plan; BillingProvider shows the upgrade dialog. */
 export const UPGRADE_NEEDED = "resumex:upgrade-needed";
+/** Fired when an AI request needs a verified email first; VerifyEmailModal opens. */
+export const VERIFY_NEEDED = "resumex:verify-needed";
 
 /**
  * fetch() wrapper for the Express API. Throws ApiError with the server's
@@ -49,6 +51,7 @@ export async function api(path, { token, method = "GET", body, timeout = LONG_AI
     if (!res.ok || data.success === false) {
       // AI was paused while this page was open: reload the settings so the notice shows.
       if (data.code === "ai-paused" && typeof window !== "undefined") window.dispatchEvent(new Event(SETTINGS_CHANGED));
+      if (data.code === "verify-email" && typeof window !== "undefined") window.dispatchEvent(new Event(VERIFY_NEEDED));
       if (data.code === "upgrade" && data.feature && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent(UPGRADE_NEEDED, { detail: { feature: data.feature, plan: data.plan, template: data.template } }));
       }

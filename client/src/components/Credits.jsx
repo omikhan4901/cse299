@@ -15,6 +15,8 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 function CreditCard({ feature, title, description }) {
   const { costOf, featureInfo, usage, canUse, upgradePlanFor, config } = useBilling() || {};
   const aiPaused = config?.aiPaused;
+  const { user } = useAuth();
+  const needsVerify = !!config?.verifyForAi && !!user && !user.emailVerified;
   const info = featureInfo?.(feature);
   const cost = costOf?.(feature);
   const locked = canUse && !canUse(feature);
@@ -31,7 +33,9 @@ function CreditCard({ feature, title, description }) {
         ) : null}
       </div>
       {description || info?.description ? <p className="mt-1 text-xs leading-relaxed text-white/70">{description || info?.description}</p> : null}
-      {aiPaused ? (
+      {needsVerify ? (
+        <p className="mt-2 border-t border-white/10 pt-2 text-[11px] text-amber-200">Verify your email first (Account settings). It takes a minute.</p>
+      ) : aiPaused ? (
         <p className="mt-2 border-t border-white/10 pt-2 text-[11px] text-amber-200">{pausedText(aiPaused)}</p>
       ) : locked ? (
         <p className="mt-2 flex items-center gap-1.5 border-t border-white/10 pt-2 text-[11px] text-amber-200">

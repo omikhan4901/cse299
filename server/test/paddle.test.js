@@ -6,7 +6,7 @@
 const crypto = require('node:crypto');
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, resetState, paddleApi, superadmin } = require('./helpers');
+const { start, stop, api, register, resetState, paddleApi, superadmin, setSettings } = require('./helpers');
 
 const SECRET = 'pdl_ntfset_test_secret';
 const PRICES = { pro: { month: 'pri_pro_m', year: 'pri_pro_y' }, premium: { month: 'pri_prem_m', year: 'pri_prem_y' } };
@@ -33,6 +33,8 @@ beforeEach(async () => {
     await require('../models/Subscription').deleteMany({});
     await require('../models/PaddleCustomer').deleteMany({});
     setEnv(ENV);
+    // These tests are about taking payments: open them (the default is off for the beta).
+    await setSettings({ payments: { mode: 'live' } });
 });
 
 const User = () => require('../models/User');
@@ -373,6 +375,41 @@ describe('billing endpoints', () => {
         assert.equal(call.body.proration_billing_mode, 'prorated_immediately');
         assert.equal(await planOf(u.email), 'premium');
         assert.equal(r.body.data.interval, 'year');
+    });
+
+    it('the payments switch: off offers nothing and refuses changes; test only for admins and testers; live for everyone', async () => {
+        const u = await register();
+        await deliver(event('subscription.created', subscriptionData({ userId: u.user.id })));
+        const plans = async () => (await api('GET', '/billing/plans')).body.data;
+        const me = async (token) => (await api('GET', '/billing/me', { token })).body.data;
+        const change = (token) => api('POST', '/billing/change-plan', { token, body: { plan: 'premium', interval: 'year' } });
+        paddleApi.handler = (url, opts) => (url.endsWith('/subscriptions/sub_1') && opts.method === 'PATCH' ? { body: { data: subscriptionData({ userId: u.user.id, price: PRICES.premium.year }) } } : null);
+
+        await setSettings({ payments: { mode: 'off' } });
+        let p = await plans();
+        assert.equal(p.payments, 'off');
+        assert.equal(p.paddle, null, 'no checkout details while off');
+        assert.equal((await me(u.token)).paddle, null);
+        const refused = await change(u.token);
+        assert.equal(refused.status, 403);
+        assert.equal(refused.body.code, 'payments-off');
+        assert.equal(paddleApi.calls.filter((c) => c.method === 'PATCH').length, 0, 'Paddle was never asked');
+
+        await setSettings({ payments: { mode: 'test' } });
+        p = await plans();
+        assert.equal(p.paddle, null, 'the public page still offers nothing in test mode');
+        assert.equal((await me(u.token)).paddle, null, 'not a tester');
+        assert.equal((await change(u.token)).status, 403);
+        const admin = await superadmin();
+        assert.ok((await me(admin.token)).paddle?.clientToken, 'admins can test checkout');
+        await User().updateOne({ _id: u.user.id }, { tester: true });
+        assert.ok((await me(u.token)).paddle?.prices?.pro, 'testers can too');
+        assert.equal((await change(u.token)).status, 200);
+
+        await setSettings({ payments: { mode: 'live' } });
+        assert.ok((await plans()).paddle?.clientToken);
+        await setSettings({ payments: { mode: 'sideways' } });
+        assert.equal((await plans()).payments, 'off', 'anything unknown is off');
     });
 
     describe('upgrades start now; downgrades wait for the renewal (no credit to game)', () => {

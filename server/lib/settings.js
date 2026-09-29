@@ -66,6 +66,12 @@ const DEFAULTS = {
     // The monthly AI spending cap (lib/aiSpend.js), in US dollars: at the cap, AI pauses for
     // everyone except admins until the 1st. `paused` is the admin's emergency brake.
     aiSpend: { enabled: true, cap: 40, alertAt: 80, paused: false },
+    // Payments (Paddle): off (no checkout, "Coming soon"), test (only admins and testers can
+    // pay, e.g. with Paddle's sandbox), live (everyone). Webhooks are processed in every mode.
+    payments: { mode: 'off' },
+    // Sign-ups: a hard cap on accounts (null = none; super admins can always sign up), and AI
+    // credits only once the email is verified (when the server can send email).
+    signups: { cap: null, requireVerifiedEmail: true },
     // Monthly running costs the admin enters (hosting, domain, email…), in the payout
     // currency, for the profit figure in the Revenue view. AI and Paddle fees are measured.
     fixedCosts: [],
@@ -200,6 +206,11 @@ function clean(input) {
             alertAt: Math.round(num(isObj(s.aiSpend) ? s.aiSpend.alertAt : 80, 80, { min: 0, max: 99 })),
             paused: !!(isObj(s.aiSpend) && s.aiSpend.paused),
         },
+        payments: { mode: ['off', 'test', 'live'].includes(s.payments?.mode) ? s.payments.mode : 'off' },
+        signups: {
+            cap: s.signups?.cap === null || s.signups?.cap === '' || s.signups?.cap === undefined ? null : Math.round(num(s.signups.cap, 80, { min: 0, max: 1e6 })),
+            requireVerifiedEmail: s.signups?.requireVerifiedEmail !== false,
+        },
         templates: { categories, overrides },
         aiPrices,
         fixedCosts,
@@ -278,4 +289,8 @@ setInterval(() => getSettings().catch(() => {}), TTL + 1000).unref();
 
 const planById = (settings, id) => settings.plans.find((p) => p.id === id) || settings.plans[0];
 
-module.exports = { getSettings, readSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS, PLAN_IDS, DEFAULTS };
+/** Whether this account may pay right now (Admin › Credits & access › Payments). */
+const paymentsOpenFor = (settings, user) =>
+    settings.payments.mode === 'live' || (settings.payments.mode === 'test' && !!user && (!!user.tester || ['admin', 'superadmin'].includes(require('./roles').roleOf(user))));
+
+module.exports = { paymentsOpenFor, getSettings, readSettings, updateSettings, planById, AI_FEATURES, APP_FEATURES, PLAN_LIMITS, PLAN_IDS, DEFAULTS };

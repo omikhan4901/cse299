@@ -6,6 +6,7 @@ import { Alert, App, Button, Form, Input, Modal, Progress, Result, Skeleton, Swi
 import { CreditCard, Crown, Download, KeyRound, Mail, Sparkles, Trash2, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { API_URL, AI_ENABLED } from "@/lib/config";
+import { askToVerify } from "../security/VerifyEmailModal";
 import { useBilling, resetsIn } from "../BillingProvider";
 import AccountSecurity from "../security/AccountSecurity";
 import { useAuth } from "../AuthProvider";
@@ -189,6 +190,12 @@ export default function AccountSettings() {
         <p className="mt-1 text-slate-500">
           {user.email} · member since {new Date(user.createdAt || Date.now()).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
         </p>
+        {!user.emailVerified ? (
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-amber-800">
+            Your email isn&apos;t verified yet{billing?.config?.verifyForAi ? ", so AI features are off" : ""}.
+            <button type="button" onClick={askToVerify} className="font-semibold text-brand hover:underline">Verify it now</button>
+          </p>
+        ) : null}
       </div>
 
       <Card icon={UserRound} title="Profile">

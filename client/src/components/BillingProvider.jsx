@@ -8,6 +8,7 @@ import { useAuth } from "./AuthProvider";
 import { openCheckout } from "@/lib/paddle";
 import UpgradeModal from "./billing/UpgradeModal";
 import AiPausedNotice from "./billing/AiPausedNotice";
+import VerifyEmailModal from "./security/VerifyEmailModal";
 
 /**
  * Plans, prices, credit costs and the signed-in account's credit balance.
@@ -143,9 +144,14 @@ export function BillingProvider({ children }) {
    */
   const checkout = useCallback(
     async (planId, interval = "month", source = "pricing") => {
-      const cfg = config?.paddle;
+      const cfg = config?.paddle || usage?.paddle;
       const plan = config?.plans?.find((p) => p.id === planId);
       const name = plan?.name || "a paid plan";
+      // Payments switched off (or test mode for someone who isn't testing): nothing to buy yet.
+      if (!cfg && config?.payments !== "live") {
+        message.info("Payments open soon. Everything you can use now stays free to use.");
+        return;
+      }
       if (!cfg?.prices?.[planId]?.[interval]) {
         window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`Upgrade to ${name}`)}`;
         return;
@@ -198,7 +204,7 @@ export function BillingProvider({ children }) {
 
   /** Buys the Job Search Pass: one payment, adds its days to the account. */
   const checkoutPass = useCallback(async () => {
-    const cfg = config?.paddle;
+    const cfg = config?.paddle || usage?.paddle;
     if (!cfg?.prices?.pass || !config?.pass) return;
     if (!token) {
       openAuth("register", "/pricing");
@@ -209,7 +215,7 @@ export function BillingProvider({ children }) {
     } catch (err) {
       message.error(err.message);
     }
-  }, [config, token, user, openAuth, message]);
+  }, [config, usage, token, user, openAuth, message]);
 
   /** Opens Paddle's customer portal: payment method, invoices, cancelling. */
   const openPortal = useCallback(async () => {
@@ -286,7 +292,10 @@ export function BillingProvider({ children }) {
       sourceOf,
       openPortal,
       /** True when paying goes through Paddle (otherwise upgrades are by email). */
-      canCheckout: !!config?.paddle,
+      canCheckout: !!(config?.paddle || usage?.paddle),
+      /** Payments: "off" (coming soon), "test" (admins and testers only) or "live". */
+      paymentsOpen: !!(config?.paddle || usage?.paddle) || (config ? config.payments === "live" : true),
+      paddle: config?.paddle || usage?.paddle || null,
       subscription: usage?.subscription || null,
     };
   }, [config, usage, user, refreshUsage, refreshConfig, checkout, checkoutPass, openPortal]);
@@ -296,6 +305,7 @@ export function BillingProvider({ children }) {
       {children}
       <UpgradeModal request={upgrade} onClose={() => setUpgrade(null)} billing={value} />
       <AiPausedNotice />
+      <VerifyEmailModal />
     </BillingContext.Provider>
   );
 }

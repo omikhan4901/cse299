@@ -57,6 +57,8 @@ const UserSchema = new mongoose.Schema({
     // set by an admin or copied from a campaign; they end at featuresExpireAt (empty = no end).
     features: { type: mongoose.Schema.Types.Mixed },
     featuresExpireAt: { type: Date },
+    // Can pay while payments are in test mode (Admin › Users).
+    tester: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
     // Set once the owner proves they receive email at this address (required for super admins).
     emailVerifiedAt: { type: Date },

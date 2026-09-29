@@ -365,7 +365,7 @@ router.get('/audit', wrap(async (req, res) => {
 
 // ---------- Settings (plans, prices, credit costs, free mode) ----------
 
-const settingsPayload = async () => ({ ...(await readSettings()), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, planLimits: PLAN_LIMITS, rateLimits: describeLimits() });
+const settingsPayload = async () => ({ ...(await readSettings()), aiFeatures: AI_FEATURES, appFeatures: APP_FEATURES, planLimits: PLAN_LIMITS, rateLimits: describeLimits(), userCount: await User.countDocuments() });
 
 router.get('/settings', wrap(async (req, res) => {
     res.json({ success: true, data: await settingsPayload() });
