@@ -614,26 +614,6 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     if (data) setRewrite({ kind: "item", itemId, before: text, after: data.refinedText, unverified: data.unverified });
   };
 
-  const importFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const form = new FormData();
-    form.append("resumeFile", file);
-    const hide = message.loading("Reading your resume…", 0);
-    try {
-      const { extractedData } = await api("/ai/parse", { token, method: "POST", body: form, timeout: 120000 });
-      const x = normalizeResume(extractedData);
-      setResume((r) => withContentOf(r, x, { keepPhoto: true }));
-      setShowExample(false);
-      message.success("Imported! Check each section and fix anything we missed.");
-    } catch (err) {
-      if (err.code !== "upgrade" && err.code !== "cancelled") message.error(err.message);
-    } finally {
-      hide();
-    }
-  };
-
   // V2: rewrite a tailored resume's summary and top points for its job (proposals to review).
   const runPolish = async () => {
     if (!allowed("polish", "AI polish")) return;
@@ -691,11 +671,9 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     if (key === "audit") return setAiModal("audit");
     if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
     if (!requireAccount()) return;
-    // V2: "Add anything" merges into the resume after review, instead of replacing it.
-    if (key === "import") {
-      if (billing?.v2) setAiModal("add");
-      else document.getElementById("resume-import")?.click();
-    } else setAiModal(key);
+    // Importing goes through "Add anything": the AI's changes are merged into the resume
+    // after review (flagging anything it couldn't confirm), instead of replacing it.
+    setAiModal(key === "import" ? "add" : key);
   };
 
   const saveState = saving ? "saving" : dirty ? "dirty" : resume._id && isAuthenticated ? "saved" : "new";
@@ -756,7 +734,6 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
-      <input id="resume-import" type="file" accept=".pdf,.docx" className="hidden" onChange={importFile} />
       <input id="resume-open-file" type="file" accept=".json,application/json" className="hidden" onChange={openFromFile} />
 
       {/* Toolbar */}

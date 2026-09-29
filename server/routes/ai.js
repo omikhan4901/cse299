@@ -444,7 +444,8 @@ router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), a
     if (!isObj(outline)) outline = {};
     if (!file && !typed) return res.status(400).json({ success: false, error: 'Paste some text or choose a PDF or Word file.' });
     if (typed.length > 30000) return res.status(400).json({ success: false, error: 'That text is very long. Paste it in parts of up to about 30,000 characters.' });
-    if (file) req.aiLongTask = true;
+    // Reading a file, or a long pasted CV, takes a while: allow the import's longer budget.
+    if (file || typed.length > 1500) req.aiLongTask = true;
 
     try {
         // The text the model reads, and the facts are checked against.

@@ -29,7 +29,7 @@ export async function api(path, { token, method = "GET", body, timeout = 60000 }
   const isAi = path.startsWith("/ai/") && method !== "GET" && typeof window !== "undefined";
   let cancelled = false;
   const untrack = isAi
-    ? trackAi({ path, startedAt: Date.now(), budgetMs: path === "/ai/parse" ? 100000 : 45000, cancel: () => ((cancelled = true), controller.abort()) })
+    ? trackAi({ path, startedAt: Date.now(), budgetMs: path === "/ai/parse" || path === "/ai/ingest" ? 100000 : 45000, cancel: () => ((cancelled = true), controller.abort()) })
     : null;
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;

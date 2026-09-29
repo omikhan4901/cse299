@@ -191,19 +191,27 @@ is shown before it starts, from the admin's per-feature cost and the account's b
 | G, email | The support mailbox and SMTP settings, when you set them up. |
 | Queue (§4) | Billing enabled on the Google Cloud project (or the AI Studio key topped up). |
 
-## 4. AI verification queue (run once AI access is back)
+## 4. AI verification queue: done (Vertex AI, 29 Sep 2026)
 
-In order, each against the real model, on both the main and the fallback model:
+| Check | gemini-2.5-flash | gemini-flash-latest | gemini-flash-lite-latest |
+| --- | --- | --- | --- |
+| Import (`eval/ingest`, 14 cases × 2) | **Pass**: median 0, max 1, 0 invented; 3.0 s median | **Pass** twice in a row: median 0, max 1–2, 0 invented; 4.5 s | Fail: drops skills and whole jobs from a long CV (max 10) |
+| Rewrite, Strengthen, Polish (`eval/assistant`, 7 × 2) | 14 of 14 | 14 of 14 | not run |
+| Tokens per import (in / out) | 1,148 / 603 | 1,115 / 1,048 | 1,114 / 288 |
 
-1. Import evaluation (`server/eval/ingest/`): median ≤ 1, max ≤ 2, zero unflagged
-   invented facts, twice in a row. Then switch the builder's import to the new path.
-2. A small evaluation for the assistant's proposals: Rewrite adds no facts; Strengthen
-   asks questions instead of inventing.
-3. The AI polish of tailored resumes: no new facts, and it improves the keyword match.
-4. The first week of real token numbers in the economics dashboard, used to set the
-   Premium credit allowance.
+What the first runs found and fixed: expanding "CSE" was flagged as invented (the checker now
+knows common abbreviations and word forms); "since 2018" left no end date; project
+technologies were missing from skills; long imports timed out after 30 s per attempt;
+Strengthen sometimes dropped the numbers people gave; Rewrite added details and adjectives.
 
-Estimated cost of the whole queue, including repeats: $10–20 (see the conversation estimate).
+**Decision:** `GEMINI_MODEL=gemini-2.5-flash`, `GEMINI_FALLBACK_MODEL=gemini-flash-latest`
+(both pass; lite is too weak even as a fallback for imports). The builder's import now goes
+through the reviewed path for everyone. Polish improves wording but can't raise keyword
+coverage without new facts (by design); keyword gains come from tailoring.
+
+**Cost:** about $0.0006–0.001 per credit (import ≈ $0.002–0.003, rewrite ≈ $0.001). Premium's
+1,000 credits cost at most ≈ $0.6–1.1 a month, about 5–10% of its net price, well under the
+20% target. Check real numbers in Admin › Economics after a week of use.
 
 ## 5. Tracking
 

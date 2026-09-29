@@ -26,6 +26,7 @@ const LABELS = {
   "/ai/audit": "Reviewing your resume",
   "/ai/cover-letter": "Writing your cover letter",
   "/ai/parse": "Importing your resume",
+  "/ai/ingest": "Reading what you added",
 };
 
 /**
@@ -46,7 +47,7 @@ export default function AiStatus() {
 
   const req = active[0]; // the oldest one
   const elapsed = req ? now - req.startedAt : 0;
-  const stages = STAGES[req?.path === "/ai/parse" ? "import" : "normal"];
+  const stages = STAGES[req?.path === "/ai/parse" || req?.path === "/ai/ingest" ? "import" : "normal"];
   const stage = req ? [...stages].reverse().find((s) => elapsed >= s.after) : null;
   const left = req ? Math.max(0, Math.ceil((req.budgetMs - elapsed) / 1000)) : 0;
   const progress = req ? Math.min(100, (elapsed / req.budgetMs) * 100) : 0;
