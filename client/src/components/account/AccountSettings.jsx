@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Alert, App, Button, Form, Input, Modal, Progress, Result, Skeleton } from "antd";
-import { CreditCard, Crown, Download, KeyRound, Sparkles, Trash2, UserRound } from "lucide-react";
+import { Alert, App, Button, Form, Input, Modal, Progress, Result, Skeleton, Switch } from "antd";
+import { CreditCard, Crown, Download, KeyRound, Mail, Sparkles, Trash2, UserRound } from "lucide-react";
 import { api } from "@/lib/api";
 import { API_URL, AI_ENABLED } from "@/lib/config";
 import { useBilling, resetsIn } from "../BillingProvider";
@@ -242,14 +242,16 @@ export default function AccountSettings() {
 
       <AccountSecurity />
 
-      <Card icon={Download} title="Your data" description="Download everything we store about you — your account details and every resume — as a JSON file.">
+      {billing?.v2 ? <EmailPrefs user={user} token={token} onUser={(u) => updateSession({ user: u })} /> : null}
+
+      <Card icon={Download} title="Your data" description="Download everything we store about you (your account, resumes, Career Profile and applications) as a JSON file.">
         <Button icon={<Download size={15} />} loading={exporting} onClick={exportData}>Download my data</Button>
         <p className="mt-3 text-xs text-slate-400">
           See our <Link href="/privacy" className="text-brand hover:underline">privacy policy</Link> for how your data is used.
         </p>
       </Card>
 
-      <Card icon={Trash2} title="Delete account" description="Permanently deletes your account, all your resumes and their share links. This can't be undone." danger>
+      <Card icon={Trash2} title="Delete account" description="Permanently deletes your account, your resumes and their share links, your Career Profile and applications. This can't be undone." danger>
         <Button danger onClick={() => setDeleting({ open: true, loading: false, error: null })}>Delete my account</Button>
       </Card>
 
@@ -272,5 +274,42 @@ export default function AccountSettings() {
         </Form>
       </Modal>
     </div>
+  );
+}
+
+/** V2: which reminder emails to get (deadlines and interviews; the weekly digest). */
+function EmailPrefs({ user, token, onUser }) {
+  const { message } = App.useApp();
+  const [busy, setBusy] = useState(null);
+  const prefs = user.emailPrefs || { reminders: true, digest: true };
+  const set = async (key, value) => {
+    setBusy(key);
+    try {
+      const data = await api("/auth/email-prefs", { token, method: "PUT", body: { [key]: value } });
+      onUser(data.user);
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const rows = [
+    ["reminders", "Deadline and interview reminders", "The day before a deadline or an interview."],
+    ["digest", "Weekly digest", "What's coming up this week, every Monday."],
+  ];
+  return (
+    <Card icon={Mail} title="Emails" description="About the applications you track.">
+      <ul className="divide-y divide-slate-100">
+        {rows.map(([key, label, hint]) => (
+          <li key={key} className="flex items-center justify-between gap-3 py-3">
+            <span>
+              <span className="block text-sm font-medium text-ink">{label}</span>
+              <span className="block text-xs text-slate-500">{hint}</span>
+            </span>
+            <Switch checked={prefs[key] !== false} loading={busy === key} onChange={(v) => set(key, v)} />
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

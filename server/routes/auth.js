@@ -95,6 +95,7 @@ const publicUser = (user) => ({
     planExpiresAt: user.planExpiresAt || null,
     role: roleOf(user),
     v2Preview: !!user.v2Preview,
+    emailPrefs: { reminders: user.emailPrefs?.reminders !== false, digest: user.emailPrefs?.digest !== false },
     twoFactorEnabled: !!user.twoFactor?.enabled,
     emailVerified: !!user.emailVerifiedAt,
     createdAt: user.createdAt,
@@ -142,6 +143,7 @@ const registerByIp = limit({ name: 'register-ip', windowMs: 60 * 60 * 1000, max:
 const resetByIp = limit({ name: 'reset-ip', windowMs: 60 * 60 * 1000, max: 10, key: clientIp, message: 'Too many password reset requests.', label: 'Password resets (per IP)', group: 'Sign-in & accounts', description: 'Reset emails requested and reset links used from one network.' });
 const resetByEmail = limit({ name: 'reset-email', windowMs: 60 * 60 * 1000, max: 3, key: emailKey, message: 'Too many password reset requests for this email.', label: 'Password resets (per email)', group: 'Sign-in & accounts', scope: 'email', description: 'Reset emails sent to one address.' });
 const profileByUser = limit({ name: 'profile', windowMs: 15 * 60 * 1000, max: 20, key: (req) => req.userId, message: 'Too many changes.', label: 'Profile updates', group: 'Sign-in & accounts', scope: 'account', description: 'Changing your name on the account page.' });
+const unsubscribeByIp = limit({ name: 'unsubscribe-ip', windowMs: 60 * 60 * 1000, max: 60, key: clientIp, message: 'Too many requests.', label: 'Unsubscribe links', group: 'Sign-in & accounts', description: 'Unsubscribe links opened from one network.' });
 const exportByUser = limit({ name: 'export', windowMs: 60 * 60 * 1000, max: 5, key: (req) => req.userId, message: 'Too many exports.', label: 'Data exports', group: 'Sign-in & accounts', scope: 'account', description: 'Downloads of everything stored about an account (a heavy request).' });
 const sensitiveByUser = limit({ name: 'account', windowMs: 15 * 60 * 1000, max: 10, key: (req) => req.userId, message: 'Too many attempts.', label: 'Sensitive account actions', group: 'Sign-in & accounts', scope: 'account', description: 'Password change, account deletion, sign out everywhere and starting 2FA setup.' });
 
@@ -268,6 +270,36 @@ router.put('/me', protect, profileByUser, async (req, res) => {
         if (err.name === 'ValidationError') return res.status(400).json({ success: false, error: Object.values(err.errors)[0].message });
         console.error(err);
         res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+// @route   PUT /api/auth/email-prefs — which reminder emails to get ({ reminders, digest })
+router.put('/email-prefs', protect, profileByUser, async (req, res) => {
+    try {
+        const set = {};
+        for (const k of ['reminders', 'digest']) if (typeof req.body?.[k] === 'boolean') set[`emailPrefs.${k}`] = req.body[k];
+        if (!Object.keys(set).length) return res.status(400).json({ success: false, error: 'Nothing to change.' });
+        await User.updateOne({ _id: req.userId }, { $set: set });
+        const user = await User.findById(req.userId);
+        res.json({ success: true, user: publicUser(user) });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+// @route   GET /api/auth/unsubscribe?t=… — the link in reminder emails: turns that kind off, no sign-in needed
+router.get('/unsubscribe', unsubscribeByIp, async (req, res) => {
+    const page = (title, body) =>
+        res.type('html').send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:Inter,Arial,sans-serif;color:#0f1f2a;display:grid;place-items:center;min-height:90vh;margin:0;background:#f8fafc"><div style="max-width:420px;padding:32px;background:#fff;border:1px solid #e2e8f0;border-radius:20px;text-align:center"><h1 style="font-size:20px">${title}</h1><p style="color:#475569">${body}</p><p><a href="${(process.env.APP_URL || 'https://resumex.cc').replace(/\/$/, '')}/account" style="color:#007b7b">Email settings</a></p></div></body>`);
+    try {
+        const p = jwt.verify(String(req.query.t || ''), process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        if (p.purpose !== 'unsubscribe' || !['reminders', 'digest'].includes(p.kind)) throw new Error('bad token');
+        await User.updateOne({ _id: p.sub }, { $set: { [`emailPrefs.${p.kind}`]: false } });
+        page("You're unsubscribed", p.kind === 'digest' ? "You won't get the weekly digest any more." : "You won't get deadline and interview reminders any more.");
+    } catch {
+        res.status(400);
+        page('That link has expired', 'You can turn emails on or off in your account settings.');
     }
 });
 

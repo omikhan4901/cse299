@@ -41,6 +41,8 @@ const UserSchema = new mongoose.Schema({
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     // Sees V2 (Career Profile, applications) before it's switched on for everyone.
     v2Preview: { type: Boolean, default: false },
+    // Which V2 emails they get (both on unless turned off in Account settings or by a link in the email).
+    emailPrefs: { reminders: { type: Boolean, default: true }, digest: { type: Boolean, default: true } },
     banned: { type: Boolean, default: false },
     bannedReason: { type: String, default: '' },
     campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },

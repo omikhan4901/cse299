@@ -45,6 +45,21 @@ The front end stays on Vercel and the database on MongoDB Atlas.
    | `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL` | model ids that Vertex offers (see Model Garden) |
 6. **Create**. The first build takes a few minutes. When it finishes, open `https://<service-url>/api/health`; it should show `"db":true`.
 
+### Reminder emails (V2)
+
+Deadline and interview reminders and the weekly digest are sent by a scheduled call to the
+API. Once email (`SMTP_URL`, `MAIL_FROM`, `APP_URL`) and `INTERNAL_API_KEY` are set:
+
+1. **Cloud Scheduler → Create job** named `resumex-reminders`, frequency `0 */3 * * *`
+   (every 3 hours), time zone `Asia/Dhaka`. Target **HTTP**, method **POST**, URL
+   `https://<service-url>/api/internal/reminders`, header `X-Internal-Key: <INTERNAL_API_KEY>`,
+   header `Content-Type: application/json`, body `{}`.
+2. A second job `resumex-digest`, frequency `0 9 * * 1` (Mondays 9:00), same target, body
+   `{"digest": true}`.
+
+Nothing is sent twice, so extra runs are harmless. Each email has an unsubscribe link, and
+people can turn either kind off in Account settings.
+
 ## 2. Connect the rest
 
 - **MongoDB Atlas → Network Access → Add IP address → `0.0.0.0/0`** (Cloud Run has no fixed IP).
