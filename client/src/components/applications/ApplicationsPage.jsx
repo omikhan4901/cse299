@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { App, Button, Input, Result, Segmented, Skeleton, Table } from "antd";
+import { App, Button, Input, Result, Segmented, Skeleton, Table, Tooltip } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Briefcase, Columns3, FileCheck2, List, Plus, Search, Wand2 } from "lucide-react";
+import { ArrowRight, Briefcase, CalendarPlus, Columns3, FileCheck2, List, Plus, Search, Wand2 } from "lucide-react";
 import { ACTIVE, STATUSES, isActive, nextStep, statusOf } from "@/lib/applications";
 import { useAuth } from "../AuthProvider";
 import { useBilling } from "../BillingProvider";
@@ -15,6 +15,7 @@ import ApplicationDrawer from "./ApplicationDrawer";
 import { DeadlineChip, StatusChip, TONE, jobName } from "./ui";
 import TailorModal from "./TailorModal";
 import { api } from "@/lib/api";
+import { calendarFor } from "@/lib/ics";
 
 const BOARD = ["saved", "preparing", "applied", "interviewing", "offer"];
 const CLOSED = ["rejected", "withdrawn", "noResponse"];
@@ -68,6 +69,15 @@ export default function ApplicationsPage() {
       else message.error(err.message);
       store.load();
     });
+  const exportCalendar = () => {
+    const { text, count } = calendarFor(apps, { site: window.location.origin });
+    if (!count) return message.info("No deadlines, interviews or follow-ups to add yet.");
+    const url = URL.createObjectURL(new Blob([text], { type: "text/calendar" }));
+    const link = Object.assign(document.createElement("a"), { href: url, download: "resumex-applications.ics" });
+    link.click();
+    URL.revokeObjectURL(url);
+    message.success(`${count} date${count === 1 ? "" : "s"} ready for your calendar`);
+  };
   const pickView = (v) => {
     setView(v);
     try {
@@ -96,6 +106,11 @@ export default function ApplicationsPage() {
                 { value: "list", icon: <List size={14} />, label: <span className="hidden sm:inline">List</span> },
               ]}
             />
+          ) : null}
+          {apps?.length ? (
+            <Tooltip title="Deadlines, interviews and follow-ups for your calendar app">
+              <Button size="large" icon={<CalendarPlus size={16} />} aria-label="Add to calendar" onClick={exportCalendar} />
+            </Tooltip>
           ) : null}
           {untailored.length >= 2 ? (
             <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)}>

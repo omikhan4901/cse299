@@ -270,3 +270,30 @@ describe('tracker rules (client/src/lib/applications.js)', () => {
         assert.equal(jobMatch(resume, 'too short'), null);
     });
 });
+
+describe('calendar export (client/src/lib/ics.js)', () => {
+    it('deadlines, follow-ups and interviews as events; closed or archived ones left out; long and Bangla text folded safely', async () => {
+        const { calendarFor } = await import(path.join(__dirname, '../../client/src/lib/ics.js'));
+        const NOW = new Date('2026-10-01T00:00:00Z');
+        const { text, count } = calendarFor(
+            [
+                { _id: 'a1', status: 'saved', job: { title: 'Engineer, Backend; Payments', organisation: 'Pathao', deadline: '2026-10-15T00:00:00Z' } },
+                { _id: 'a2', status: 'applied', job: { title: 'Lecturer' }, followUpAt: '2026-10-20T00:00:00Z', interviews: [{ id: 5, at: '2026-10-22T04:00:00Z', kind: 'Viva', notes: 'Bring certificates' }] },
+                { _id: 'a3', status: 'rejected', job: { title: 'X', deadline: '2026-10-15' } },
+                { _id: 'a4', status: 'saved', archived: true, job: { title: 'Y', deadline: '2026-10-15' } },
+                { _id: 'a5', status: 'saved', job: { title: 'উপসহকারী প্রকৌশলী '.repeat(6), deadline: '2026-11-10T00:00:00Z' } },
+            ],
+            { now: NOW }
+        );
+        assert.equal(count, 4);
+        assert.match(text, /^BEGIN:VCALENDAR\r\n/);
+        assert.match(text, /DTSTART;VALUE=DATE:20261015\r\nDTEND;VALUE=DATE:20261016/);
+        assert.ok(text.includes('SUMMARY:Deadline: Engineer\\, Backend\\; Payments · Pathao'), 'commas and semicolons escaped');
+        assert.match(text, /DTSTART:20261022T040000Z/);
+        assert.match(text, /SUMMARY:Follow up: Lecturer/);
+        assert.ok(!text.includes('a3-') && !text.includes('a4-'));
+        for (const line of text.split('\r\n')) assert.ok(Buffer.byteLength(line) <= 75, `too long: ${line}`);
+        assert.ok(!text.includes('�'), 'no character split in half');
+        assert.equal(calendarFor([]).count, 0);
+    });
+});
