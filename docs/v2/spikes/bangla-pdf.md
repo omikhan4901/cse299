@@ -27,5 +27,5 @@ Bangla CV made this way would look wrong to exactly the people it's for.
   Chromium. Both are separate from the 52 react-pdf templates, so it's a contained project.
 - **Now:** resumes and biodata stay in English. Bangla typed into a resume shows as missing
   characters, because none of the template fonts has Bengali letters. The builder should say
-  so if someone types Bangla (small follow-up; not built yet). Bangla *input* elsewhere
+  so when someone types Bangla (it does: a notice above the editor). Bangla *input* elsewhere
   (job circulars, "Add anything") is unaffected: that text never goes into a PDF.

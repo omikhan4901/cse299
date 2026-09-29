@@ -646,6 +646,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       message.error(err.message);
     }
   };
+  // Bengali letters can't be printed by the PDF engine yet (docs/v2/spikes/bangla-pdf.md).
+  const hasBangla = useMemo(() => /[\u0980-\u09FF]/.test(JSON.stringify(toPayload(resume))), [resume]);
   const clearSuggestions = () => {
     setResume((r) => ({ ...r, suggestions: undefined }));
     if (resume._id) api(`/resumes/${resume._id}`, { token, method: "PUT", body: { suggestions: null } }).catch(() => {});
@@ -912,6 +914,12 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
             ) : null}
             {tab === "content" ? (
               <>
+              {hasBangla ? (
+                <div className="mb-3 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <FileWarning size={17} className="mt-0.5 shrink-0 text-amber-600" />
+                  <span>Bangla text can&apos;t be printed in the PDF yet: it shows as empty boxes. Please write your resume in English for now.</span>
+                </div>
+              ) : null}
               {resume.suggestions?.operations?.length ? (
                 <div className="mb-3 flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3">
                   <Wand2 size={17} className="shrink-0 text-brand" />
