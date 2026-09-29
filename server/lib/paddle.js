@@ -69,6 +69,16 @@ const grantsAccess = (sub) => ['active', 'trialing', 'past_due'].includes(sub?.s
 /** Higher plans win when someone somehow has more than one subscription. */
 const PLAN_RANK = { free: 0, pro: 1, premium: 2 };
 
+/**
+ * A plan change is an upgrade (a higher plan, or the same plan billed yearly instead of
+ * monthly) or a downgrade (everything else). Upgrades start now and are charged pro rata;
+ * downgrades start at the next renewal with no credit, and the paid-for plan is kept until
+ * then, so switching up and back down can't buy a higher plan's credits for pennies.
+ * Mirrored in client/src/lib/access.js (planChangeKind).
+ */
+const changeKind = (from, to) =>
+    PLAN_RANK[to.plan] > PLAN_RANK[from.plan] || (to.plan === from.plan && to.interval === 'year' && from.interval !== 'year') ? 'upgrade' : 'downgrade';
+
 // ---- Paddle's webhook IP addresses (checked in production) ----
 let allowedIps = null;
 let ipsFetchedAt = 0;
@@ -124,4 +134,4 @@ const resetPaddleCache = () => {
     client = null;
 };
 
-module.exports = { paddleConfig, paddle, planForPrice, grantsAccess, PLAN_RANK, paddleIps, paddlePrices, resetPaddleCache, PLANS, INTERVALS };
+module.exports = { paddleConfig, paddle, planForPrice, grantsAccess, PLAN_RANK, changeKind, paddleIps, paddlePrices, resetPaddleCache, PLANS, INTERVALS };

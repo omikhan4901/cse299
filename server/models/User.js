@@ -31,6 +31,9 @@ const UserSchema = new mongoose.Schema({
     // above, so a subscription starting or ending never cuts a pass short.
     passPlan: { type: String, enum: ['pro', 'premium', null], default: null },
     passUntil: { type: Date },
+    // After a downgrade, the plan already paid for is kept until the end of that billing period.
+    heldPlan: { type: String, enum: ['pro', 'premium', null], default: null },
+    heldUntil: { type: Date },
     paddleCustomerId: { type: String, index: true, sparse: true },
     // Payments and refunds (from Paddle's webhooks), for the refund check in the admin console.
     firstPaidAt: { type: Date },

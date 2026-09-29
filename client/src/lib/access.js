@@ -46,3 +46,13 @@ export function canUseV2(config, user) {
   if (!user) return false;
   return !!config?.v2?.enabled || !!user.v2Preview || user.role === "admin" || user.role === "superadmin";
 }
+
+/**
+ * "upgrade" (a higher plan, or the same plan billed yearly) or "downgrade" (everything else).
+ * Upgrades start now, charged pro rata; downgrades start at the next renewal and the paid-for
+ * plan is kept until then. Same rule as the server's changeKind (server/lib/paddle.js).
+ */
+export function planChangeKind(from, to) {
+  const rank = (p) => PLAN_ORDER.indexOf(p);
+  return rank(to.plan) > rank(from.plan) || (to.plan === from.plan && to.interval === "year" && from.interval !== "year") ? "upgrade" : "downgrade";
+}

@@ -116,3 +116,14 @@ describe('browser and server agree on the tracker', () => {
         assert.deepEqual(client.ACTIVE, Application.ACTIVE);
     });
 });
+
+describe('plan changes: browser and server agree on what is an upgrade', () => {
+    it('every pair of paid plans and billing periods', async () => {
+        const { planChangeKind } = await clientAccess();
+        const { changeKind } = require('../lib/paddle');
+        const all = ['pro', 'premium'].flatMap((plan) => ['month', 'year'].map((interval) => ({ plan, interval })));
+        for (const from of all) for (const to of all) assert.equal(planChangeKind(from, to), changeKind(from, to), `${from.plan}/${from.interval} → ${to.plan}/${to.interval}`);
+        assert.equal(changeKind({ plan: 'premium', interval: 'year' }, { plan: 'pro', interval: 'year' }), 'downgrade');
+        assert.equal(changeKind({ plan: 'pro', interval: 'year' }, { plan: 'premium', interval: 'month' }), 'upgrade', 'a higher plan is an upgrade even billed monthly');
+    });
+});

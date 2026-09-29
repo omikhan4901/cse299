@@ -47,6 +47,8 @@ function BillingCard({ billing }) {
     );
   }
   const cancelling = sub.scheduledChange?.action === "cancel";
+  // After a downgrade, the plan already paid for runs to the end of its period.
+  const held = billing.usage?.held;
   return (
     <Card icon={CreditCard} title="Plan & billing">
       <p className="text-sm text-slate-700">
@@ -56,6 +58,8 @@ function BillingCard({ billing }) {
         <Alert className="!mt-3" type="warning" showIcon title="Your last payment didn't go through" description={`Paddle will try again. Update your card in Manage billing to keep ${planName(sub.plan)}.`} />
       ) : cancelling ? (
         <p className="mt-1 text-sm text-amber-700">Cancels on {day(sub.scheduledChange.effectiveAt)}. You keep {planName(sub.plan)} until then.</p>
+      ) : held ? (
+        <p className="mt-1 text-sm text-slate-500">You keep {planName(held.plan)} until {day(held.until)}, as already paid. {planName(sub.plan)} starts then.</p>
       ) : sub.currentPeriodEnd ? (
         <p className="mt-1 text-sm text-slate-500">Renews on {day(sub.currentPeriodEnd)}.</p>
       ) : null}

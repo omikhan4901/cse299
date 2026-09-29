@@ -6,7 +6,7 @@ const { usageSummary } = require('../lib/credits');
 const { limit, clientIp } = require('../lib/rateLimit');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
-const { paddleConfig, paddle, paddlePrices, grantsAccess, PLANS, INTERVALS } = require('../lib/paddle');
+const { paddleConfig, paddle, paddlePrices, grantsAccess, PLANS, INTERVALS, PLAN_RANK, changeKind } = require('../lib/paddle');
 const { applySubscription } = require('../lib/paddleEvents');
 const Download = require('../models/Download');
 const { templateTier } = require('../lib/templates');
@@ -128,10 +128,25 @@ router.post('/change-plan', protect, billingActions, async (req, res) => {
     if (!priceId) return res.status(503).json({ success: false, error: 'Payments are not set up yet.' });
     if (priceId === sub.priceId) return res.status(400).json({ success: false, error: "You're already on that plan." });
     try {
-        // Charged (or credited) for the difference now; the webhook confirms the change too.
-        const updated = await paddle().subscriptions.update(sub.subscriptionId, { items: [{ priceId, quantity: 1 }], prorationBillingMode: 'prorated_immediately' });
+        // Upgrades start now and are charged pro rata. Downgrades aren't credited: the new
+        // price is billed from the next renewal, and the plan paid for is kept until then
+        // (see changeKind). The webhook confirms the change too.
+        const kind = changeKind({ plan: sub.plan, interval: sub.interval }, { plan, interval });
+        const updated = await paddle().subscriptions.update(sub.subscriptionId, {
+            items: [{ priceId, quantity: 1 }],
+            prorationBillingMode: kind === 'upgrade' ? 'prorated_immediately' : 'full_next_billing_period',
+        });
+        const user = await User.findById(req.userId).select('heldPlan heldUntil').lean();
+        const holding = user?.heldPlan && user.heldUntil && new Date(user.heldUntil) > new Date();
+        const periodEnd = sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > new Date() ? sub.currentPeriodEnd : null;
+        if (kind === 'downgrade' && PLAN_RANK[sub.plan] > PLAN_RANK[plan] && periodEnd && !(holding && PLAN_RANK[user.heldPlan] >= PLAN_RANK[sub.plan])) {
+            await User.updateOne({ _id: req.userId }, { heldPlan: sub.plan, heldUntil: periodEnd });
+        } else if (kind === 'upgrade' && holding && PLAN_RANK[plan] >= PLAN_RANK[user.heldPlan]) {
+            // Moving back up to (or past) the kept plan: it's paid for again, so the hold ends.
+            await User.updateOne({ _id: req.userId }, { heldPlan: null, heldUntil: null });
+        }
         await applySubscription(updated, new Date());
-        res.json({ success: true, data: await currentSubscription(req.userId) });
+        res.json({ success: true, data: { ...(await currentSubscription(req.userId)), kind } });
     } catch (err) {
         console.error('Paddle plan change failed:', err.message);
         res.status(err.status || 502).json({ success: false, error: err.status ? err.message : "We couldn't change your plan. Please try again, or use Manage billing." });

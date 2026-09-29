@@ -20,7 +20,7 @@ export const CREDITS_CHANGED = "resumex:credits-changed";
 export const notifyCreditsChanged = () => typeof window !== "undefined" && window.dispatchEvent(new Event(CREDITS_CHANGED));
 
 import { PLAN_ORDER, templateById, templateTier } from "@/pdf/registry";
-import { canUseFeature, canUseTemplate, canUseV2, planLimit } from "@/lib/access";
+import { canUseFeature, canUseTemplate, canUseV2, planChangeKind, planLimit } from "@/lib/access";
 
 const LIMIT_KEYS = ["applications", "tailored", "batch"];
 /** "feature:polish", "limit:applications" or "template": where an upgrade prompt came from. */
@@ -159,15 +159,25 @@ export function BillingProvider({ children }) {
           message.info(`You're already on ${name}.`);
           return;
         }
+        // Upgrades start now (charged pro rata); downgrades start at the next renewal, and the
+        // plan already paid for is kept until then (same rule as the server).
+        const kind = planChangeKind({ plan: sub.plan, interval: sub.interval }, { plan: planId, interval });
+        const current = config?.plans?.find((p) => p.id === sub.plan)?.name || "your plan";
+        const renews = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : "your next renewal";
         modal.confirm({
           title: `Switch to ${name}, billed ${interval === "year" ? "yearly" : "monthly"}?`,
-          content: "Your subscription changes straight away. You're charged, or credited, the difference for the rest of this billing period.",
-          okText: "Switch plan",
+          content:
+            kind === "upgrade"
+              ? "It starts straight away. What you've already paid for the rest of this billing period counts towards it, and you pay the difference."
+              : sub.plan === planId
+                ? `Your ${sub.interval === "year" ? "yearly" : "monthly"} billing runs until ${renews}, as already paid. From then you're billed ${interval === "year" ? "yearly" : "monthly"}. There's no refund or credit for the rest of this period.`
+                : `You keep ${current} until ${renews}, as already paid. From then you're on ${name}. There's no refund or credit for the rest of this period.`,
+          okText: kind === "upgrade" ? "Upgrade now" : "Switch at renewal",
           onOk: async () => {
             try {
               await api("/billing/change-plan", { token, method: "POST", body: { plan: planId, interval } });
               await refreshUsage();
-              message.success(`You're now on ${name}.`);
+              message.success(kind === "upgrade" ? `You're now on ${name}.` : `Done. ${name} starts on ${renews}.`);
             } catch (err) {
               message.error(err.message);
             }

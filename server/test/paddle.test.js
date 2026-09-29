@@ -374,6 +374,96 @@ describe('billing endpoints', () => {
         assert.equal(await planOf(u.email), 'premium');
         assert.equal(r.body.data.interval, 'year');
     });
+
+    describe('upgrades start now; downgrades wait for the renewal (no credit to game)', () => {
+        const patches = () => paddleApi.calls.filter((c) => c.method === 'PATCH');
+        const lastMode = () => patches().at(-1).body.proration_billing_mode;
+        /** A subscriber on `price`; Paddle answers plan changes with the new price. */
+        const subscriber = async (price) => {
+            const u = await register();
+            await deliver(event('subscription.created', subscriptionData({ userId: u.user.id, price })));
+            paddleApi.handler = (url, opts) => {
+                if (!(url.endsWith('/subscriptions/sub_1') && opts.method === 'PATCH')) return null;
+                const body = JSON.parse(opts.body);
+                return { body: { data: subscriptionData({ userId: u.user.id, price: body.items[0].price_id }) } };
+            };
+            return u;
+        };
+        const change = (u, plan, interval) => api('POST', '/billing/change-plan', { token: u.token, body: { plan, interval } });
+        const me = async (u) => (await api('GET', '/billing/me', { token: u.token })).body.data;
+        const held = async (u) => (await User().findOne({ email: u.email }).lean());
+
+        it('Pro to Premium: charged pro rata now, Premium straight away, nothing held', async () => {
+            const u = await subscriber(PRICES.pro.month);
+            const r = await change(u, 'premium', 'month');
+            assert.equal(r.status, 200);
+            assert.equal(r.body.data.kind, 'upgrade');
+            assert.equal(lastMode(), 'prorated_immediately');
+            assert.equal((await me(u)).plan.id, 'premium');
+            assert.equal((await held(u)).heldPlan, null);
+        });
+
+        it('Premium to Pro: no credit, Premium kept (with its credits) until the period it was paid for ends', async () => {
+            const u = await subscriber(PRICES.premium.month);
+            const r = await change(u, 'pro', 'month');
+            assert.equal(r.status, 200);
+            assert.equal(r.body.data.kind, 'downgrade');
+            assert.equal(lastMode(), 'full_next_billing_period', 'billed at the renewal, never credited');
+            const doc = await held(u);
+            assert.equal(doc.plan, 'pro', 'the subscription itself is Pro now');
+            assert.equal(doc.heldPlan, 'premium');
+            assert.ok(Math.abs(new Date(doc.heldUntil) - (Date.now() + 30 * 864e5)) < 60000, 'until the end of the paid period');
+            const m = await me(u);
+            assert.equal(m.plan.id, 'premium', 'still Premium until then');
+            assert.equal(m.held.plan, 'premium');
+            // Once that date passes, Pro.
+            await User().updateOne({ email: u.email }, { heldUntil: new Date(Date.now() - 1000) });
+            assert.equal((await me(u)).plan.id, 'pro');
+            assert.equal((await me(u)).held, null);
+        });
+
+        it('the trick: up to Premium and straight back down can never be credited', async () => {
+            const u = await subscriber(PRICES.pro.month);
+            await change(u, 'premium', 'month');
+            await change(u, 'pro', 'month');
+            assert.deepEqual(patches().map((c) => c.body.proration_billing_mode), ['prorated_immediately', 'full_next_billing_period']);
+            assert.equal((await held(u)).heldPlan, 'premium', 'the Premium they paid pro rata for runs to the renewal, no further');
+        });
+
+        it('yearly to monthly (same plan) waits for the renewal and holds nothing; monthly to yearly is an upgrade', async () => {
+            const y = await subscriber(PRICES.pro.year);
+            assert.equal((await change(y, 'pro', 'month')).body.data.kind, 'downgrade');
+            assert.equal(lastMode(), 'full_next_billing_period');
+            assert.equal((await held(y)).heldPlan, null, 'same plan: nothing to keep');
+            const m = await subscriber(PRICES.pro.month);
+            assert.equal((await change(m, 'pro', 'year')).body.data.kind, 'upgrade');
+            assert.equal(lastMode(), 'prorated_immediately');
+        });
+
+        it('moving back up ends a hold; moving sideways below the held plan keeps it; a second downgrade keeps the first hold', async () => {
+            const u = await subscriber(PRICES.premium.month);
+            await change(u, 'pro', 'month'); // holds Premium
+            const first = (await held(u)).heldUntil;
+            await change(u, 'pro', 'year'); // an upgrade, but still below Premium
+            assert.equal((await held(u)).heldPlan, 'premium', 'still paid for');
+            await change(u, 'pro', 'month'); // a downgrade again: the earlier, longer hold stays
+            assert.equal(String((await held(u)).heldUntil), String(first));
+            await change(u, 'premium', 'month'); // back to Premium: paid again, hold ends
+            assert.equal((await held(u)).heldPlan, null);
+            assert.equal((await me(u)).plan.id, 'premium');
+        });
+
+        it('a full refund ends a held plan straight away', async () => {
+            const u = await subscriber(PRICES.premium.month);
+            await change(u, 'pro', 'month');
+            assert.equal((await held(u)).heldPlan, 'premium');
+            paddleApi.handler = (url, opts) => (url.endsWith('/subscriptions/sub_1/cancel') && opts.method === 'POST' ? { body: { data: subscriptionData({ userId: u.user.id, status: 'canceled' }) } } : null);
+            const refund = { id: 'adj_h', action: 'refund', type: 'full', status: 'approved', transaction_id: 'txn_h', subscription_id: 'sub_1', customer_id: 'ctm_1', reason: 'x', credit_applied_to_balance: false, currency_code: 'USD', items: [], totals: { subtotal: '1299', tax: '0', total: '1299', fee: '0', earnings: '0', currency_code: 'USD' }, payout_totals: null, created_at: iso(Date.now()), updated_at: iso(Date.now()) };
+            await deliver(event('adjustment.created', refund));
+            assert.equal((await held(u)).heldPlan, null);
+            assert.equal((await me(u)).plan.id, 'free');
+        });
+    });
 });
 
 describe('AI economics', () => {

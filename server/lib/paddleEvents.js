@@ -44,7 +44,7 @@ async function linkCustomer(userId, customerId) {
 /** Sets the account's plan from its subscriptions: the best one that grants access, else back to Free. */
 async function syncPlan(userId) {
     if (!userId) return;
-    const [subs, user] = await Promise.all([Subscription.find({ user: userId }).lean(), User.findById(userId).select('plan planExpiresAt passPlan passUntil planSource').lean()]);
+    const [subs, user] = await Promise.all([Subscription.find({ user: userId }).lean(), User.findById(userId).select('plan planExpiresAt passPlan passUntil heldPlan heldUntil planSource').lean()]);
     if (!user) return;
     const best = subs.filter((s) => s.plan && grantsAccess(s)).sort((a, b) => PLAN_RANK[b.plan] - PLAN_RANK[a.plan])[0];
     if (best) {
@@ -214,7 +214,8 @@ async function onAdjustment(event) {
     // Remember it on the account (by id, so a repeated delivery isn't counted twice): one refund per person.
     const payment = a.transactionId ? await Payment.findOne({ transactionId: a.transactionId }).select('user kind').lean() : null;
     const userId = sub?.user || payment?.user || (await findUser({ customerId: a.customerId }))?._id;
-    if (userId) await User.updateOne({ _id: userId }, { $addToSet: { [fullRefund ? 'refundIds' : 'chargebackIds']: a.id } });
+    // A refund or chargeback also ends a plan kept after a downgrade: the money it was kept for is gone.
+    if (userId) await User.updateOne({ _id: userId }, { $addToSet: { [fullRefund ? 'refundIds' : 'chargebackIds']: a.id }, $set: { heldPlan: null, heldUntil: null } });
     // A refunded or charged-back Job Search Pass ends straight away.
     if (userId && payment?.kind === 'pass') {
         await User.updateOne({ _id: userId }, { passUntil: new Date() });

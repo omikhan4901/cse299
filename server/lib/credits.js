@@ -17,13 +17,16 @@ const { limit, retryIn } = require('./rateLimit');
 /** The plan an account is on right now (a paid plan past its end date falls back to Free). */
 const RANK = { free: 0, pro: 1, premium: 2 };
 /**
- * The plan an account is on right now: the better of its plan (a subscription, an admin or a
- * campaign; free once past its end date) and a Job Search Pass that hasn't ended.
+ * The plan an account is on right now: the best of its plan (a subscription, an admin or a
+ * campaign; free once past its end date), a Job Search Pass that hasn't ended, and a plan
+ * kept after a downgrade until the end of the period it was paid for.
  */
 const effectivePlanId = (user) => {
     const base = user?.plan && user.plan !== 'free' && (!user.planExpiresAt || new Date(user.planExpiresAt) > new Date()) ? user.plan : 'free';
     const pass = user?.passPlan && user.passUntil && new Date(user.passUntil) > new Date() ? user.passPlan : 'free';
-    return (RANK[pass] || 0) > (RANK[base] || 0) ? pass : base;
+    // A plan kept after a downgrade, until the end of the period it was paid for.
+    const held = user?.heldPlan && user.heldUntil && new Date(user.heldUntil) > new Date() ? user.heldPlan : 'free';
+    return [base, pass, held].reduce((best, p) => ((RANK[p] || 0) > (RANK[best] || 0) ? p : best), 'free');
 };
 
 /** A custom allowance applies until its end date (campaign allowances end with the campaign period). */
@@ -56,7 +59,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'plan planExpiresAt passPlan passUntil creditLimit creditPeriod creditLimitExpiresAt';
+const USER_FIELDS = 'plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -77,6 +80,7 @@ async function usageSummary(userOrId) {
         freeMode: settings.freeMode.enabled,
         planExpiresAt: user.planExpiresAt || null,
         passUntil: user.passPlan && user.passUntil && new Date(user.passUntil) > new Date() ? user.passUntil : null,
+        held: user.heldPlan && user.heldUntil && new Date(user.heldUntil) > new Date() ? { plan: user.heldPlan, until: user.heldUntil } : null,
     };
 }
 

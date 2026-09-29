@@ -45,7 +45,7 @@ export default function RefundsPage() {
           <li>You can cancel at any time from <Link className="text-brand hover:underline" href="/account">Account</Link> › Manage billing. You won&apos;t be charged again.</li>
           <li>You keep your paid plan until the end of the period you&apos;ve paid for, then move to the Free plan. Your resumes are never deleted.</li>
           <li>Renewal payments aren&apos;t refunded, so please cancel before your renewal date if you no longer need the plan. Your account page shows the date.</li>
-          <li>Switching between plans is prorated automatically: you pay, or are credited, the difference for the rest of the billing period.</li>
+          <li>Moving up to a higher plan, or from monthly to yearly billing, starts straight away: you pay the difference for the rest of the billing period. Moving down to a lower plan, or from yearly to monthly billing, starts at your next renewal: you keep the plan you paid for until then, and there&apos;s no refund or credit for the rest of that period.</li>
         </ul>
       </section>
 
