@@ -86,7 +86,7 @@ export default function UpgradeModal({ request, onClose, billing }) {
               type="button"
               onClick={() => {
                 onClose();
-                billing.checkout(plan?.id || "pro", "month");
+                billing.checkout(plan?.id || "pro", "month", billing.sourceOf(request));
               }}
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark"
             >
@@ -101,7 +101,7 @@ export default function UpgradeModal({ request, onClose, billing }) {
                 className="font-medium text-brand hover:underline"
                 onClick={() => {
                   onClose();
-                  billing.checkout(plan.id, "year");
+                  billing.checkout(plan.id, "year", billing.sourceOf(request));
                 }}
               >
                 pay yearly for {price(plan.yearlyPrice, currency)}

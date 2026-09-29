@@ -60,6 +60,9 @@ const DEFAULTS = {
     aiPrices: {
         default: { input: 0.3, output: 2.5 },
     },
+    // Monthly running costs the admin enters (hosting, domain, email…), in the payout
+    // currency, for the profit figure in the Revenue view. AI and Paddle fees are measured.
+    fixedCosts: [],
     // Admin overrides for rate limits: { [name]: { max, windowMs } } (see lib/rateLimit.js).
     rateLimits: {},
     templates: {
@@ -153,6 +156,11 @@ function clean(input) {
             .slice(0, 30)
     );
     if (!aiPrices.default) aiPrices.default = { ...DEFAULTS.aiPrices.default };
+    const fixedCosts = (Array.isArray(s.fixedCosts) ? s.fixedCosts : [])
+        .filter(isObj)
+        .map((c) => ({ name: String(c.name || '').trim().slice(0, 40), amount: Math.round(num(c.amount, 0, { max: 100000 }) * 100) / 100 }))
+        .filter((c) => c.name)
+        .slice(0, 20);
     const rateLimits = Object.fromEntries(
         Object.entries(isObj(s.rateLimits) ? s.rateLimits : {})
             .filter(([name, v]) => /^[a-z0-9-]{1,40}$/.test(name) && isObj(v))
@@ -177,6 +185,7 @@ function clean(input) {
         featureCosts: costs,
         templates: { categories, overrides },
         aiPrices,
+        fixedCosts,
         rateLimits,
         plans,
     };
@@ -216,6 +225,7 @@ async function updateSettings(patch, by, { baseRev } = {}) {
     if (isObj(patch?.templates)) merged.templates = patch.templates;
     if (isObj(patch?.rateLimits)) merged.rateLimits = patch.rateLimits;
     if (isObj(patch?.aiPrices)) merged.aiPrices = patch.aiPrices;
+    if (Array.isArray(patch?.fixedCosts)) merged.fixedCosts = patch.fixedCosts;
     const next = clean(merged);
     try {
         if (doc) {

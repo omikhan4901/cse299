@@ -14,6 +14,7 @@ const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email')
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { deleteUserData } = require('../lib/userData');
 const { aiEconomics } = require('../lib/economics');
+const { revenueReport, paymentsCsv } = require('../lib/revenue');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 const { refundCheck } = require('../lib/refunds');
@@ -311,6 +312,23 @@ router.delete('/users/:id', wrap(async (req, res) => {
 router.get('/economics', wrap(async (req, res) => {
     const days = Math.min(180, Math.max(1, Math.round(Number(req.query.days) || 30)));
     res.json({ success: true, data: await aiEconomics({ days, settings: await getSettings() }) });
+}));
+
+// ---------- Revenue ----------
+
+// @route GET /api/admin/revenue?days=30 — where the money comes from and how (lib/revenue.js)
+router.get('/revenue', wrap(async (req, res) => {
+    const days = Math.min(365, Math.max(1, Math.round(Number(req.query.days) || 30)));
+    res.json({ success: true, data: await revenueReport({ days, settings: await getSettings() }) });
+}));
+
+// @route GET /api/admin/revenue/payments.csv?days=365 — every payment (all time without days)
+router.get('/revenue/payments.csv', wrap(async (req, res) => {
+    const days = Number(req.query.days) > 0 ? Math.min(3650, Math.round(Number(req.query.days))) : undefined;
+    await audit(req, 'revenue.export', null, { days: days || 'all' });
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="resumex-payments-${dayKey(Date.now())}.csv"`);
+    res.send(await paymentsCsv({ days }));
 }));
 
 // ---------- Audit log ----------

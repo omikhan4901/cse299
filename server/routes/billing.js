@@ -80,6 +80,25 @@ router.post('/download', protect, downloadsByUser, async (req, res) => {
     res.json({ success: true });
 });
 
+// @route POST /api/billing/event — a step towards paying, for the admin Revenue funnel:
+// { kind: 'prompt' | 'checkout', source: 'feature:polish' | 'limit:applications' | 'pricing'…, plan? }
+// The same step from the same place counts once per 10 minutes.
+const BillingEvent = require('../models/BillingEvent');
+const eventsByUser = limit({ name: 'billing-events', windowMs: 60 * 60 * 1000, max: 120, key: (req) => req.userId, message: 'Too many requests.', label: 'Upgrade prompts recorded', group: 'Billing', scope: 'account', description: 'Upgrade prompts and checkouts the app reports, for the admin Revenue funnel.' });
+router.post('/event', protect, eventsByUser, async (req, res, next) => {
+    try {
+        const { kind, source, plan } = req.body || {};
+        if (!['prompt', 'checkout'].includes(kind) || typeof source !== 'string' || !/^[a-z0-9:_.-]{1,60}$/i.test(source)) {
+            return res.status(400).json({ success: false, error: 'Unknown event.' });
+        }
+        const recent = await BillingEvent.exists({ user: req.userId, kind, source, at: { $gte: new Date(Date.now() - 10 * 60 * 1000) } });
+        if (!recent) await BillingEvent.create({ kind, source, user: req.userId, ...(PLANS.includes(plan) ? { plan } : {}) });
+        res.json({ success: true });
+    } catch (err) {
+        next(err);
+    }
+});
+
 const billingActions = limit({ name: 'billing-actions', windowMs: 60 * 60 * 1000, max: 20, key: (req) => req.userId, message: 'Too many billing requests.', label: 'Billing portal and plan changes', group: 'Billing', scope: 'account', description: 'Opening the Paddle billing portal and switching plans.' });
 
 // @route POST /api/billing/portal — a link to Paddle's customer portal (cards, invoices, cancelling)

@@ -9,8 +9,9 @@ const CareerProfile = require('../models/CareerProfile');
 const Payment = require('../models/Payment');
 const Application = require('../models/Application');
 const Reminder = require('../models/Reminder');
+const BillingEvent = require('../models/BillingEvent');
 
-const PER_USER = [Resume, Usage, AiEvent, CareerProfile, Application, Reminder];
+const PER_USER = [Resume, Usage, AiEvent, CareerProfile, Application, Reminder, BillingEvent];
 
 /** Deletes everything the account owns (not the User document itself). */
 const deleteUserData = (userId) =>

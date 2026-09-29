@@ -22,6 +22,15 @@ export const notifyCreditsChanged = () => typeof window !== "undefined" && windo
 import { PLAN_ORDER, templateById, templateTier } from "@/pdf/registry";
 import { canUseFeature, canUseTemplate, canUseV2, planLimit } from "@/lib/access";
 
+const LIMIT_KEYS = ["applications", "tailored", "batch"];
+/** "feature:polish", "limit:applications" or "template": where an upgrade prompt came from. */
+const sourceOf = (request) => {
+  const key = String(request?.feature || "").replace(/[^a-z0-9_.-]/gi, "").slice(0, 40);
+  if (!key) return "prompt";
+  if (key === "templates") return "template";
+  return LIMIT_KEYS.includes(key) ? `limit:${key}` : `feature:${key}`;
+};
+
 export function BillingProvider({ children }) {
   const { token, user, openAuth } = useAuth();
   const { message, modal } = App.useApp();
@@ -115,13 +124,24 @@ export function BillingProvider({ children }) {
     return () => window.removeEventListener(UPGRADE_NEEDED, onUpgrade);
   }, [refreshConfig]);
 
+  // Steps towards paying, for the admin Revenue funnel (which prompt, whether checkout opened).
+  const track = useCallback(
+    (kind, source, plan) => {
+      if (token && source) api("/billing/event", { token, method: "POST", body: { kind, source, ...(plan ? { plan } : {}) } }).catch(() => {});
+    },
+    [token]
+  );
+  useEffect(() => {
+    if (upgrade) track("prompt", sourceOf(upgrade));
+  }, [upgrade, track]);
+
   /**
    * Starts paying for a plan: Paddle's checkout, or a plan switch when there's already a
    * subscription (a second checkout would charge twice). Signed-out visitors sign up first
    * and come back to the checkout. Without Paddle set up, it falls back to email.
    */
   const checkout = useCallback(
-    async (planId, interval = "month") => {
+    async (planId, interval = "month", source = "pricing") => {
       const cfg = config?.paddle;
       const plan = config?.plans?.find((p) => p.id === planId);
       const name = plan?.name || "a paid plan";
@@ -156,12 +176,13 @@ export function BillingProvider({ children }) {
         return;
       }
       try {
-        await openCheckout(cfg, { priceId: cfg.prices[planId][interval], email: user?.email, userId: user?.id });
+        track("checkout", source, planId);
+        await openCheckout(cfg, { priceId: cfg.prices[planId][interval], email: user?.email, userId: user?.id, source });
       } catch (err) {
         message.error(err.message);
       }
     },
-    [config, token, user, usage, openAuth, message, modal, refreshUsage]
+    [config, token, user, usage, openAuth, message, modal, refreshUsage, track]
   );
 
   /** Buys the Job Search Pass: one payment, adds its days to the account. */
@@ -250,6 +271,8 @@ export function BillingProvider({ children }) {
       },
       checkout,
       checkoutPass,
+      /** Where an upgrade prompt came from, as a label for the Revenue view. */
+      sourceOf,
       openPortal,
       /** True when paying goes through Paddle (otherwise upgrades are by email). */
       canCheckout: !!config?.paddle,

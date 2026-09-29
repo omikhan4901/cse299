@@ -19,6 +19,8 @@ export default function PrivacyPage() {
           <li><b>Career Profile:</b> if you set one up, the career details you keep in it (the same kind of content as a resume). We don&apos;t ask for or keep sensitive identity details such as national ID numbers.</li>
           <li><b>Job applications:</b> if you track applications, the job details you save (such as the job post, deadlines and notes), the contacts you add, and a copy of the resume you sent. Links you ask us to read are fetched by our server once to fill in the job details. We email you reminders about your own deadlines and interviews, and a weekly digest, unless you turn them off in your account settings or with the link in any of those emails.</li>
           <li><b>Usage counters:</b> how many AI requests your account makes each day, so we can apply fair-use limits. These are deleted after a few days.</li>
+          <li><b>Payments:</b> if you buy a plan, Paddle (our reseller and merchant of record) takes the payment. We never see or store your card details. Paddle tells us your plan, what was charged and refunded, and your billing country, and we keep those records for accounting even after an account is deleted (without the link to the account).</li>
+          <li><b>Upgrade steps:</b> when a paid feature is shown to you as locked, or you open the checkout, we note that it happened and from which feature, to understand which features are worth paying for. Only the step is recorded, not your content. These records are deleted with your account, or after about 13 months.</li>
           <li><b>Technical data:</b> our hosting providers keep standard server logs (such as IP address and browser type) for security and troubleshooting.</li>
         </ul>
         <p className="mt-3">You can use the builder without an account. In that case your draft stays in your own browser and is never sent to us unless you save it or use an AI feature.</p>
@@ -37,7 +39,7 @@ export default function PrivacyPage() {
 
       <section>
         <h2>AI features</h2>
-        <p>When you use an AI feature (the assistant, rewrites, cover letters or importing a resume), the relevant resume content is sent to Google&apos;s Gemini API to generate the answer and is handled under Google&apos;s API terms. We send only what the feature needs and never your password or photo. The ATS check itself runs in your browser and does not use AI.</p>
+        <p>When you use an AI feature (the assistant, rewrites, cover letters or importing a resume), the relevant resume content is sent to Google&apos;s Gemini models (through the Gemini API or Google Cloud&apos;s Vertex AI) to generate the answer and is handled under Google&apos;s terms for those services. We send only what the feature needs and never your password or photo. The ATS check itself runs in your browser and does not use AI.</p>
         <h2>The ATS checker</h2>
         <p>When you upload a PDF to the <Link href="/ats-checker">ATS checker</Link>, it&apos;s sent over an encrypted connection to our API, which extracts its text and returns it to your browser, where the checks run. The file is held in memory only while it&apos;s read. It isn&apos;t saved, logged or used for anything else, and no AI is involved. We count checks per network address to keep the free checker fair, and those counts expire within the hour.</p>
       </section>
@@ -54,7 +56,7 @@ export default function PrivacyPage() {
 
       <section>
         <h2>Who processes your data</h2>
-        <p>We rely on trusted providers to run {SITE_NAME}: cloud hosting for the website and API, a managed database, Google (Gemini) for AI features and an email provider for account emails. They process data only to provide their service to us.</p>
+        <p>We rely on trusted providers to run {SITE_NAME}: cloud hosting for the website and API, a managed database, Google (Gemini) for AI features, Paddle for payments and an email provider for account emails. They process data only to provide their service to us.</p>
       </section>
 
       <section>

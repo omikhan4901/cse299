@@ -26,13 +26,14 @@ async function getPaddle(cfg) {
 }
 
 /** Opens Paddle's one-page checkout over the page for one price; success goes to /welcome. */
-export async function openCheckout(cfg, { priceId, email, userId }) {
+export async function openCheckout(cfg, { priceId, email, userId, source }) {
   const paddle = await getPaddle(cfg);
   paddle.Checkout.open({
     items: [{ priceId, quantity: 1 }],
     ...(email ? { customer: { email } } : {}),
-    // Links the subscription to this account when Paddle's webhook arrives.
-    ...(userId ? { customData: { userId } } : {}),
+    // Links the subscription to this account when Paddle's webhook arrives, and says which
+    // upgrade prompt led here (the admin Revenue view).
+    ...(userId ? { customData: { userId, ...(source ? { source } : {}) } } : {}),
     settings: { displayMode: "overlay", variant: "one-page", successUrl: `${window.location.origin}/welcome` },
   });
 }

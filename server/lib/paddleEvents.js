@@ -20,16 +20,16 @@ const toDate = (v) => (v ? new Date(v) : null);
 /** The account for a Paddle customer: from the checkout's customData, a linked record, or the email. */
 async function findUser({ userId, customerId, email }) {
     if (userId && mongoose.isValidObjectId(userId)) {
-        const u = await User.findById(userId).select('_id paddleCustomerId').lean();
+        const u = await User.findById(userId).select('_id paddleCustomerId campaign').lean();
         if (u) return u;
     }
     if (customerId) {
-        const byCustomer = await User.findOne({ paddleCustomerId: customerId }).select('_id paddleCustomerId').lean();
+        const byCustomer = await User.findOne({ paddleCustomerId: customerId }).select('_id paddleCustomerId campaign').lean();
         if (byCustomer) return byCustomer;
         const linked = await PaddleCustomer.findOne({ customerId, user: { $ne: null } }).lean();
         if (linked) return { _id: linked.user };
     }
-    if (validEmail(email)) return User.findOne({ email: emailQuery(validEmail(email)) }).select('_id paddleCustomerId').lean();
+    if (validEmail(email)) return User.findOne({ email: emailQuery(validEmail(email)) }).select('_id paddleCustomerId campaign').lean();
     return null;
 }
 
@@ -114,21 +114,47 @@ async function onCustomer(event) {
 const cents = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 /** Keeps the amounts of a payment (idempotent: a repeated delivery updates the same record). */
-async function recordPayment(t, userId, paidAt) {
+// What kind of payment a transaction is, from Paddle's origin: a checkout, a renewal, a change.
+const TYPE_BY_ORIGIN = { web: 'new', subscription_recurring: 'renewal', subscription_update: 'change', subscription_charge: 'change' };
+/** An upgrade source sent with the checkout, if it's a plain label ("feature:polish"). */
+const cleanSource = (v) => (typeof v === 'string' && /^[a-z0-9:_.-]{1,60}$/i.test(v) ? v : undefined);
+
+/** The buyer's billing country, from Paddle (best effort: a failure leaves it empty). */
+async function countryOf(t) {
+    if (!t.addressId || !t.customerId) return undefined;
+    try {
+        return (await paddle().addresses.get(t.customerId, t.addressId))?.countryCode || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+async function recordPayment(t, user, paidAt) {
     const totals = t.details?.totals || {};
     // Paddle converts to the payout currency in payoutTotals; fall back to the charged currency.
     const payout = t.details?.payoutTotals;
+    const priceId = (t.items || []).map((i) => i.price?.id || i.priceId).find(Boolean);
+    const mapped = priceId ? planForPrice(priceId) : null;
+    const isPass = !!priceId && priceId === paddleConfig().prices?.pass;
     await Payment.updateOne(
         { transactionId: t.id },
         {
             $set: {
-                user: userId,
+                user: user._id,
                 currency: payout?.currencyCode || totals.currencyCode || t.currencyCode,
                 total: cents(totals.grandTotal ?? totals.total),
                 tax: cents(totals.tax),
                 fee: cents(payout?.fee ?? totals.fee),
                 earnings: cents(payout?.earnings ?? totals.earnings),
                 billedAt: paidAt,
+                type: isPass ? 'pass' : TYPE_BY_ORIGIN[t.origin] || 'other',
+                subscriptionId: t.subscriptionId || undefined,
+                priceId,
+                plan: mapped?.plan,
+                interval: mapped?.interval,
+                country: await countryOf(t),
+                source: cleanSource(t.customData?.source),
+                campaign: user.campaign || undefined,
             },
         },
         { upsert: true }
@@ -160,7 +186,7 @@ async function onTransaction(event) {
     if (t.status === 'completed' && total > 0) {
         const paidAt = toDate(t.billedAt) || toDate(event.occurredAt);
         await User.updateOne({ _id: user._id }, { $min: { firstPaidAt: paidAt }, $max: { lastPaidAt: paidAt } });
-        await recordPayment(t, user._id, paidAt);
+        await recordPayment(t, user, paidAt);
         await applyPass(t, user._id);
     }
     await syncPlan(user._id);
