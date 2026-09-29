@@ -7,7 +7,10 @@
  *   - an "add" that matches something already there becomes a merge (only what's new);
  *   - points already present are dropped;
  *   - any number, name or organisation that isn't in the pasted text or the existing
- *     resume is flagged "unverified", so invented facts never slip in unnoticed.
+ *     resume is flagged "unverified", so invented facts never slip in unnoticed;
+ *   - removals ("remove", "clear", "removeValues") only survive when the person's own words
+ *     ask for them (their evidence must be in what the person typed, not in a pasted CV or
+ *     file), and are listed first so they apply before anything is added.
  */
 
 // The fields of each section (kept in step with EMPTY_ITEMS in client/src/lib/resume.js;
@@ -27,7 +30,10 @@ const SECTION_FIELDS = {
 const POINTS_FIELD = { experience: 'description', projects: 'description', volunteering: 'description', awards: 'description', publications: 'description', education: 'details' };
 const PERSONAL_FIELDS = ['name', 'title', 'email', 'phone', 'city', 'linkedin', 'github', 'website'];
 const LIST_FIELDS = ['skills', 'languages', 'interests'];
-const OPS = ['add', 'addBullets', 'update', 'set', 'addValues'];
+const OPS = ['add', 'addBullets', 'update', 'set', 'addValues', 'remove', 'clear', 'removeValues'];
+const REMOVALS = new Set(['remove', 'clear', 'removeValues']);
+// What "clear" can empty: a section, the summary, a list, or "everything" (all of them).
+const CLEARABLE = [...Object.keys(SECTION_FIELDS), 'summary', ...LIST_FIELDS];
 
 // ---- What the model is asked for ----
 
@@ -64,12 +70,15 @@ const RESPONSE_SCHEMA = {
 const INSTRUCTION = `You turn what a person writes about their career into structured resume data.
 
 You receive CURRENT RESUME (an outline of what they already have, with item ids) and INPUT (new text from them: a pasted CV, notes, a paragraph, or a follow-up message).
-Return operations that add INPUT's information to the resume:
+Return operations that change the resume:
 - "add": a new item in "section". Put its fields (company, title, startDate, …) directly on the operation, and its achievement points in "bullets".
 - "addBullets": new points for an item that already exists ("section" and "target" = its id).
 - "update": new values for fields of an existing item ("section", "target", and the changed fields directly on the operation), e.g. an end date the person has just given.
 - "set": a personal detail or the summary. "field" is one of: ${PERSONAL_FIELDS.map((f) => `personal.${f}`).join(', ')}, summary. "value" holds it.
 - "addValues": "field" is skills, languages or interests; "values" lists them one by one.
+- "remove": delete one existing item ("section" and "target" = its id).
+- "clear": empty a whole part. "field" is a section (${Object.keys(SECTION_FIELDS).join(', ')}), summary, skills, languages or interests, or "everything" for the whole resume.
+- "removeValues": "field" is skills, languages or interests; "values" lists the ones to take out.
 
 Section fields:
 ${Object.entries(SECTION_FIELDS).map(([s, f]) => `- ${s}: ${f.filter((x) => x !== POINTS_FIELD[s]).join(', ')}${POINTS_FIELD[s] ? ' (+ bullets)' : ''}`).join('\n')}
@@ -85,11 +94,17 @@ Rules:
 8. If INPUT is partly or fully in Bangla, write the resume text in English, keeping names as they are.
 9. "evidence": copy the shortest exact phrase from INPUT that the operation is based on.
 10. When INPUT describes the person as a whole (who they are, their experience, what they want next), also "set" the summary from it, without "I".
-11. If INPUT has nothing for a resume, return an empty list.`;
+11. If INPUT has nothing for a resume, return an empty list.
+12. Remove only when the person asks for it: "remove my job at X", "delete the projects", "cancel the whole experience part", "take Java out of my skills". Use "remove" for one item, "clear" for a whole part, "removeValues" for list values.
+13. When the person says the new content replaces what they have ("this is my previous resume", "my latest CV, use this instead", "start over with this", "I don't want the current stuff"), "clear" "everything" and then "add" INPUT's content as new items (and "set" the personal details and summary it gives).
+14. Never remove anything just because INPUT doesn't mention it. For every removal, "evidence" must copy the person's own words that ask for it (from NOTE when there is one).`;
 
-/** The contents for the model: the outline and the new input. */
-function prompt(outline, text) {
-    return `CURRENT RESUME:\n${JSON.stringify(outline).slice(0, 30000)}\n\nINPUT:\n${text}`;
+/**
+ * The contents for the model: the outline, the new input and, when a file came with a
+ * message, that message on its own (so "this is my old CV" reads as an instruction).
+ */
+function prompt(outline, text, note = '') {
+    return `CURRENT RESUME:\n${JSON.stringify(outline).slice(0, 30000)}\n\nINPUT:\n${text}${note ? `\n\nNOTE (what the person wrote with the file):\n${note}` : ''}`;
 }
 
 // ---- Deterministic checks ----
@@ -294,7 +309,15 @@ function sanitize(raw) {
         o.field = f;
         o.value = clean(raw.value, f === 'summary' ? 1500 : 200);
         if (!o.value) return null;
-    } else if (raw.op === 'addValues') {
+    } else if (raw.op === 'remove') {
+        if (!SECTION_FIELDS[raw.section] || raw.target == null || raw.target === '') return null;
+        o.section = raw.section;
+        o.target = String(raw.target);
+    } else if (raw.op === 'clear') {
+        const f = String(raw.field || raw.section || '');
+        if (f !== 'everything' && !CLEARABLE.includes(f)) return null;
+        o.field = f;
+    } else if (raw.op === 'removeValues' || raw.op === 'addValues') {
         if (!LIST_FIELDS.includes(raw.field)) return null;
         o.field = raw.field;
         o.values = [...new Set((Array.isArray(raw.values) ? raw.values : []).map((v) => clean(v, 60)).filter(Boolean))].slice(0, 60);
@@ -331,14 +354,61 @@ function checker(text) {
     return { corpus, inCorpus, known };
 }
 
-function checkOperations(rawOps, { source, outline = {} }) {
+/** True when a part of the resume outline has something in it. */
+const filled = (outline, f) => (f === 'summary' || LIST_FIELDS.includes(f) ? !!String(outline[f] || '').trim() : Array.isArray(outline[f]) && outline[f].length > 0);
+
+/**
+ * The removals the person really asked for: each must quote their own words (`asked`: what
+ * they typed, never a pasted CV or file) and point at something that exists. "everything"
+ * becomes one "clear" per filled part. Returns { removals, cleared, removedIds }.
+ */
+function checkRemovals(rawOps, outline, asked) {
+    const removals = [];
+    const cleared = new Set();
+    const removedIds = new Set();
+    // The quoted words must be theirs: (nearly) every word of the evidence is in what they typed.
+    const theirs = new Set(words(asked));
+    const saidIt = (evidence) => {
+        const ev = words(evidence);
+        return ev.length > 0 && (norm(asked).includes(norm(evidence)) || ev.filter((w) => theirs.has(w)).length / ev.length >= 0.8);
+    };
+    const listOf = (section) => (Array.isArray(outline[section]) ? outline[section] : []);
+    for (const raw of Array.isArray(rawOps) ? rawOps : []) {
+        if (!REMOVALS.has(raw?.op)) continue;
+        const o = sanitize(raw);
+        if (!o || !saidIt(o.evidence)) continue;
+        if (o.op === 'clear') {
+            // "everything" stays one change (one card), listing the parts it empties.
+            const fields = (o.field === 'everything' ? CLEARABLE : [o.field]).filter((f) => !cleared.has(f) && filled(outline, f));
+            if (!fields.length) continue;
+            fields.forEach((f) => cleared.add(f));
+            removals.push(o.field === 'everything' ? { op: 'clear', field: 'everything', fields, evidence: o.evidence, flags: [{ kind: 'removes' }] } : { op: 'clear', field: fields[0], evidence: o.evidence, flags: [{ kind: 'removes' }] });
+        } else if (o.op === 'remove') {
+            if (!listOf(o.section).some((e) => String(e.id) === o.target) || removedIds.has(`${o.section}:${o.target}`)) continue;
+            removedIds.add(`${o.section}:${o.target}`);
+            removals.push({ ...o, flags: [{ kind: 'removes' }] });
+        } else if (o.op === 'removeValues') {
+            const have = String(outline[o.field] || '').split(',').map((v) => v.trim()).filter(Boolean);
+            o.values = have.filter((h) => o.values.some((v) => norm(v) === norm(h)));
+            if (o.values.length) removals.push({ ...o, flags: [{ kind: 'removes' }] });
+        }
+    }
+    // Clearing a part makes removing single items or values from it pointless.
+    const kept = removals.filter((o) => o.op === 'clear' || !cleared.has(o.section || o.field));
+    return { removals: kept, cleared, removedIds };
+}
+
+function checkOperations(rawOps, { source, outline = {}, asked = '' }) {
     const { corpus, inCorpus, known } = checker(`${source} ${JSON.stringify(outline)}`);
+    const { removals, cleared, removedIds } = checkRemovals(rawOps, outline, asked);
     const out = [];
     let skipped = 0;
-    const listOf = (section) => (Array.isArray(outline[section]) ? outline[section] : []);
+    // What's left of each part once the removals apply: new items can't merge into removed ones.
+    const listOf = (section) => (cleared.has(section) || !Array.isArray(outline[section]) ? [] : outline[section].filter((e) => !removedIds.has(`${section}:${e.id}`)));
     const addedIn = (section) => out.filter((o) => o.op === 'add' && o.section === section);
 
     for (const raw of Array.isArray(rawOps) ? rawOps : []) {
+        if (REMOVALS.has(raw?.op)) continue; // handled above
         let o = sanitize(raw);
         if (!o) continue;
 
@@ -387,14 +457,14 @@ function checkOperations(rawOps, { source, outline = {} }) {
                 delete o.item;
             }
         } else if (o.op === 'set') {
-            const current = o.field === 'summary' ? outline.summary : outline.personal?.[o.field.slice(9)];
+            const current = o.field === 'summary' ? (cleared.has('summary') ? '' : outline.summary) : outline.personal?.[o.field.slice(9)];
             if (norm(current) === norm(o.value)) {
                 skipped++;
                 continue;
             }
             if (current) o.flags = [...(o.flags || []), { kind: 'replaces', fields: [o.field] }];
         } else if (o.op === 'addValues') {
-            const have = new Set(String(outline[o.field] || '').split(',').map((v) => norm(v)).filter(Boolean));
+            const have = new Set(cleared.has(o.field) ? [] : String(outline[o.field] || '').split(',').map((v) => norm(v)).filter(Boolean));
             o.values = o.values.filter((v) => !have.has(norm(v)));
             if (!o.values.length) {
                 skipped++;
@@ -416,7 +486,7 @@ function checkOperations(rawOps, { source, outline = {} }) {
         if (/\b(since|currently|present|ongoing|till now|to date)\b|এখনও|থেকে এখন/i.test(o.evidence || '')) o.item.endDate = 'Present';
     }
     // and technologies named on a project or job belong in skills too (rule 7).
-    const listed = new Set(String(outline.skills || '').split(',').map((v) => norm(v)).filter(Boolean));
+    const listed = new Set(cleared.has('skills') ? [] : String(outline.skills || '').split(',').map((v) => norm(v)).filter(Boolean));
     let skillsOp = out.find((o) => o.op === 'addValues' && o.field === 'skills');
     for (const v of skillsOp?.values || []) listed.add(norm(v));
     const tech = out
@@ -427,8 +497,13 @@ function checkOperations(rawOps, { source, outline = {} }) {
         if (!skillsOp) out.push((skillsOp = { op: 'addValues', field: 'skills', values: [], evidence: tech.join(', ') }));
         skillsOp.values = [...skillsOp.values, ...tech];
     }
-    out.forEach((o, i) => (o.key = `op${i + 1}`));
-    return { operations: out, skipped };
+    // A new summary replaces the old one anyway: no separate "clear summary".
+    const all = [...removals.filter((r) => !(r.op === 'clear' && r.field === 'summary' && out.some((o) => o.op === 'set' && o.field === 'summary'))), ...out];
+    // Clearing a single part that "everything" already covers is left out.
+    const everything = all.find((o) => o.op === 'clear' && o.field === 'everything');
+    if (everything) for (let i = all.length - 1; i >= 0; i--) if (all[i].op === 'clear' && all[i] !== everything && everything.fields.includes(all[i].field)) all.splice(i, 1);
+    all.forEach((o, i) => (o.key = `op${i + 1}`));
+    return { operations: all, skipped };
 }
 
 module.exports = { ABBREVIATIONS, stem, checker, INSTRUCTION, RESPONSE_SCHEMA, prompt, checkOperations, factTokens, similar, SECTION_FIELDS, POINTS_FIELD };

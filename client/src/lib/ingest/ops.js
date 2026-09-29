@@ -10,6 +10,13 @@
  *   { key, op: "set",        field: "personal.phone" | "summary", value }
  *   { key, op: "addValues",  field: "skills" | "languages" | "interests", values: [] }
  *   { key, op: "replaceBullet", section, target, from: "old point", to: "new point" }
+ *   { key, op: "remove",       section, target }                     one item
+ *   { key, op: "clear",        field: <section> | "summary" | "skills" | … }   a whole part
+ *   { key, op: "clear",        field: "everything", fields: [...] }  start over (those parts)
+ *   { key, op: "removeValues", field: "skills" | "languages" | "interests", values: [] }
+ *
+ * Removals always apply before anything else, so "clear experience, then add these jobs"
+ * works whatever order they were ticked in.
  *
  * "add" and "update" may carry `link`: the Career Profile item id to remember on the item
  * (profileItemId), so later syncs find it again.
@@ -30,11 +37,25 @@ const joinPoints = (existing, bullets) => [...splitBullets(existing), ...bullets
 /** Copies only the fields a section has, as strings. */
 const pickFields = (section, item) => Object.fromEntries(Object.keys(EMPTY_ITEMS[section]).filter((f) => str(item?.[f])).map((f) => [f, str(item[f])]));
 
+const REMOVALS = new Set(["remove", "clear", "removeValues"]);
+export const isRemoval = (o) => REMOVALS.has(o?.op);
+
 /** The resume with the operations applied (operations that no longer fit are skipped). */
 export function applyOperations(resume, operations) {
   const next = normalizeResume(structuredClone(resume));
-  for (const o of operations || []) {
-    if (o.op === "add" && EMPTY_ITEMS[o.section]) {
+  const ordered = [...(operations || []).filter(isRemoval), ...(operations || []).filter((o) => !isRemoval(o))];
+  for (const o of ordered) {
+    if (o.op === "remove" && EMPTY_ITEMS[o.section]) {
+      next[o.section] = next[o.section].filter((it) => String(it.id) !== String(o.target));
+    } else if (o.op === "clear") {
+      for (const f of o.field === "everything" ? o.fields || [...Object.keys(EMPTY_ITEMS), "summary", ...LIST_FIELDS] : [o.field]) {
+        if (EMPTY_ITEMS[f]) next[f] = [];
+        else if (f === "summary" || LIST_FIELDS.includes(f)) next[f] = "";
+      }
+    } else if (o.op === "removeValues" && LIST_FIELDS.includes(o.field)) {
+      const out = new Set((o.values || []).map((v) => str(v).toLowerCase()));
+      next[o.field] = splitList(next[o.field]).filter((v) => !out.has(v.toLowerCase())).join(", ");
+    } else if (o.op === "add" && EMPTY_ITEMS[o.section]) {
       const item = { id: newId(), ...Object.fromEntries(Object.keys(EMPTY_ITEMS[o.section]).map((f) => [f, ""])), ...pickFields(o.section, o.item) };
       if (Number.isFinite(o.link)) item.profileItemId = o.link;
       const points = POINTS_FIELD[o.section];
@@ -116,6 +137,20 @@ export function describeOperation(o, resume) {
       return { title: `Reword a point in ${itemLabel(o.section, target)}`, detail: [o.to], before: o.from };
     case "addValues":
       return { title: `Add ${o.values.length} ${FIELD_NAMES[o.field]?.toLowerCase() || o.field}`, detail: [o.values.join(", ")] };
+    case "remove":
+      return { title: `Remove ${one}: ${itemLabel(o.section, target)}`, detail: [] };
+    case "clear": {
+      if (o.field === "everything") {
+        const parts = (o.fields || []).map((f) => (Array.isArray(resume?.[f]) ? `${SECTION_NAMES[f]?.[1] || f} (${resume[f].length})` : FIELD_NAMES[f] || f));
+        return { title: "Start over: remove what's in it now", detail: [parts.join(", ")] };
+      }
+      const items = Array.isArray(resume?.[o.field]) ? resume[o.field] : null;
+      if (items) return { title: `Remove all of ${SECTION_NAMES[o.field]?.[1] || o.field}`, detail: items.slice(0, 3).map((it) => itemLabel(o.field, it)).concat(items.length > 3 ? [`and ${items.length - 3} more`] : []) };
+      const text = String(resume?.[o.field] || "").slice(0, 160);
+      return { title: o.field === "summary" ? "Remove the summary" : `Remove all ${FIELD_NAMES[o.field]?.toLowerCase() || o.field}`, detail: text ? [text] : [] };
+    }
+    case "removeValues":
+      return { title: `Remove from ${FIELD_NAMES[o.field]?.toLowerCase() || o.field}: ${o.values.join(", ")}`, detail: [] };
     default:
       return { title: "Change", detail: [] };
   }

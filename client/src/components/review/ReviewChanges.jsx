@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { Button, Checkbox, Modal } from "antd";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowRight, Check, Sparkles } from "lucide-react";
-import { describeOperation } from "@/lib/ingest/ops";
+import { AlertTriangle, ArrowRight, Check, Sparkles, Trash2 } from "lucide-react";
+import { describeOperation, isRemoval } from "@/lib/ingest/ops";
 
 /**
  * Reviewable changes (V2): a list of operations shown as small cards the person ticks.
  * Used by imports, the assistant, "Pull updates" and "Save to profile". Nothing changes
- * until they apply. Operations flagged "unverified" start unticked.
+ * until they apply. Operations flagged "unverified" start unticked. Removals (only ever
+ * proposed when the person asked for them) are marked in red and apply first.
  *
  *   operations  from server/lib/ingest.js or client/src/lib/profile.js
  *   target      the resume or profile they apply to (for names in the cards)
@@ -72,6 +73,7 @@ function Body({ title, subtitle, operations, target, onApply, onClose, applyLabe
           {cards.map(({ o, title: t, detail, before }, i) => {
             const on = picked.has(o.key);
             const check = unverified(o);
+            const removes = isRemoval(o);
             return (
               <motion.li
                 key={o.key}
@@ -79,10 +81,13 @@ function Body({ title, subtitle, operations, target, onApply, onClose, applyLabe
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i, 8) * 0.03 }}
               >
-                <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${on ? "border-brand-200 bg-brand-50/40" : "border-slate-200 bg-white hover:border-slate-300"}`}>
+                <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${on ? (removes ? "border-rose-200 bg-rose-50/50" : "border-brand-200 bg-brand-50/40") : "border-slate-200 bg-white hover:border-slate-300"}`}>
                   <Checkbox checked={on} onChange={() => toggle(o.key)} className="!mt-0.5" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-ink">{t}</span>
+                    <span className={`flex items-center gap-1.5 text-sm font-medium ${removes ? "text-rose-700" : "text-ink"}`}>
+                      {removes ? <Trash2 size={13} className="shrink-0" /> : null}
+                      {t}
+                    </span>
                     {before ? (
                       <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                         <span className="line-through decoration-slate-300">{before}</span>
@@ -113,7 +118,10 @@ function Body({ title, subtitle, operations, target, onApply, onClose, applyLabe
       </ul>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-slate-400">{flagged ? `${flagged} to check before adding.` : `${selected.length} of ${operations.length} selected.`}</p>
+        <p className="text-xs text-slate-400">
+          {flagged ? `${flagged} to check before adding.` : `${selected.length} of ${operations.length} selected.`}
+          {selected.some(isRemoval) ? ` Removals apply first.` : ""}
+        </p>
         <div className="flex gap-2">
           <Button onClick={onClose}>Cancel</Button>
           <Button type="primary" loading={busy} disabled={!selected.length} onClick={() => apply(selected)}>

@@ -378,7 +378,7 @@ ${resumeJson(fullResume)}`;
 
 EDITS: Besides "reply", return "operations" whenever the user tells you new facts about themselves or asks you to change their resume (e.g. "add that I led a team of 4", "make my summary shorter"). Use these operations on CURRENT RESUME OUTLINE (ids included):
 ${OPERATIONS_GUIDE}
-Only use facts the user stated or that are already in the resume; never invent. For a rewrite of existing text, use "set" (summary) or "update"/"addBullets" on the item. If nothing should change, return an empty list. Keep "reply" short and say what you propose.
+Only use facts the user stated or that are already in the resume; never invent. For a rewrite of existing text, use "set" (summary) or "update"/"addBullets" on the item. Remove ("remove", "clear", "removeValues") only when the user asks for it, with "evidence" copying their words. If nothing should change, return an empty list. Keep "reply" short and say what you propose.
 
 CURRENT RESUME OUTLINE:
 ${clip(JSON.stringify(req.body.outline), 20000)}`;
@@ -386,7 +386,7 @@ ${clip(JSON.stringify(req.body.outline), 20000)}`;
             const json = await generate(instruction, contents, { responseMimeType: 'application/json', responseSchema: CHAT_SCHEMA }, req);
             const out = JSON.parse(json);
             const said = contents.filter((c) => c.role === 'user').map((c) => c.parts[0].text).join('\n');
-            const { operations } = checkOperations(list(out.operations), { source: `${said}\n${resumeJson(fullResume)}`, outline: req.body.outline });
+            const { operations } = checkOperations(list(out.operations), { source: `${said}\n${resumeJson(fullResume)}`, outline: req.body.outline, asked: said });
             return res.status(200).json({ success: true, response: str(out.reply) || (operations.length ? 'Here is what I suggest:' : ''), operations });
         } catch (err) {
             return sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);
@@ -486,25 +486,30 @@ router.post('/ingest', protect, aiQuota('parse'), upload.single('resumeFile'), a
     if (file || typed.length > 1500) req.aiLongTask = true;
 
     try {
-        // The text the model reads, and the facts are checked against.
+        // The text the model reads, and the facts are checked against. With a file, what the
+        // person typed is their note about it ("this is my old CV"), sent on its own.
         let source = typed;
+        let fileText = '';
         let pdfPart = null;
         if (file) {
             if (isPdf(file.buffer)) {
                 const { text } = await readPdf(file.buffer).catch(() => ({ text: '' }));
-                if (text.replace(/\s/g, '').length > 150) source = `${text}\n\n${typed}`.trim();
+                if (text.replace(/\s/g, '').length > 150) fileText = text;
                 else pdfPart = { inline_data: { mime_type: 'application/pdf', data: file.buffer.toString('base64') } }; // a scanned PDF
             } else if (isZip(file.buffer) && /\.docx$/i.test(file.originalname)) {
                 const text = (await mammoth.extractRawText({ buffer: file.buffer })).value;
                 if (!text.trim()) return res.status(400).json({ success: false, error: "We couldn't find any text in that file." });
-                source = `${text}\n\n${typed}`.trim();
+                fileText = text;
             } else {
                 return res.status(400).json({ success: false, error: 'Please upload a PDF or DOCX file.' });
             }
         }
-        const parts = [...(pdfPart ? [pdfPart] : []), { text: ingestPrompt(outline, clip(source, 30000) || '(see the attached PDF)') }];
+        if (fileText) source = `${fileText}\n\n${typed}`.trim();
+        const input = file ? clip(fileText, 30000) || '(see the attached PDF)' : clip(typed, 30000);
+        const parts = [...(pdfPart ? [pdfPart] : []), { text: ingestPrompt(outline, input, file ? clip(typed, 2000) : '') }];
         const json = await generate(INGEST_INSTRUCTION, [{ role: 'user', parts }], { responseMimeType: 'application/json', responseSchema: INGEST_SCHEMA }, req);
-        const { operations, skipped } = checkOperations(JSON.parse(json).operations, { source, outline });
+        // Removals must be asked for in the person's own words: what they typed, not the file.
+        const { operations, skipped } = checkOperations(JSON.parse(json).operations, { source, outline, asked: typed });
         res.status(200).json({ success: true, operations, skipped });
     } catch (err) {
         sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of that. Please try again.") : err);

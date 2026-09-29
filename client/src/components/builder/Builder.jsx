@@ -225,6 +225,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const payloadJson = useMemo(() => JSON.stringify(toPayload(resume)), [resume]);
   const [initialJson] = useState(payloadJson);
   const edited = payloadJson !== initialJson;
+  // Still showing the built-in example, untouched.
+  const onExample = showExample && !edited;
   const [savedJson, setSavedJson] = useState(resume._id ? payloadJson : null);
   const dirty = !!resume._id && savedJson !== payloadJson;
 
@@ -1003,10 +1005,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       <AddAnything
         open={aiModal === "add"}
         onClose={() => setAiModal(null)}
-        target={resume}
+        target={onExample ? withContentOf(resume, blankResume()) : resume}
         token={token}
         onApply={(ops) => {
-          setResume((r) => applyOperations(r, ops));
+          // The built-in example isn't theirs: what they add replaces it instead of joining its sample jobs.
+          setResume((r) => applyOperations(onExample ? withContentOf(r, blankResume()) : r, ops));
           setShowExample(false);
         }}
       />

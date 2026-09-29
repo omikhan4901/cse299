@@ -196,6 +196,12 @@ user can type, they can paste or describe anything**, and ResumeX files it in th
    Python, OpenCV · Role: Backend developer · Achievement: cut processing time by 40%."
    **[Add all]** **[Review one by one]**. Flagged items are unticked by default.
 5. Accepted operations are applied. The source text is kept for 30 days for reference.
+6. **Removing and replacing** (owner's request, Sept 2026): the same operations can remove
+   an item, clear a whole part or take values out of a list, but only when the person's
+   own words ask for it ("remove my job at X", "cancel the whole experience part"); a
+   pasted CV or a file is never an instruction. "This is my previous resume" with a file
+   proposes one "Start over" change, then the file's content as new items. Removals are
+   shown in red and apply first. The builder's untouched example is simply replaced.
 
 **Two AI editing modes, clearly separated:**
 

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { App, Button, Input, Modal } from "antd";
 import { FileUp, Sparkles, X, Zap } from "lucide-react";
 import { api } from "@/lib/api";
-import { outlineOf } from "@/lib/ingest/ops";
+import { isRemoval, outlineOf } from "@/lib/ingest/ops";
 import { useBilling, notifyCreditsChanged } from "../BillingProvider";
 import ReviewChanges from "./ReviewChanges";
 
@@ -62,16 +62,17 @@ export default function AddAnything({ open, onClose, target, token, onApply, whe
     setFile(null);
     setReview(null);
     onClose();
-    message.success(`Added ${ops.length} change${ops.length === 1 ? "" : "s"}`);
+    message.success(`${ops.some(isRemoval) ? "Made" : "Added"} ${ops.length} change${ops.length === 1 ? "" : "s"}`);
   };
 
   if (review) {
     const found = review.operations.length;
+    const removing = review.operations.some(isRemoval);
     return (
       <ReviewChanges
         open={open}
-        title={found ? `I found ${found} thing${found === 1 ? "" : "s"} to add` : "Nothing new to add"}
-        subtitle={review.skipped ? `${review.skipped} already in ${where}, so left out.` : `Tick what to add to ${where}.`}
+        title={!found ? "Nothing new to add" : removing ? `${found} change${found === 1 ? "" : "s"} to ${where}` : `I found ${found} thing${found === 1 ? "" : "s"} to add`}
+        subtitle={review.skipped ? `${review.skipped} already in ${where}, so left out.` : removing ? "Tick what to keep. Nothing changes until you apply." : `Tick what to add to ${where}.`}
         operations={review.operations}
         target={target}
         applyLabel="Add"
@@ -91,7 +92,7 @@ export default function AddAnything({ open, onClose, target, token, onApply, whe
           </span>
           <div>
             <h2 className="font-display text-lg font-bold text-ink">Add anything</h2>
-            <p className="text-sm text-slate-500">Paste an old CV or describe your work in your own words. It goes in the right places, and you check it first.</p>
+            <p className="text-sm text-slate-500">Paste an old CV, describe your work, or say what to change or remove. You check everything first.</p>
           </div>
         </div>
         <Input.TextArea
@@ -100,7 +101,7 @@ export default function AddAnything({ open, onClose, target, token, onApply, whe
           onChange={(e) => setText(e.target.value)}
           maxLength={30000}
           autoSize={{ minRows: 6, maxRows: 14 }}
-          placeholder={"e.g. “In my third year I built an attendance system with Python and OpenCV that cut roll-call time from 10 minutes to 1.”\n\nBangla or English is fine."}
+          placeholder={"e.g. “In my third year I built an attendance system with Python and OpenCV that cut roll-call time from 10 minutes to 1.”\n\nOr: “This is my latest CV, use it instead” with a file, or “Remove my old projects”. Bangla or English is fine."}
         />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           {file ? (
