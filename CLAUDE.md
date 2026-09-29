@@ -58,7 +58,9 @@ If a connection is a real product decision (pricing, what's free, legal wording)
   one clear next action at a time; details appear only when needed (progressive disclosure).
   Match the existing design (antd + Tailwind, motion); make it eye-catching but easy on the eyes.
   New sections reuse the existing markup (white/slate-50 bands, bordered cards, brand-50 icon
-  tiles); no dark gradient bands, glows or mock-ups: the owner reads those as "AI-looking".
+  tiles); no dark gradient bands, glows or illustrated mock-ups: the owner reads those as "AI-looking".
+  Paid features are shown to Free users as small animated replicas of the real UI with sample
+  data (`billing/FeaturePreview.jsx`, in the upgrade dialog and pricing "See it"); add one per new paid feature.
   Dialogs never fill the screen: cap their height and scroll inside.
 - **Tests:** rigorous and edge-case heavy, but fast (the whole server suite runs in ~4 min;
   never add slow tests). Don't call the live AI or run `server/eval` unless asked: AI

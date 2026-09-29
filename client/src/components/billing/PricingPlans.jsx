@@ -2,12 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Button, Segmented } from "antd";
-import { Check, Crown, Minus, Sparkles, Ticket, Zap } from "lucide-react";
+import { Button, Popover, Segmented } from "antd";
+import { Check, Crown, Minus, Play, Sparkles, Ticket, Zap } from "lucide-react";
 import { formatPrice, useBilling } from "../BillingProvider";
 import { previewPrices } from "@/lib/paddle";
 import { TEMPLATES, planIncludes } from "@/pdf/registry";
 import { BuilderLink } from "@/components/BuilderLauncher";
+import FeaturePreview, { hasPreview } from "./FeaturePreview";
+import { perksOf } from "./perks";
+
+/** "See it": the feature's animated example, on hover or tap. */
+function SeeIt({ feature }) {
+  if (!hasPreview(feature)) return null;
+  return (
+    <Popover trigger={["hover", "click"]} placement="right" destroyOnHidden content={<div className="w-[420px] max-w-[80vw]"><FeaturePreview request={{ feature }} /></div>}>
+      <button type="button" className="ml-2 inline-flex items-center gap-0.5 rounded-full px-1.5 text-xs font-medium text-brand hover:bg-brand-50">
+        <Play size={10} className="fill-current" /> See it
+      </button>
+    </Popover>
+  );
+}
 
 /**
  * The three plans from the admin settings, with a monthly / yearly switch. With Paddle
@@ -98,7 +112,7 @@ export default function PricingPlans({ config }) {
                 <Zap size={14} className="fill-amber-400 text-amber-500" /> {p.credits.toLocaleString()} AI credits a {p.creditPeriod}
               </p>
               <ul className="mt-6 flex-1 space-y-2.5 text-sm text-slate-600">
-                {p.perks.map((perk) => (
+                {perksOf(p).map((perk) => (
                   <li key={perk} className="flex gap-2">
                     <Check size={16} className="mt-0.5 shrink-0 text-brand" /> {perk}
                   </li>
@@ -187,7 +201,7 @@ export default function PricingPlans({ config }) {
             {config.v2?.enabled
               ? (config.planLimits || []).map((l) => (
                   <tr key={l.key}>
-                    <td className="p-4 text-slate-700">{l.name}</td>
+                    <td className="p-4 text-slate-700">{l.name}<SeeIt feature={l.key} /></td>
                     {plans.map((p) => {
                       const v = freeMode.enabled ? null : p.limits?.[l.key];
                       return (
@@ -203,6 +217,7 @@ export default function PricingPlans({ config }) {
               <tr key={f.key}>
                 <td className="p-4">
                   <span className="text-slate-700">{f.name}</span>
+                  <SeeIt feature={f.key} />
                   {featureCosts[f.key] != null && aiFeatures.some((a) => a.key === f.key) ? (
                     <span className="ml-2 inline-flex items-center gap-0.5 text-xs text-slate-400"><Zap size={11} className="fill-amber-400 text-amber-500" /> {featureCosts[f.key]}</span>
                   ) : null}

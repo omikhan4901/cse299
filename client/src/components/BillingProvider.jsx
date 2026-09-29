@@ -263,7 +263,7 @@ export function BillingProvider({ children }) {
         const t = templateById(id);
         if (canUseTemplate(config, planId, t)) return true;
         const need = templateTier(t, config.templates);
-        setUpgrade({ feature: "templates", what: `The ${t.name} template`, plan: config.plans?.find((p) => p.id === need), description: "Every plan includes a set of designs. This one needs a higher plan." });
+        setUpgrade({ feature: "templates", template: t.id, what: `The ${t.name} template`, plan: config.plans?.find((p) => p.id === need), description: "Every plan includes a set of designs. This one needs a higher plan." });
         return false;
       },
       planRank: (id) => PLAN_ORDER.indexOf(id),

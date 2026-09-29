@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Modal } from "antd";
 import { motion } from "motion/react";
 import { Check, Crown, Sparkles, Zap } from "lucide-react";
+import FeaturePreview, { hasPreview } from "./FeaturePreview";
+import { perksOf } from "./perks";
 
 const price = (amount, currency) => {
   try {
@@ -28,21 +30,40 @@ export default function UpgradeModal({ request, onClose, billing }) {
   const current = billing.plan || billing.config?.plans?.[0];
   const usable = billing.usableAiFeatures();
   const title = request?.what || feature?.name || "This feature";
+  const preview = hasPreview(request?.feature);
 
   return (
-    <Modal open={!!request} onCancel={onClose} footer={null} width={480} centered destroyOnHidden>
+    <Modal
+      open={!!request}
+      onCancel={onClose}
+      footer={null}
+      width={500}
+      centered
+      destroyOnHidden
+      styles={{ body: { maxHeight: "min(84vh, 780px)", overflowY: "auto", overscrollBehavior: "contain" } }}
+      classNames={{ body: "thin-scroll -mx-6 px-6" }}
+    >
       {request ? (
         <div className="pt-2">
-          <motion.span
-            initial={{ scale: 0.6, rotate: -15, opacity: 0 }}
-            animate={{ scale: 1, rotate: 0, opacity: 1 }}
-            transition={{ type: "spring", stiffness: 380, damping: 18 }}
-            className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30"
-          >
-            <Crown size={22} />
-          </motion.span>
-          <h2 className="mt-4 font-display text-xl font-bold text-ink">
+          {preview ? (
+            <FeaturePreview request={request} />
+          ) : (
+            <motion.span
+              initial={{ scale: 0.6, rotate: -15, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 380, damping: 18 }}
+              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30"
+            >
+              <Crown size={22} />
+            </motion.span>
+          )}
+          <h2 className={`${preview ? "mt-5" : "mt-4"} flex flex-wrap items-center gap-x-2 font-display text-xl font-bold text-ink`}>
             {title} is part of {plan?.name || "a paid plan"}
+            {preview ? (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-950 uppercase">
+                <Crown size={11} strokeWidth={2.5} /> {plan?.name || "Pro"}
+              </span>
+            ) : null}
           </h2>
           {feature?.description || request.description ? <p className="mt-1 text-sm text-slate-600">{feature?.description || request.description}</p> : null}
 
@@ -56,7 +77,7 @@ export default function UpgradeModal({ request, onClose, billing }) {
               </div>
               <ul className="mt-3 space-y-1.5 text-sm text-slate-700">
                 <li className="flex gap-2"><Zap size={15} className="mt-0.5 shrink-0 fill-amber-400 text-amber-500" /> {plan.credits.toLocaleString()} AI credits {periodWord(plan.creditPeriod)}</li>
-                {(plan.perks || []).slice(0, 3).map((perk) => (
+                {perksOf(plan).slice(0, 3).map((perk) => (
                   <li key={perk} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-brand" /> {perk}</li>
                 ))}
               </ul>
