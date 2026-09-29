@@ -106,9 +106,10 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
   );
 }
 
-export function CoverLetterModal({ open, onClose, resume, token }) {
+/** `initialJob` fills in the job text (from a tracked application); `onSave(letter)` keeps the letter there. */
+export function CoverLetterModal({ open, onClose, resume, token, initialJob = "", onSave }) {
   const { message } = App.useApp();
-  const [job, setJob] = useState("");
+  const [job, setJob] = useState(initialJob);
   const [letter, setLetter] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -143,9 +144,14 @@ export function CoverLetterModal({ open, onClose, resume, token }) {
           <TextArea value={letter} onChange={(e) => setLetter(e.target.value)} autoSize={{ minRows: 12, maxRows: 22 }} />
           <div className="mt-3 flex gap-2">
             <Button onClick={() => setLetter("")}>Start over</Button>
-            <Button type="primary" icon={<Copy size={14} />} onClick={() => navigator.clipboard.writeText(letter).then(() => message.success("Copied"))}>
+            <Button type={onSave ? "default" : "primary"} icon={<Copy size={14} />} onClick={() => navigator.clipboard.writeText(letter).then(() => message.success("Copied"))}>
               Copy letter
             </Button>
+            {onSave ? (
+              <Button type="primary" onClick={() => onSave(letter)}>
+                Save to this application
+              </Button>
+            ) : null}
           </div>
         </div>
       )}

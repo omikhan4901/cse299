@@ -11,6 +11,7 @@ import { templateById } from "@/pdf/registry";
 import { downloadPdf } from "@/pdf/client";
 import { useAuth } from "./AuthProvider";
 import { useBilling } from "./BillingProvider";
+import TodayPanel from "./applications/TodayPanel";
 import ResumeThumbnail from "./ResumeThumbnail";
 import { readDraft, isWorthKeeping, draftLabel } from "./builder/drafts";
 import { timeAgo } from "@/lib/time";
@@ -134,6 +135,8 @@ export default function Dashboard() {
           <Button type="primary" size="large" icon={<Plus size={17} />}>New resume</Button>
         </Link>
       </div>
+
+      {v2 && token ? <TodayPanel token={token} /> : null}
 
       {v2 && hasProfile === false ? (
         <Link href="/career" className="group mb-6 flex items-center gap-3 rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-50 to-white px-4 py-3 transition hover:border-brand">
