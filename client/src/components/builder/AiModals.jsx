@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Modal, Input, Button, App } from "antd";
 import { Send, Sparkles, Copy, Zap } from "lucide-react";
 import { api } from "@/lib/api";
+import { outlineOf } from "@/lib/ingest/ops";
+import ReviewChanges from "../review/ReviewChanges";
 import { CreditTooltip } from "../Credits";
 import { useBilling } from "../BillingProvider";
 
@@ -30,8 +32,10 @@ export function aiResume(resume) {
   return { ...rest, personal: { ...rest.personal, profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 }
 
-export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpenGuide }) {
+/** `onApplyOperations(ops)`: V2, the assistant proposes edits as reviewable changes (none apply on their own). */
+export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpenGuide, onApplyOperations }) {
   const [messages, setMessages] = useState([]);
+  const [review, setReview] = useState(null); // index of the message whose changes are being reviewed
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
@@ -57,8 +61,9 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
     try {
       // Leave out the greeting and any error bubbles: they aren't part of the conversation.
       const conversation = next.slice(1).filter((m) => !m.error);
-      const data = await api("/ai/chat", { token, method: "POST", body: { conversation, fullResume: aiResume(resume) } });
-      setMessages((m) => [...m, { role: "assistant", content: data.response }]);
+      const propose = onApplyOperations ? { propose: true, outline: outlineOf(resume) } : {};
+      const data = await api("/ai/chat", { token, method: "POST", body: { conversation: conversation.map(({ role, content }) => ({ role, content })), fullResume: aiResume(resume), ...propose } });
+      setMessages((m) => [...m, { role: "assistant", content: data.response, operations: data.operations?.length ? data.operations : undefined }]);
     } catch (err) {
       if (err.code === "cancelled") {
         // Take the question back out of the chat and into the box, to edit or resend.
@@ -78,7 +83,15 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-brand text-white" : m.error ? "bg-red-50 text-red-700" : "bg-white text-ink shadow-sm"}`}>
               {m.content}
-              {i > 0 && m.role === "assistant" && !m.error ? (
+              {m.operations ? (
+                m.applied ? (
+                  <span className="mt-2 block text-xs text-slate-400">{m.applied}</span>
+                ) : (
+                  <Button size="small" type="primary" className="!mt-2" onClick={() => setReview(i)}>
+                    Review {m.operations.length} change{m.operations.length === 1 ? "" : "s"}
+                  </Button>
+                )
+              ) : i > 0 && m.role === "assistant" && !m.error ? (
                 <button type="button" className="mt-2 block text-xs font-medium text-brand hover:underline" onClick={() => onUseAsSummary(m.content)}>
                   Use as my “About me”
                 </button>
@@ -92,6 +105,19 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
         <Input size="large" value={input} onChange={(e) => setInput(e.target.value)} onPressEnter={send} placeholder="e.g. What skills am I missing for a data analyst role?" disabled={loading} />
         <Button size="large" type="primary" icon={<Send size={16} />} onClick={send} loading={loading} />
       </div>
+      <ReviewChanges
+        open={review !== null}
+        title="Changes from the assistant"
+        subtitle="Nothing changes until you apply it."
+        operations={review !== null ? messages[review]?.operations : []}
+        target={resume}
+        onApply={(ops) => {
+          onApplyOperations(ops);
+          setMessages((list) => list.map((m, j) => (j === review ? { ...m, applied: `Applied ${ops.length} change${ops.length === 1 ? "" : "s"}.` } : m)));
+          setReview(null);
+        }}
+        onClose={() => setReview(null)}
+      />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <CostHint feature="chat" verb="Each message" />
       {onOpenGuide ? (

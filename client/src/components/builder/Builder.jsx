@@ -1076,7 +1076,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
       {AI_ENABLED ? (
         <>
-          <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onOpenGuide={() => setGuideOpen(true)} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
+          <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onApplyOperations={billing?.v2 ? (ops) => setResume((r) => applyOperations(r, ops)) : undefined} onOpenGuide={() => setGuideOpen(true)} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
           <CoverLetterModal open={aiModal === "cover"} onClose={() => setAiModal(null)} resume={resume} token={token} />
         </>
       ) : null}

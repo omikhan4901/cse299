@@ -6,6 +6,10 @@ const { toResume, TRANSCRIPT_SCHEMA, TRANSCRIBE_INSTRUCTION } = require('../lib/
 const { loadResumeGuide } = require('../lib/resumeGuide');
 const { aiQuota, usageSummary } = require('../lib/credits');
 const { INSTRUCTION: INGEST_INSTRUCTION, RESPONSE_SCHEMA: INGEST_SCHEMA, prompt: ingestPrompt, checkOperations } = require('../lib/ingest');
+// The assistant's reply with proposed edits (same operation format as imports).
+const CHAT_SCHEMA = { type: 'OBJECT', properties: { reply: { type: 'STRING' }, operations: INGEST_SCHEMA.properties.operations }, required: ['reply', 'operations'] };
+// The operation part of the import instructions, reused to explain the format to the assistant.
+const OPERATIONS_GUIDE = INGEST_INSTRUCTION.slice(INGEST_INSTRUCTION.indexOf('- "add"'), INGEST_INSTRUCTION.indexOf('Rules:')).trim();
 const { readPdf } = require('../lib/pdfText');
 const polish = require('../lib/polish');
 const Resume = require('../models/Resume');
@@ -321,6 +325,28 @@ ${guide}
 ` : ''}
 RESUME:
 ${resumeJson(fullResume)}`;
+
+    // V2: the reply can carry proposed edits (the same operations as imports), shown as
+    // cards the person applies or dismisses; nothing changes on its own.
+    if (req.body?.propose && isObj(req.body?.outline)) {
+        const instruction = `${systemInstruction}
+
+EDITS: Besides "reply", return "operations" whenever the user tells you new facts about themselves or asks you to change their resume (e.g. "add that I led a team of 4", "make my summary shorter"). Use these operations on CURRENT RESUME OUTLINE (ids included):
+${OPERATIONS_GUIDE}
+Only use facts the user stated or that are already in the resume; never invent. For a rewrite of existing text, use "set" (summary) or "update"/"addBullets" on the item. If nothing should change, return an empty list. Keep "reply" short and say what you propose.
+
+CURRENT RESUME OUTLINE:
+${clip(JSON.stringify(req.body.outline), 20000)}`;
+        try {
+            const json = await generate(instruction, contents, { responseMimeType: 'application/json', responseSchema: CHAT_SCHEMA }, req);
+            const out = JSON.parse(json);
+            const said = contents.filter((c) => c.role === 'user').map((c) => c.parts[0].text).join('\n');
+            const { operations } = checkOperations(list(out.operations), { source: `${said}\n${resumeJson(fullResume)}`, outline: req.body.outline });
+            return res.status(200).json({ success: true, response: str(out.reply) || (operations.length ? 'Here is what I suggest:' : ''), operations });
+        } catch (err) {
+            return sendError(res, err instanceof SyntaxError ? new AiError("We couldn't make sense of the AI's answer. Please try again.") : err);
+        }
+    }
 
     try {
         const response = await generate(systemInstruction, contents, undefined, req);

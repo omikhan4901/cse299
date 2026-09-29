@@ -121,3 +121,34 @@ describe('AI routes: polish, strengthen, rewrite', () => {
         assert.equal(r.body.feature, 'polish');
     });
 });
+
+describe('assistant proposals', () => {
+    before(() => start('assistant'));
+    after(stop);
+    beforeEach(resetState);
+
+    it('with propose on, the reply carries checked edits (new facts flagged, unknown targets dropped); without it, plain text as before', async () => {
+        const { token } = await register();
+        const outline = { experience: [{ id: '11', company: 'Pathao', title: 'Software Engineer', points: ['Built the payments service'] }] };
+        ai.reply = JSON.stringify({
+            reply: 'I can add that.',
+            operations: [
+                { op: 'addBullets', section: 'experience', target: '11', bullets: ['Led a team of 4 engineers', 'Won the Best Team award 2023'], evidence: 'led a team of 4' },
+                { op: 'update', section: 'experience', target: '999', title: 'CTO', evidence: 'x' },
+            ],
+        });
+        const r = await api('POST', '/ai/chat', { token, body: { conversation: [{ role: 'user', content: 'Add that at Pathao I led a team of 4 engineers.' }], fullResume: { experience: [{ id: 11, company: 'Pathao' }] }, propose: true, outline } });
+        assert.equal(r.status, 200);
+        assert.equal(r.body.response, 'I can add that.');
+        assert.equal(r.body.operations.length, 1, 'the edit to a job that does not exist is dropped');
+        assert.deepEqual(r.body.operations[0].flags[0].tokens.sort(), ['2023', 'best'], 'the award and its year were never mentioned ("team" was)');
+        ai.reply = 'Plain advice.';
+        const plain = await api('POST', '/ai/chat', { token, body: { conversation: [{ role: 'user', content: 'Any tips?' }], fullResume: {} } });
+        assert.equal(plain.body.response, 'Plain advice.');
+        assert.equal(plain.body.operations, undefined);
+        ai.reply = 'not json';
+        const bad = await api('POST', '/ai/chat', { token, body: { conversation: [{ role: 'user', content: 'Add x' }], fullResume: {}, propose: true, outline } });
+        assert.equal(bad.status, 502);
+        assert.equal((await api('GET', '/billing/me', { token })).body.data.used, 2, 'the unreadable answer was refunded');
+    });
+});
