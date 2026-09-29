@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Modal, Input, Button, App } from "antd";
-import { Send, Sparkles, Copy, Zap } from "lucide-react";
+import { Send, Sparkles, Copy, Upload, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import { outlineOf } from "@/lib/ingest/ops";
 import ReviewChanges from "../review/ReviewChanges";
 import { CreditTooltip } from "../Credits";
 import { useBilling } from "../BillingProvider";
+import PlanTag from "../billing/PlanTag";
 
 /** "Each message uses 1 credit · 38 left today" */
 function CostHint({ feature, verb }) {
@@ -32,8 +33,11 @@ export function aiResume(resume) {
   return { ...rest, personal: { ...rest.personal, profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 }
 
-/** `onApplyOperations(ops)`: V2, the assistant proposes edits as reviewable changes (none apply on their own). */
-export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpenGuide, onApplyOperations }) {
+/**
+ * `onApplyOperations(ops)`: V2, the assistant proposes edits as reviewable changes (none apply on their own).
+ * `onOpenAdd()`: opens "Add anything" (or the import): files go there, the assistant takes no attachments.
+ */
+export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpenGuide, onApplyOperations, onOpenAdd, addLabel = "Add anything", draft, onDraftUsed }) {
   const [messages, setMessages] = useState([]);
   const [review, setReview] = useState(null); // index of the message whose changes are being reviewed
   const [input, setInput] = useState("");
@@ -46,6 +50,13 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
       setMessages([{ role: "assistant", content: `Hi${first ? ` ${first}` : ""}! I've read your resume. Ask me to rewrite a section, suggest skills for a role, or check your bullet points.` }]);
     }
   }, [open, messages.length, resume.personal.name]);
+
+  // A message handed over from "Add anything": ready to send, not sent.
+  useEffect(() => {
+    if (!open || !draft) return;
+    setInput(draft);
+    onDraftUsed?.();
+  }, [open, draft, onDraftUsed]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -78,7 +89,18 @@ export function ChatModal({ open, onClose, resume, token, onUseAsSummary, onOpen
 
   return (
     <Modal title={<span className="inline-flex items-center gap-2"><Sparkles size={16} className="text-brand" /> AI resume assistant</span>} open={open} onCancel={onClose} footer={null} width={640}>
-      <div ref={listRef} className="thin-scroll h-[55vh] space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-4">
+      {onOpenAdd ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-3.5 py-2.5 sm:flex-nowrap">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-brand ring-1 ring-brand-200"><Upload size={15} /></span>
+          <p className="min-w-0 flex-1 text-sm text-slate-700">
+            <b className="font-semibold text-ink">Have a file, like an old CV?</b> The assistant can&apos;t read attachments. Use {addLabel} to bring it in.
+          </p>
+          <Button size="small" icon={<Upload size={13} />} onClick={onOpenAdd}>
+            {addLabel} <PlanTag feature="parse" />
+          </Button>
+        </div>
+      ) : null}
+      <div ref={listRef} className="thin-scroll h-[50vh] space-y-3 overflow-y-auto rounded-xl bg-slate-50 p-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-brand text-white" : m.error ? "bg-red-50 text-red-700" : "bg-white text-ink shadow-sm"}`}>

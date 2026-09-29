@@ -225,6 +225,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const payloadJson = useMemo(() => JSON.stringify(toPayload(resume)), [resume]);
   const [initialJson] = useState(payloadJson);
   const edited = payloadJson !== initialJson;
+  // A message typed into "Add anything" without a file, handed on to the assistant.
+  const [chatDraft, setChatDraft] = useState("");
   // Still showing the built-in example, untouched.
   const onExample = showExample && !edited;
   const [savedJson, setSavedJson] = useState(resume._id ? payloadJson : null);
@@ -673,8 +675,8 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
     if (key === "audit") return setAiModal("audit");
     if (!AI_ENABLED) return message.info(AI_LOCKED_MESSAGE);
     if (!requireAccount()) return;
-    // Importing goes through "Add anything": the AI's changes are merged into the resume
-    // after review (flagging anything it couldn't confirm), instead of replacing it.
+    // Importing goes through "Add anything" (a file, reviewed before it's added); messages
+    // without a file go to the assistant.
     setAiModal(key === "import" ? "add" : key);
   };
 
@@ -778,7 +780,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         <CreditTooltip
           feature="parse"
           title={billing?.v2 ? "Add anything" : "Import your resume"}
-          description={billing?.v2 ? "Paste an old CV or describe your work, or upload a PDF or Word file. It's added in the right places after you check it." : "Upload an existing PDF or Word resume and we'll fill in every section for you."}
+          description={billing?.v2 ? "Bring in an old CV or any document about your work (PDF or Word), with a note if you like. It's added in the right places after you check it." : "Upload an existing PDF or Word resume and we'll fill in every section for you."}
           placement="bottom"
         >
           <Button icon={<Upload size={15} />} onClick={() => openAi("import")} data-tour="import">
@@ -1007,6 +1009,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         onClose={() => setAiModal(null)}
         target={onExample ? withContentOf(resume, blankResume()) : resume}
         token={token}
+        onAskAssistant={AI_ENABLED ? (text) => { setChatDraft(text); openAi("chat"); } : undefined}
         onApply={(ops) => {
           // The built-in example isn't theirs: what they add replaces it instead of joining its sample jobs.
           setResume((r) => applyOperations(onExample ? withContentOf(r, blankResume()) : r, ops));
@@ -1069,7 +1072,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
       <AtsModal open={aiModal === "audit"} onClose={() => setAiModal(null)} resume={resume} token={token} />
       {AI_ENABLED ? (
         <>
-          <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onApplyOperations={billing?.v2 ? (ops) => setResume((r) => applyOperations(r, ops)) : undefined} onOpenGuide={() => setGuideOpen(true)} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
+          <ChatModal open={aiModal === "chat"} onClose={() => setAiModal(null)} resume={resume} token={token} onApplyOperations={billing?.v2 ? (ops) => setResume((r) => applyOperations(r, ops)) : undefined} onOpenAdd={() => openAi("import")} draft={chatDraft} onDraftUsed={() => setChatDraft("")} addLabel={billing?.v2 ? "Add anything" : "Import resume"} onOpenGuide={() => setGuideOpen(true)} onUseAsSummary={(text) => { editor.setField("summary", text.replace(/^"|"$/g, "")); message.success("Updated your About me"); }} />
           <CoverLetterModal open={aiModal === "cover"} onClose={() => setAiModal(null)} resume={resume} token={token} />
         </>
       ) : null}
