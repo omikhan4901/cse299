@@ -108,6 +108,9 @@ export const sampleResume = () => ({
 
 const str = (v) => (typeof v === "string" ? v : v == null ? "" : String(v));
 
+export const BIODATA_KEYS = ["fatherName", "motherName", "dateOfBirth", "gender", "maritalStatus", "religion", "nationality", "presentAddress", "permanentAddress"];
+const cleanBiodata = (b) => ({ enabled: !!b.enabled, ...Object.fromEntries(BIODATA_KEYS.map((k) => [k, str(b[k])])) });
+
 export function normalizeResume(input) {
   const base = blankResume();
   const data = input || {};
@@ -125,6 +128,8 @@ export function normalizeResume(input) {
     // V2: the application it was tailored for, and AI polish proposals waiting for review (server-owned).
     ...(data.tailoredFor ? { tailoredFor: String(data.tailoredFor) } : {}),
     ...(data.suggestions?.operations?.length ? { suggestions: data.suggestions } : {}),
+    // Biodata CV details (V2): kept only in this resume, never in the profile or sent to the AI; no NID.
+    ...(data.biodata && typeof data.biodata === "object" ? { biodata: cleanBiodata(data.biodata) } : {}),
     personal: { ...base.personal },
     summary: str(data.summary),
     skills: str(data.skills),

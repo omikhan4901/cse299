@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         <h2>What we collect</h2>
         <ul>
           <li><b>Account details:</b> your name, email address and a securely hashed password (we never see or store the password itself).</li>
-          <li><b>Resume content:</b> everything you enter in the builder, including contact details, work history, references and an optional photo.</li>
+          <li><b>Resume content:</b> everything you enter in the builder, including contact details, work history, references and an optional photo. If you add biodata details to a resume (such as parents&apos; names and addresses), they are kept in that resume only, are never shown on share links and are never sent to the AI. We never ask for national ID numbers.</li>
           <li><b>Career Profile:</b> if you set one up, the career details you keep in it (the same kind of content as a resume). We don&apos;t ask for or keep sensitive identity details such as national ID numbers.</li>
           <li><b>Job applications:</b> if you track applications, the job details you save (such as the job post, deadlines and notes), the contacts you add, and a copy of the resume you sent. Links you ask us to read are fetched by our server once to fill in the job details.</li>
           <li><b>Usage counters:</b> how many AI requests your account makes each day, so we can apply fair-use limits. These are deleted after a few days.</li>

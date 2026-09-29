@@ -664,6 +664,11 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
   const pickTemplate = (id) => {
     if (billing && !billing.requireTemplate(id)) return false;
     editor.setField("template", id);
+    // A biodata template shows the biodata details: switch them on and point to where they're filled in.
+    if (billing?.v2 && templateById(id).biodata && !resume.biodata?.enabled) {
+      setResume((r) => ({ ...r, biodata: { ...r.biodata, enabled: true } }));
+      message.info("Fill in the biodata details under “Biodata details” in Content. They stay in this resume only.", 6);
+    }
     return true;
   };
   // A locked template chosen before the plans loaded (e.g. from /templates/<name>): keep the
@@ -915,7 +920,7 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
                   <Button size="small" type="primary" onClick={() => setPolishReview({ operations: resume.suggestions.operations, stored: true })}>Review</Button>
                 </div>
               ) : null}
-              <ContentPanel editor={editor} onRefineSummary={refineSummary} onRefineItem={refineItem} refiningId={refiningId} onHelp={() => setGuideOpen(true)} />
+              <ContentPanel editor={editor} onRefineSummary={refineSummary} onRefineItem={refineItem} refiningId={refiningId} onHelp={() => setGuideOpen(true)} biodata={!!billing?.v2 || !!resume.biodata?.enabled} />
               </>
             ) : (
               <DesignPanel resume={resume} onTemplate={pickTemplate} isLocked={templateLocked} setTheme={editor.setTheme} onBrowse={setGallery} onHelp={() => setGuideOpen(true)} />

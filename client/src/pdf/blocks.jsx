@@ -300,6 +300,36 @@ export function CustomItems({ items, k }) {
  * and interests. `render(id, title, children)` wraps each one in the
  * template's own section style; only sections with content are rendered.
  */
+/** Biodata fields shown on a biodata CV (V2): label and value rows. Never includes an NID. */
+export const BIODATA_FIELDS = [
+  ["fatherName", "Father's name"],
+  ["motherName", "Mother's name"],
+  ["dateOfBirth", "Date of birth"],
+  ["gender", "Gender"],
+  ["maritalStatus", "Marital status"],
+  ["religion", "Religion"],
+  ["nationality", "Nationality"],
+  ["presentAddress", "Present address"],
+  ["permanentAddress", "Permanent address"],
+];
+
+/** The rows to show: biodata fields that are filled in, plus date of birth and nationality from the personal details. */
+export function biodataRows(data) {
+  if (!data?.biodata?.enabled) return [];
+  const b = { ...data.biodata, dateOfBirth: data.biodata.dateOfBirth || data.personal?.dateOfBirth, nationality: data.biodata.nationality || data.personal?.nationality };
+  return BIODATA_FIELDS.map(([key, label]) => [label, String(b[key] || "").trim()]).filter(([, v]) => v);
+}
+
+export function BiodataList({ rows, k }) {
+  return rows.map(([label, value]) => (
+    <View key={label} wrap={false} style={{ flexDirection: "row", marginBottom: 3 }}>
+      <Text style={{ width: 118, fontSize: k.size, color: k.muted }}>{label}</Text>
+      <Text style={{ width: 8, fontSize: k.size, color: k.muted }}>:</Text>
+      <Text style={{ flex: 1, fontSize: k.size, color: k.text }}>{value}</Text>
+    </View>
+  ));
+}
+
 export function extraSections(data, k, render, { timeline, titles = {}, skip = [] } = {}) {
   const t = (id, fallback) => titles[id] || fallback;
   const out = [];
@@ -314,6 +344,8 @@ export function extraSections(data, k, render, { timeline, titles = {}, skip = [
   }
   if (data.references?.length || data.referencesOnRequest) out.push(render("references", t("references", "References"), <ReferenceList items={data.references || []} k={k} signatures={!!data.referenceSignatures} />));
   if (splitList(data.interests).length) out.push(render("interests", t("interests", "Interests"), <SkillList text={data.interests} k={k} variant="inline" />));
+  const bio = biodataRows(data);
+  if (bio.length) out.push(render("biodata", t("biodata", "Personal information"), <BiodataList rows={bio} k={k} />));
   return out;
 }
 

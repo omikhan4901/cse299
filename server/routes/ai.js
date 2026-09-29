@@ -185,7 +185,8 @@ const resumeOk = (resume) => isObj(resume) && hasText(cleanResume(resume));
 const MAX_RESUME_CHARS = 40000;
 const cleanResume = (resume) => {
     if (!isObj(resume)) return {};
-    const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, ...rest } = resume;
+    // Never to the AI: database fields, design, and biodata (parents' names, addresses…).
+    const { _id, user, shortId, createdAt, updatedAt, __v, theme, template, isPublic, isMaster, biodata, suggestions, tailoredFor, rev, ...rest } = resume;
     return { ...rest, personal: { ...(isObj(rest.personal) ? rest.personal : {}), profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 };
 const resumeJson = (resume) => clip(JSON.stringify(cleanResume(resume)), MAX_RESUME_CHARS);

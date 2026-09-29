@@ -44,7 +44,7 @@ const underResumeCap = async (req, res) => {
 
 // Only these fields can be written by the client. Everything else (owner,
 // shortId, timestamps) is controlled by the server.
-const EDITABLE = ["nickname", ...CONTENT_KEYS, "template", "theme", "isMaster", "isPublic"];
+const EDITABLE = ["nickname", ...CONTENT_KEYS, "biodata", "template", "theme", "isMaster", "isPublic"];
 const pickEditable = (body) => pick(body, EDITABLE);
 
 // Finds a resume owned by the logged-in user, or sends the right error.

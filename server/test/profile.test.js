@@ -6,7 +6,7 @@ const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const mongoose = require('mongoose');
-const { start, stop, api, register, superadmin, setSettings, resetState } = require('./helpers');
+const { start, stop, api, register, superadmin, setSettings, resetState, ai } = require('./helpers');
 
 const lib = () => import(path.join(__dirname, '../../client/src/lib/profile.js'));
 const ops = () => import(path.join(__dirname, '../../client/src/lib/ingest/ops.js'));
@@ -269,5 +269,35 @@ describe('profile ↔ resume (client/src/lib/profile.js)', () => {
         });
         assert.ok(full.score >= 75, String(full.score));
         assert.ok(full.score > empty.score);
+    });
+});
+
+describe('biodata (a resume-only, private extra)', () => {
+    before(() => start('biodata'));
+    after(stop);
+    beforeEach(resetState);
+
+    it('is saved on the resume only: never an NID, never on public links, never to the AI, never into the profile', async () => {
+        const { token } = await register();
+        const created = await api('POST', '/resumes', { token, body: { nickname: 'Govt CV', summary: 'x', biodata: { enabled: true, fatherName: 'Abdul Karim', motherName: 'Rokeya Begum', religion: 'Islam', presentAddress: 'Mirpur, Dhaka', nid: '1234567890', nationalId: '1', fatherName2: 'x' } } });
+        assert.equal(created.status, 201);
+        const r = created.body.data;
+        assert.equal(r.biodata.fatherName, 'Abdul Karim');
+        assert.equal(r.biodata.nid, undefined, 'there is no place for an NID');
+        assert.equal(r.biodata.nationalId, undefined);
+
+        await api('PUT', `/resumes/${r._id}`, { token, body: { isPublic: true } });
+        const shared = await api('GET', `/public/${r.shortId}`);
+        assert.equal(shared.status, 200);
+        assert.equal(shared.body.data.biodata, undefined, 'not on the public page');
+
+        ai.reply = 'ok';
+        await api('POST', '/ai/chat', { token, body: { conversation: [{ role: 'user', content: 'hi' }], fullResume: r } });
+        assert.ok(!JSON.stringify(ai.last.body).includes('Abdul Karim'), 'never sent to the AI');
+
+        const { profileFromResume } = await lib();
+        assert.equal(profileFromResume(r).biodata, undefined, 'never copied into the profile');
+        const { normalizeResume } = await resumeLib();
+        assert.deepEqual(Object.keys(normalizeResume(r).biodata).sort(), ['dateOfBirth', 'enabled', 'fatherName', 'gender', 'maritalStatus', 'motherName', 'nationality', 'permanentAddress', 'presentAddress', 'religion']);
     });
 });

@@ -21,6 +21,12 @@ export const ENGINE_TEMPLATES = [
   { id: "Summit", name: "Summit", category: "ats", description: "Dense and scannable, company first.", accent: "#0369a1", font: "Inter",
     spec: { density: "compact", header: "center", heading: "dotted", contactStyle: "dots", companyFirst: true, skills: "inline", bullet: "dot", nameSize: 22 } },
 
+  // Bangladesh-style CVs: a photo and a "Personal information" table (biodata details).
+  { id: "Biodata", name: "Biodata", category: "ats", biodata: true, description: "Bangladesh-style CV with photo and personal information.", accent: "#0f172a", font: "Source Serif",
+    spec: { header: "split", heading: "rule", contactStyle: "icons", skills: "inline", bullet: "dot", photo: "square", nameSize: 22 } },
+  { id: "BiodataFormal", name: "Biodata Formal", category: "ats", biodata: true, description: "Formal biodata with a centred header and double rules.", accent: "#1e3a8a", font: "EB Garamond",
+    spec: { header: "center", headerRule: true, heading: "double", contactStyle: "dots", skills: "inline", bullet: "dash", photo: "square", nameSize: 24 } },
+
   // ---------------- Modern / Minimalist ----------------
   { id: "Nordic", name: "Nordic", category: "minimal", description: "Side headings and generous white space.", accent: "#64748b", font: "Inter",
     spec: { layout: "gutter", density: "airy", header: "minimal", heading: "caps", contactStyle: "dots", skills: "inline", bullet: "dash", nameSize: 22, nameWeight: 500, palette: { heading: "#334155", headingAccent: "#64748b" } } },

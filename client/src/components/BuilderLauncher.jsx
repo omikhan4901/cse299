@@ -123,7 +123,7 @@ export function BuilderLauncherProvider({ children }) {
             onClick={startNew}
           />
           {!resumes?.length && !risk ? (
-            <Choice icon={<LayoutTemplate size={18} />} tone="slate" title="Pick a template first" detail="Browse 50 designs, then start with the one you like." onClick={() => go("/templates")} />
+            <Choice icon={<LayoutTemplate size={18} />} tone="slate" title="Pick a template first" detail="Browse 50+ designs, then start with the one you like." onClick={() => go("/templates")} />
           ) : null}
         </div>
 

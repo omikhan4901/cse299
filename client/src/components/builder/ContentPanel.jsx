@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Button, Select, Checkbox, Tooltip, Popconfirm, App, AutoComplete } from "antd";
+import { Input, Button, Select, Checkbox, Tooltip, Popconfirm, App, AutoComplete, Switch } from "antd";
 import { AnimatePresence, motion } from "motion/react";
 import {
   User, FileText, Briefcase, GraduationCap, FolderGit2, Award, Wrench, Languages, HeartHandshake, Trophy, BookOpen,
-  Library, Contact, Smile, LayoutList, Link2, ChevronDown, ArrowUp, ArrowDown, Copy, Trash2, Plus, Camera, X, Crop, Lightbulb, ChevronRight,
+  Library, Contact, Smile, LayoutList, Link2, ChevronDown, ArrowUp, ArrowDown, Copy, Trash2, Plus, Camera, X, Crop, Lightbulb, ChevronRight, IdCard,
 } from "lucide-react";
 import { dateRange, splitList, newId, EMPTY_CUSTOM_ITEM } from "@/lib/resume";
 import { readPhoto } from "./photo";
@@ -455,8 +455,35 @@ const OPTIONAL = [
   { id: "interests", title: "Interests", icon: Smile, hint: "Hobbies that say something about you" },
   { id: "custom", title: "Custom section", icon: LayoutList, hint: "Anything else: talks, research…" },
 ];
+// V2: the details some Bangladeshi employers ask for. Offered in the builder only (never the profile).
+const BIODATA = { id: "biodata", title: "Biodata details", icon: IdCard, hint: "Parents' names, addresses… if the employer asks" };
+const BIODATA_INPUTS = [
+  ["fatherName", "Father's name"], ["motherName", "Mother's name"], ["dateOfBirth", "Date of birth", "12 March 2000"], ["gender", "Gender"],
+  ["maritalStatus", "Marital status"], ["religion", "Religion"], ["nationality", "Nationality", "Bangladeshi"],
+  ["presentAddress", "Present address", "", true], ["permanentAddress", "Permanent address", "", true],
+];
 
-export default function ContentPanel({ editor, onRefineSummary, onRefineItem, refiningId, onHelp }) {
+function BiodataForm({ biodata = {}, personal, setResume }) {
+  const set = (patch) => setResume((r) => ({ ...r, biodata: { enabled: true, ...r.biodata, ...patch } }));
+  return (
+    <div>
+      <label className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+        <span className="text-sm text-slate-700">Show on this resume</span>
+        <Switch size="small" checked={!!biodata.enabled} onChange={(v) => set({ enabled: v })} />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        {BIODATA_INPUTS.map(([key, label, placeholder, wide]) => (
+          <Field key={key} label={label} className={wide ? "col-span-2" : "col-span-2 sm:col-span-1"}>
+            <Input value={biodata[key] ?? ""} placeholder={placeholder || (key === "dateOfBirth" ? personal.dateOfBirth : key === "nationality" ? personal.nationality : "")} onChange={(e) => set({ [key]: e.target.value })} />
+          </Field>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] leading-snug text-slate-400">Kept in this resume only: not in your profile, not on share links and never sent to the AI. We never ask for your NID.</p>
+    </div>
+  );
+}
+
+export default function ContentPanel({ editor, onRefineSummary, onRefineItem, refiningId, onHelp, biodata = false }) {
   const { resume, setPersonal, setField, setResume } = editor;
   const [open, setOpen] = useState("personal");
   const [added, setAdded] = useState([]);
@@ -467,15 +494,18 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
     if (id === "interests") return splitList(resume.interests).length > 0;
     if (id === "references") return resume.references.length > 0 || resume.referencesOnRequest;
     if (id === "custom") return resume.customSections.length > 0;
+    if (id === "biodata") return !!resume.biodata?.enabled;
     return resume[id].length > 0;
   };
-  const shown = OPTIONAL.filter((o) => hasContent(o.id) || added.includes(o.id));
-  const available = OPTIONAL.filter((o) => !shown.includes(o));
+  const options = biodata ? [...OPTIONAL, BIODATA] : OPTIONAL;
+  const shown = options.filter((o) => hasContent(o.id) || added.includes(o.id));
+  const available = options.filter((o) => !shown.includes(o));
 
   const addSection = (id) => {
     setAdded((a) => [...a, id]);
     setOpen(id);
     if (LISTS[id] && !resume[id].length) editor.addItem(id);
+    if (id === "biodata") setResume((r) => ({ ...r, biodata: { ...r.biodata, enabled: true } }));
     if (id === "custom" && !resume.customSections.length) {
       setResume((r) => ({ ...r, customSections: [{ id: newId(), title: "", items: [{ id: newId(), ...EMPTY_CUSTOM_ITEM }] }] }));
     }
@@ -486,6 +516,7 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
       return <TagsField value={resume.interests} onChange={(v) => setField("interests", v)} placeholder="e.g. Chess, Hiking, Photography" suggestions={["Reading", "Travel", "Photography", "Chess", "Football", "Cooking", "Music"]} />;
     }
     if (id === "custom") return <CustomSectionsForm sections={resume.customSections} setResume={setResume} />;
+    if (id === "biodata") return <BiodataForm biodata={resume.biodata} personal={resume.personal} setResume={setResume} />;
     if (id === "references") {
       return (
         <>
@@ -509,6 +540,7 @@ export default function ContentPanel({ editor, onRefineSummary, onRefineItem, re
   const optionalMeta = (id) => {
     if (id === "interests") return count(splitList(resume.interests).length, "interest");
     if (id === "custom") return count(resume.customSections.length, "section");
+    if (id === "biodata") return resume.biodata?.enabled ? "Shown on this resume" : "Hidden";
     if (id === "references" && resume.referencesOnRequest && !resume.references.length) return "Available on request";
     return count(resume[id].length, "entry").replace("entrys", "entries");
   };

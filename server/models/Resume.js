@@ -20,6 +20,20 @@ const ResumeSchema = new mongoose.Schema(
     isMaster: { type: Boolean, default: false },
     // V2: the application this resume was tailored for (counts towards the plan's tailored limit).
     tailoredFor: { type: mongoose.Schema.Types.ObjectId, ref: "Application", index: true, sparse: true },
+    // Biodata CV details (V2, docs/v2/SPEC.md §5.1): only in this resume, never in the profile,
+    // never sent to the AI, never shown on public links. There is deliberately no NID field.
+    biodata: {
+      enabled: { type: Boolean, default: false },
+      fatherName: { type: String, maxlength: 120 },
+      motherName: { type: String, maxlength: 120 },
+      dateOfBirth: { type: String, maxlength: 60 },
+      gender: { type: String, maxlength: 40 },
+      maritalStatus: { type: String, maxlength: 40 },
+      religion: { type: String, maxlength: 60 },
+      nationality: { type: String, maxlength: 60 },
+      presentAddress: { type: String, maxlength: 300 },
+      permanentAddress: { type: String, maxlength: 300 },
+    },
     // AI polish proposals waiting for review (batch polish), cleared once reviewed.
     suggestions: { operations: mongoose.Schema.Types.Mixed, at: Date },
     isPublic: { type: Boolean, default: false },

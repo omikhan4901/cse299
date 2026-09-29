@@ -5,7 +5,7 @@ import { BuilderLink } from "@/components/BuilderLauncher";
 
 export const metadata = {
   title: "About ResumeX & FAQ",
-  description: "ResumeX is an ATS-friendly resume builder with 50 templates, a live PDF preview and a real ATS check. Learn how it works and find answers to common questions.",
+  description: "ResumeX is an ATS-friendly resume builder with 50+ templates, a live PDF preview and a real ATS check. Learn how it works and find answers to common questions.",
   alternates: { canonical: "/about" },
 };
 

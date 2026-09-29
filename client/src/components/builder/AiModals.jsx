@@ -28,7 +28,7 @@ const { TextArea } = Input;
 
 /** Resume data for the AI: no photo (large and private) and no database fields. */
 export function aiResume(resume) {
-  const { _id, shortId, isPublic, isMaster, updatedAt, nickname, theme, template, rev, tailoredFor, suggestions, ...rest } = resume;
+  const { _id, shortId, isPublic, isMaster, updatedAt, nickname, theme, template, rev, tailoredFor, suggestions, biodata, ...rest } = resume;
   return { ...rest, personal: { ...rest.personal, profilePic: undefined, profilePicSource: undefined, photoCrop: undefined } };
 }
 

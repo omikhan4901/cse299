@@ -24,7 +24,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: MousePointerClick, title: "Pick a template", text: "Start from 50 designs in seven styles — from ATS-safe single columns to bold sidebars." },
+  { icon: MousePointerClick, title: "Pick a template", text: "Start from 50+ designs in seven styles — from ATS-safe single columns to bold sidebars." },
   { icon: FileText, title: "Fill in your story", text: "Guided sections with tips for each part. Your progress saves as you type." },
   { icon: Download, title: "Download & apply", text: "Export a pixel-perfect PDF or share a public link in seconds." },
 ];

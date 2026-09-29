@@ -10,8 +10,9 @@ const { limit, clientIp } = require("../lib/rateLimit");
 router.get("/:id", limit({ name: "public-ip", windowMs: 60 * 1000, max: 120, key: clientIp, message: "Too many requests.", label: "Shared resume views", group: "Public pages", description: "Share-link page loads from one network." }), async (req, res) => {
   try {
     const { id } = req.params;
-    // Never expose the owner, or the uncropped original photo.
-    const hidden = "-__v -personal.profilePicSource -personal.photoCrop";
+    // Never expose the owner, the uncropped original photo, biodata (parents' names, addresses),
+    // AI proposals or which job it was tailored for.
+    const hidden = "-__v -personal.profilePicSource -personal.photoCrop -biodata -suggestions -tailoredFor";
     let resume = await Resume.findOne({ shortId: id }).select(hidden).lean();
     if (!resume && mongoose.isValidObjectId(id)) resume = await Resume.findById(id).select(hidden).lean();
 

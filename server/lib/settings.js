@@ -74,7 +74,7 @@ const DEFAULTS = {
             price: 6.99, yearlyPrice: 75.49, credits: 300, creditPeriod: 'month', highlight: true,
             features: { ...allOn },
             limits: { applications: null, tailored: null, batch: 5 },
-            perks: ['All 50 templates', 'Import your old resume', 'Cover letters and AI rewrites', '300 AI credits a month'],
+            perks: ['All 50+ templates', 'Import your old resume', 'Cover letters and AI rewrites', '300 AI credits a month'],
         },
         {
             id: 'premium', name: 'Premium', tagline: 'For power users and career switchers.',

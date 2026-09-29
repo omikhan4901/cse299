@@ -25,7 +25,19 @@ const COMPONENTS = {
 };
 
 /** The full PDF document for a (normalized) resume. */
-export default function ResumeDocument({ resume }) {
+/** With biodata on, date of birth and nationality appear once, in its table, not in the header too. */
+function forBiodata(resume) {
+  if (!resume?.biodata?.enabled) return resume;
+  const p = resume.personal || {};
+  return {
+    ...resume,
+    personal: { ...p, dateOfBirth: "", nationality: "" },
+    biodata: { ...resume.biodata, dateOfBirth: resume.biodata.dateOfBirth || p.dateOfBirth, nationality: resume.biodata.nationality || p.nationality },
+  };
+}
+
+export default function ResumeDocument({ resume: input }) {
+  const resume = forBiodata(input);
   const tpl = templateById(resume.template);
   const render = COMPONENTS[tpl.id] || (tpl.spec ? (props) => <EngineTemplate {...props} spec={tpl.spec} /> : COMPONENTS.Classic);
   const accent = resume.theme?.accent || tpl.accent;
