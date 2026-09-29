@@ -43,6 +43,9 @@ describe('browser and server agree on access', () => {
             const settings = randomSettings(r);
             for (const plan of PLAN_IDS) {
                 for (const { key } of PLAN_LIMITS) assert.equal(browserLimit(settings, plan, key), planLimit({ plan }, settings, key), `${key} on ${plan}`);
+                // An account's own limits (set by an admin) win either way.
+                const limits = r() < 0.5 ? null : Object.fromEntries(PLAN_LIMITS.filter(() => r() < 0.5).map(({ key }) => [key, Math.floor(r() * 20)]));
+                for (const { key } of PLAN_LIMITS) assert.equal(browserLimit(settings, plan, key, limits), planLimit({ plan, limits }, settings, key), `own ${key} on ${plan}`);
             }
             const user = { email: 'a@b.c', role: pick(r, ['user', 'admin']), v2Preview: r() < 0.3 };
             // The browser sees the role the API reports (publicUser), not the stored one.

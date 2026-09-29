@@ -69,6 +69,9 @@ const DEFAULTS = {
     // The monthly AI spending cap (lib/aiSpend.js), in US dollars: at the cap, AI pauses for
     // everyone except admins until the 1st. `paused` is the admin's emergency brake.
     aiSpend: { enabled: true, cap: 40, alertAt: 80, paused: false },
+    // Database storage (lib/storage.js): the plan's size in MB (Atlas M0: 512) and the % at
+    // which the owner is emailed (again at 90%).
+    storage: { quotaMb: 512, alertAt: 70 },
     // Payments (Paddle): off (no checkout, "Coming soon"), test (only admins and testers can
     // pay, e.g. with Paddle's sandbox), live (everyone). Webhooks are processed in every mode.
     payments: { mode: 'off' },
@@ -213,6 +216,10 @@ function clean(input) {
         signups: {
             cap: s.signups?.cap === null || s.signups?.cap === '' || s.signups?.cap === undefined ? null : Math.round(num(s.signups.cap, 80, { min: 0, max: 1e6 })),
             requireVerifiedEmail: s.signups?.requireVerifiedEmail !== false,
+        },
+        storage: {
+            quotaMb: Math.round(num(s.storage?.quotaMb, 512, { min: 64, max: 1024 * 1024 })),
+            alertAt: Math.round(num(s.storage?.alertAt, 70, { min: 0, max: 99 })),
         },
         templates: { categories, overrides },
         aiPrices,

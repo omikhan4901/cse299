@@ -5,7 +5,7 @@ const Resume = require('../models/Resume');
 const { protect } = require('./auth');
 const { limit } = require('../lib/rateLimit');
 const { requireV2, requireFeature } = require('../lib/v2');
-const { CONTENT_KEYS, pick } = require('../lib/resumeInput');
+const { CONTENT_KEYS, pick, tooBig } = require('../lib/resumeInput');
 
 /**
  * The Career Profile (V2, docs/v2/SPEC.md §5.1): one per account, saved with the same
@@ -23,6 +23,7 @@ const LISTS = ['experience', 'education', 'projects', 'certifications', 'volunte
 /** The editable content, validated. Returns { data } or { error }. */
 function readBody(body) {
     const data = pick(body, CONTENT_KEYS);
+    if (tooBig(data)) return { error: tooBig(data) };
     for (const key of LISTS) {
         if (data[key] === undefined) continue;
         if (!Array.isArray(data[key])) return { error: `${key} must be a list.` };

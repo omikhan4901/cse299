@@ -10,7 +10,7 @@ const { getSettings } = require("../lib/settings");
 const { canUse, USER_FIELDS: ACCESS_FIELDS } = require("../lib/credits");
 const { roomForResumes } = require("../lib/resumeLimit");
 const { templateAllowed, templateTier } = require("../lib/templates");
-const { CONTENT_KEYS, pick } = require("../lib/resumeInput");
+const { CONTENT_KEYS, pick, tooBig } = require("../lib/resumeInput");
 
 // Publishing a share link needs the "shareLinks" feature (only enforced when free mode is off).
 // Links that are already public keep working; making one public is what's checked.
@@ -75,6 +75,7 @@ router.post("/", protect, perAccount, createByUser, async (req, res) => {
   try {
     if (!(await underResumeCap(req, res))) return;
     const data = pickEditable(req.body);
+    if (tooBig(data)) return res.status(413).json({ success: false, error: tooBig(data) });
     if (data.isPublic === true && !(await shareAllowed(req, res))) return;
     if (typeof data.template === "string" && !(await templateOk(req, res, data.template))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId }, { isMaster: false });
@@ -111,6 +112,7 @@ router.put("/:id", protect, perAccount, async (req, res) => {
     const resume = await findOwned(req, res);
     if (!resume) return;
     const data = pickEditable(req.body);
+    if (tooBig(data)) return res.status(413).json({ success: false, error: tooBig(data) });
     // Sharing and "master" toggles don't touch the content, so they never conflict.
     const content = Object.keys(data).some((k) => k !== "isMaster" && k !== "isPublic");
     const rev = resume.rev || 0;

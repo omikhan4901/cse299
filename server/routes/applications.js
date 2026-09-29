@@ -106,6 +106,8 @@ async function snapshotOf(userId, resumeId) {
     const r = await Resume.findOne({ _id: resumeId, user: userId }).lean();
     if (!r) return null;
     const { _id, user, shortId, isPublic, isMaster, rev, createdAt, updatedAt, __v, template, theme, nickname, ...content } = r;
+    // The cropped photo is what was sent; the original it was cut from isn't needed (storage).
+    if (content.personal) content.personal = { ...content.personal, profilePicSource: undefined, photoCrop: undefined };
     return { content, nickname, template, theme, at: new Date() };
 }
 

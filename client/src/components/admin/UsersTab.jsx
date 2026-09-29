@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { App, Alert, Button, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag } from "antd";
+import { App, Alert, Button, Collapse, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag } from "antd";
 import { Ban, Download, KeyRound, RotateCcw, Search, ShieldOff, Trash2, UserPlus } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { useAuth } from "../AuthProvider";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
+import { FeatureSwitches } from "./CampaignsTab";
 
 const PLAN_OPTIONS = [
   { value: "free", label: "Free" },
@@ -54,9 +55,83 @@ function RefundCheck({ r }) {
   );
 }
 
+const hasKeys = (o) => !!o && Object.keys(o).length > 0;
+
+/**
+ * The account's own switches, limits and tester flag (collapsed unless it has some): features
+ * on or off whatever the plan (an "off" holds even in free mode), until an optional end date;
+ * limits that replace the plan's; test payments.
+ */
+function AccessOverrides({ u, meta, form }) {
+  const settings = meta.settings;
+  const plan = settings.plans.find((p) => p.id === u.effectivePlan) || settings.plans[0];
+  const v2On = !!settings.v2?.enabled;
+  const features = [...meta.aiFeatures, ...meta.appFeatures].filter((f) => !f.v2 || v2On || u.v2Preview);
+  const limits = (meta.planLimits || []).filter((l) => !l.v2 || v2On || u.v2Preview);
+  const ended = u.featuresExpireAt && new Date(u.featuresExpireAt) < new Date();
+  const custom = hasKeys(u.features) || hasKeys(u.limits) || u.tester;
+  const aiOff = () => form.setFieldValue("features", { ...(form.getFieldValue("features") || {}), ...Object.fromEntries(meta.aiFeatures.map((f) => [f.key, false])) });
+  return (
+    <Collapse
+      className="!mt-4 !bg-white"
+      defaultActiveKey={custom ? ["access"] : []}
+      items={[
+        {
+          key: "access",
+          label: (
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-ink">Access for this account</span>
+              {custom ? <Tag color="blue">custom</Tag> : <span className="text-xs text-slate-500">follows the {plan.name} plan</span>}
+              {ended && hasKeys(u.features) ? <Tag>switches ended</Tag> : null}
+            </span>
+          ),
+          children: (
+            <div className="space-y-4">
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-ink">Features</p>
+                  <Button size="small" onClick={aiOff}>Turn all AI off</Button>
+                </div>
+                <Form.Item name="features" noStyle>
+                  <FeatureSwitches features={features} plan={plan} freeMode={settings.freeMode.enabled} />
+                </Form.Item>
+                <Form.Item name="featuresExpireAt" label="Switches end" className="!mt-3 !mb-0" extra={ended ? `Ended ${fmtDate(u.featuresExpireAt)}: the plan rules again. Pick a new date or clear it to turn them back on.` : "Leave empty for no end date. Campaign members get the campaign's end date."}>
+                  <Input type="date" />
+                </Form.Item>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink">Limits</p>
+                <p className="mb-2 text-xs text-slate-500">Empty follows the plan. A number here replaces it, even in free mode; nothing already made is removed.</p>
+                <div className="grid grid-cols-2 gap-x-3">
+                  {limits.map((l) => {
+                    const byPlan = plan.limits?.[l.key];
+                    return (
+                      <Form.Item key={l.key} name={["limits", l.key]} label={l.name} className="!mb-2">
+                        <InputNumber min={0} max={10000} precision={0} className="!w-full" placeholder={`Plan: ${settings.freeMode.enabled || byPlan == null ? "no limit" : byPlan}`} />
+                      </Form.Item>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-ink">Tester</p>
+                  <p className="text-xs text-slate-500">Can use checkout while payments are in test mode.</p>
+                </div>
+                <Form.Item name="tester" valuePropName="checked" noStyle><Switch /></Form.Item>
+              </div>
+            </div>
+          ),
+        },
+      ]}
+    />
+  );
+}
+
 function UserDrawer({ id, onClose, onChanged, isSuper }) {
   const { message, modal } = App.useApp();
   const { data, loading, call, setData } = useAdmin(id ? `/users/${id}` : null);
+  const meta = useAdmin(id ? "/settings" : null).data;
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
 
@@ -117,6 +192,10 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
               creditPeriod: u.creditPeriod || u.credits.period,
               role: u.role === "admin" ? "admin" : "user",
               v2Preview: !!u.v2Preview,
+              features: u.features || {},
+              featuresExpireAt: toDateInput(u.featuresExpireAt),
+              limits: u.limits || {},
+              tester: !!u.tester,
             }}
             onFinish={(v) =>
               save({
@@ -127,6 +206,10 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
                 creditLimit: v.customCredits ? v.creditLimit : null,
                 creditPeriod: v.customCredits ? v.creditPeriod : null,
                 v2Preview: !!v.v2Preview,
+                features: v.features || {},
+                featuresExpireAt: v.featuresExpireAt || null,
+                limits: v.limits || {},
+                tester: !!v.tester,
                 ...(isSuper && u.role !== "superadmin" ? { role: v.role } : {}),
               })
             }
@@ -165,6 +248,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
               </div>
               <Form.Item name="v2Preview" valuePropName="checked" noStyle><Switch /></Form.Item>
             </div>
+            {meta?.settings ? <AccessOverrides u={u} meta={meta} form={form} /> : null}
             {isSuper && u.role !== "superadmin" ? (
               <Form.Item name="role" label="Role" className="!mt-4" extra="Admins can open this console. Only super admins change roles.">
                 <Select options={[{ value: "user", label: "User" }, { value: "admin", label: "Admin" }]} />
@@ -176,7 +260,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
           {u.refundCheck ? <RefundCheck r={u.refundCheck} /> : null}
 
           <div className="rounded-xl border border-slate-200 p-4">
-            <p className="font-medium text-ink">This {u.credits.period}&apos;s credits</p>
+            <p className="font-medium text-ink">{u.credits.period === "day" ? "Today's credits" : "This month's credits"}</p>
             <div className="mt-2 flex items-center justify-between gap-3">
               <Credits c={u.credits} />
               <Button icon={<RotateCcw size={14} />} onClick={() => action(() => call(`/users/${id}/reset-credits`, { method: "POST" }).then((d) => setData({ ...u, ...d.data })), "Credits restored")}>

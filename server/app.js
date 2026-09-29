@@ -58,8 +58,9 @@ app.use('/api/paddle', paddleRoutes);
 // Resumes can carry a profile photo as a data URL, so only resume saves get large
 // bodies; AI requests carry a resume without photos; everything else is small.
 // (Smaller limits mean a flood of huge bodies can't tie up memory.)
-app.use('/api/resumes', express.json({ limit: '10mb' }));
-app.use('/api/profile', express.json({ limit: '10mb' }));
+// Two photos (up to 1 MB each) and up to 300 KB of text (lib/resumeInput.js).
+app.use('/api/resumes', express.json({ limit: '3mb' }));
+app.use('/api/profile', express.json({ limit: '3mb' }));
 app.use('/api/applications', express.json({ limit: '1mb' }));
 app.use('/api/ai', express.json({ limit: '2mb' }));
 app.use('/api/admin', express.json({ limit: '1mb' }));

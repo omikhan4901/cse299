@@ -36,7 +36,9 @@ export function canUseTemplate(config, planId, template) {
 }
 
 /** A numeric plan limit (applications, tailored, batch): null = no limit (also in free mode). */
-export function planLimit(config, planId, key) {
+export function planLimit(config, planId, key, own = null) {
+  // The account's own limit (from an admin) wins, even over free mode.
+  if (typeof own?.[key] === "number") return own[key];
   if (!config || config.freeMode?.enabled) return null;
   const plan = config.plans?.find((p) => p.id === planId) || config.plans?.[0];
   const v = plan?.limits?.[key];

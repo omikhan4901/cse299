@@ -202,3 +202,24 @@ separately. Rough total: 12–16 working days of effort.
   Worst case per message: about $0.0105 (was $0.0125).
 - Rate limits aren't part of the campaign estimate: they cap speed, not the total, and
   credits always bind first. The estimate says so.
+- Per-account overrides (Admin › Users › Access for this account, collapsed unless used):
+  feature switches (plan / on / off, with an optional end date), "Turn all AI off", own
+  limits that replace the plan's (even in free mode), and the tester flag. They reuse the
+  campaign fields, so a campaign member's switches show there and can be edited. V2 on/off
+  per account stays the existing "V2 preview" switch.
+- Found and fixed: the applications routes loaded the account without its held plan (kept
+  after a downgrade), so its applications and tailoring limits fell back to Free.
+- Storage: photos are shrunk in the browser (original about 150 KB, cropped about 70 KB, was
+  up to 1 MB); the server keeps its per-photo cap at 1 MB so photos saved earlier still
+  load. One resume or profile may hold 300 KB of text (a real one is about 10 KB); request
+  bodies are capped at 3 MB (was 10). Application snapshots keep the cropped photo, not the
+  original. Admin › Overview › Storage shows usage of the quota (data plus indexes, as Atlas
+  counts it), bytes by kind (photos too) and the biggest accounts; the owner is emailed once a
+  month at the alert level (70%) and at 90%. Checked when resumes are created and when the
+  admin opens it, at most hourly per server. Alerts are claimed in their own collection, so
+  two servers never send the same one.
+- Photos stay in the database for the beta (about 220 KB per resume after compression; 80
+  users with 3 photo resumes each is about 50 MB of 512). **Production item:** one photo per
+  account in a private Cloud Storage bucket, served through the API after a sign-in check
+  (never a public link), fetched by the browser for the PDF, deleted with the account;
+  signed-out drafts and private sessions keep theirs in the browser; privacy policy updated.

@@ -8,6 +8,7 @@ const Resume = require('../models/Resume');
 const User = require('../models/User');
 const { getSettings } = require('./settings');
 const { planLimit, effectivePlanId, USER_FIELDS } = require('./credits');
+const { checkStorage } = require('./storage');
 
 const HARD_CAP = () => Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
 
@@ -17,6 +18,7 @@ const HARD_CAP = () => Number(process.env.MAX_RESUMES_PER_ACCOUNT) || 50;
  */
 async function roomForResumes(req, res, adding = 1) {
     const [have, user, settings] = await Promise.all([Resume.countDocuments({ user: req.userId }), User.findById(req.userId).select(USER_FIELDS).lean(), getSettings()]);
+    checkStorage(settings); // new resumes are what fill the database (throttled, never throws)
     const planMax = planLimit(user, settings, 'resumes');
     if (planMax != null && have + adding > planMax) {
         const plan = settings.plans.find((p) => p.id === effectivePlanId(user));

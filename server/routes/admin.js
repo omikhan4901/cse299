@@ -16,6 +16,7 @@ const { deleteUserData } = require('../lib/userData');
 const { aiEconomics } = require('../lib/economics');
 const { pauseState, monthKey, nextMonth, callCost } = require('../lib/aiSpend');
 const { revenueReport, paymentsCsv } = require('../lib/revenue');
+const { storageReport, checkStorage } = require('../lib/storage');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 const { refundCheck } = require('../lib/refunds');
@@ -32,7 +33,7 @@ const bad = (res, error, status = 400) => res.status(status).json({ success: fal
 const dayKey = (d) => new Date(d).toISOString().slice(0, 10);
 
 const PLAN_IDS = ['free', 'pro', 'premium'];
-const USER_FIELDS = 'name email plan planExpiresAt passPlan passUntil heldPlan heldUntil features featuresExpireAt creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
+const USER_FIELDS = 'name email plan planExpiresAt passPlan passUntil heldPlan heldUntil features featuresExpireAt limits tester creditLimit creditPeriod creditLimitExpiresAt role v2Preview banned bannedReason campaign createdAt lastLoginAt twoFactor.enabled emailVerifiedAt';
 
 /** Adds role, current plan, credit usage and resume counts to a page of users. */
 async function describeUsers(users) {
@@ -205,6 +206,33 @@ async function applyUserFields(user, body, req) {
         user.creditLimit = next;
     }
     if (body.v2Preview !== undefined) user.v2Preview = body.v2Preview === true;
+    if (body.tester !== undefined) user.tester = body.tester === true;
+    // The account's own feature switches ({ chat: false, applications: true }); a feature left
+    // out follows the plan. They end at featuresExpireAt (empty = no end).
+    if (body.features !== undefined) {
+        const f = cleanFeatures(body.features);
+        user.features = Object.keys(f).length ? f : undefined;
+        user.markModified('features');
+    }
+    if (body.featuresExpireAt !== undefined) {
+        const d = body.featuresExpireAt ? new Date(body.featuresExpireAt) : null;
+        if (d && Number.isNaN(d.getTime())) fail('Please pick a valid end date.');
+        user.featuresExpireAt = d || undefined;
+    }
+    // Limits of its own ({ resumes: 5 }); null or a missing key follows the plan.
+    if (body.limits !== undefined) {
+        const src = body.limits && typeof body.limits === 'object' && !Array.isArray(body.limits) ? body.limits : {};
+        const out = {};
+        for (const { key } of PLAN_LIMITS) {
+            const v = src[key];
+            if (v === null || v === undefined || v === '') continue;
+            const n = Math.round(Number(v));
+            if (!Number.isFinite(n) || n < 0 || n > 10000) fail('Limits are whole numbers from 0 to 10,000.');
+            out[key] = n;
+        }
+        user.limits = Object.keys(out).length ? out : undefined;
+        user.markModified('limits');
+    }
     if (body.creditPeriod !== undefined) user.creditPeriod = ['day', 'month'].includes(body.creditPeriod) ? body.creditPeriod : null;
     if (body.password) {
         if (passwordProblem(body.password)) fail(passwordProblem(body.password));
@@ -316,6 +344,14 @@ router.get('/economics', wrap(async (req, res) => {
 }));
 
 // @route GET /api/admin/ai-spend — this month's AI cost against the cap (lib/aiSpend.js)
+// Database storage: used vs the quota, what uses it, the biggest accounts (lib/storage.js).
+router.get('/storage', wrap(async (req, res) => {
+    const settings = await getSettings();
+    const report = await storageReport(settings, { fresh: req.query.fresh === '1' });
+    checkStorage(settings);
+    res.json({ success: true, data: report });
+}));
+
 router.get('/ai-spend', wrap(async (req, res) => {
     const settings = await getSettings();
     const now = new Date();

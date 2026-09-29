@@ -1,7 +1,7 @@
 "use client";
 
-import { Alert, Skeleton, Tooltip } from "antd";
-import { Users, Zap, FileText, Megaphone, CircleUserRound, SquareKanban, Wand2 } from "lucide-react";
+import { Alert, Button, Progress, Skeleton, Tooltip } from "antd";
+import { Users, Zap, FileText, Megaphone, CircleUserRound, SquareKanban, Wand2, Database, RotateCw } from "lucide-react";
 import { useAdmin } from "./useAdmin";
 
 function Stat({ icon: Icon, label, value, sub }) {
@@ -75,6 +75,70 @@ function FeatureBars({ features }) {
   );
 }
 
+const mb = (bytes) => (bytes == null ? "?" : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
+const KIND_NAMES = { resumes: "Resumes", profiles: "Career Profiles", applications: "Applications" };
+
+/** Database storage against the plan's size, what uses it, and the biggest accounts. */
+function Storage() {
+  const { data, loading, error, reload, call, setData } = useAdmin("/storage");
+  if (loading && !data) return <Skeleton active paragraph={{ rows: 3 }} />;
+  if (error) return <Alert type="warning" showIcon title={`Storage: ${error}`} />;
+  const { usage, kinds, biggest } = data;
+  const pct = usage.pct ?? 0;
+  const recount = async () => {
+    try {
+      setData((await call("/storage?fresh=1")).data);
+    } catch {
+      reload();
+    }
+  };
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 font-semibold text-ink"><Database size={15} className="text-brand" /> Storage</p>
+          <p className="text-xs text-slate-500">The database, data and indexes. When it&apos;s full, saving stops working. Quota and alert level: Credits &amp; access.</p>
+        </div>
+        <Button size="small" icon={<RotateCw size={13} />} onClick={recount}>Recount</Button>
+      </div>
+      <div className="mt-3 flex items-baseline justify-between text-sm">
+        <span className="font-display text-2xl font-bold text-ink tabular-nums">{mb(usage.used)}</span>
+        <span className="text-slate-500">of {mb(usage.quota)}{usage.pct != null ? ` · ${usage.pct}%` : ""}</span>
+      </div>
+      <Progress percent={Math.min(100, pct)} showInfo={false} strokeColor={pct >= 90 ? "#dc2626" : pct >= 70 ? "#d97706" : "#007b7b"} />
+      <div className="mt-4 grid gap-6 md:grid-cols-2">
+        <table className="w-full text-sm">
+          <tbody>
+            {Object.entries(kinds).map(([k, v]) => (
+              <tr key={k} className="border-t border-slate-100">
+                <td className="py-2 text-ink">{KIND_NAMES[k] || k} <span className="text-slate-400">({v.count.toLocaleString()})</span></td>
+                <td className="py-2 text-right text-slate-500 tabular-nums">{v.photos ? `photos ${mb(v.photos)} · ` : ""}{mb(v.bytes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div>
+          <p className="text-xs font-medium text-slate-500">Biggest accounts</p>
+          {biggest.length ? (
+            <table className="mt-1 w-full table-fixed text-sm">
+              <tbody>
+                {biggest.slice(0, 5).map((u) => (
+                  <tr key={u.id} className="border-t border-slate-100">
+                    <td className="truncate py-2 text-ink" title={u.email}>{u.email || u.name}</td>
+                    <td className="w-20 py-2 text-right text-slate-500 tabular-nums">{mb(u.bytes)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">Nothing stored yet.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Overview() {
   const { data, error, loading } = useAdmin("/overview");
   if (loading && !data) return <Skeleton active paragraph={{ rows: 8 }} />;
@@ -118,6 +182,7 @@ export default function Overview() {
           <p className="mt-3 text-sm text-slate-500">No AI usage yet.</p>
         )}
       </div>
+      <Storage />
     </div>
   );
 }

@@ -57,6 +57,8 @@ const UserSchema = new mongoose.Schema({
     // set by an admin or copied from a campaign; they end at featuresExpireAt (empty = no end).
     features: { type: mongoose.Schema.Types.Mixed },
     featuresExpireAt: { type: Date },
+    // Limits of its own, set by an admin ({ resumes: 5 }); they win over the plan's, with no end date.
+    limits: { type: mongoose.Schema.Types.Mixed },
     // Can pay while payments are in test mode (Admin › Users).
     tester: { type: Boolean, default: false },
     lastLoginAt: { type: Date },

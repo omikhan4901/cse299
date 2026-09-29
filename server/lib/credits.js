@@ -60,8 +60,14 @@ const canUse = (user, settings, feature) => {
     return settings.freeMode.enabled || !!planById(settings, effectivePlanId(user)).features[feature];
 };
 
-/** A numeric plan limit (V2: applications, tailored, batch). null = no limit (also in free mode). */
+/**
+ * A numeric plan limit (resumes; V2: applications, tailored, batch). null = no limit (also in
+ * free mode). The account's own limit (set by an admin) wins, even in free mode. Same rule as
+ * planLimit in client/src/lib/access.js (parity test).
+ */
 const planLimit = (user, settings, key) => {
+    const own = user?.limits?.[key];
+    if (typeof own === 'number') return own;
     if (settings.freeMode.enabled) return null;
     const v = planById(settings, effectivePlanId(user)).limits?.[key];
     return v === undefined ? null : v;
@@ -75,7 +81,7 @@ const periodEnd = (period) => {
     return d;
 };
 
-const USER_FIELDS = 'email emailVerifiedAt role features featuresExpireAt plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
+const USER_FIELDS = 'email emailVerifiedAt role features featuresExpireAt limits plan planExpiresAt passPlan passUntil heldPlan heldUntil creditLimit creditPeriod creditLimitExpiresAt';
 
 async function usageSummary(userOrId) {
     const [user, settings] = await Promise.all([
@@ -96,6 +102,7 @@ async function usageSummary(userOrId) {
         freeMode: settings.freeMode.enabled,
         // The account's own feature switches (for the page to lock and unlock the same way).
         features: activeOverrides(user),
+        limits: user.limits && typeof user.limits === 'object' ? user.limits : null,
         planExpiresAt: user.planExpiresAt || null,
         passUntil: user.passPlan && user.passUntil && new Date(user.passUntil) > new Date() ? user.passUntil : null,
         held: user.heldPlan && user.heldUntil && new Date(user.heldUntil) > new Date() ? { plan: user.heldPlan, until: user.heldUntil } : null,

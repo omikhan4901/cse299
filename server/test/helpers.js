@@ -140,6 +140,7 @@ async function resetState() {
     // Most tests sign up and use AI at once; email verification has its own tests.
     await setSettings({ ...DEFAULTS, signups: { ...DEFAULTS.signups, requireVerifiedEmail: false } });
     await require('../models/AiSpend').deleteMany({});
+    await require('../models/Alert').deleteMany({});
     resetLimits();
     // Tests make many requests from one IP; lift the per-IP ceilings unless a test sets its own.
     setOverrides({});

@@ -77,6 +77,23 @@ export default function CreditsTab() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold text-ink">Storage</h2>
+        <p className="text-sm text-slate-600">The database&apos;s size and when to email you. Usage and the biggest accounts are on the Overview.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600">Database size (MB)</span>
+            <InputNumber min={64} className="!w-full" value={settings.storage.quotaMb} onChange={(v) => update((s) => ((s.storage = { ...s.storage, quotaMb: v ?? 512 }), s))} />
+            <span className="mt-1 block text-xs text-slate-500">MongoDB Atlas free tier: 512.</span>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600">Email me at (% full)</span>
+            <InputNumber min={0} max={99} className="!w-full" value={settings.storage.alertAt} onChange={(v) => update((s) => ((s.storage = { ...s.storage, alertAt: v ?? 70 }), s))} />
+            <span className="mt-1 block text-xs text-slate-500">Again at 90%. 0 turns it off.</span>
+          </label>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
         <h2 className="font-semibold text-ink">AI features: credits and limits</h2>
         <p className="text-sm text-slate-600">

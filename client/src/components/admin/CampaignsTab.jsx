@@ -15,7 +15,7 @@ const PLAN_OPTIONS = [
 const usd = (v, digits = 2) => `$${(v || 0).toFixed(digits)}`;
 
 /** One switch per feature: follow the plan, or always on / off for members. */
-function FeatureSwitches({ value = {}, onChange, features, plan, freeMode }) {
+export function FeatureSwitches({ value = {}, onChange, features, plan, freeMode }) {
   const set = (key, v) => {
     const next = { ...value };
     if (v === "plan") delete next[key];
