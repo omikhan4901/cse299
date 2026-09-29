@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { App, Alert, Button, Collapse, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag } from "antd";
-import { Ban, Download, KeyRound, RotateCcw, Search, ShieldOff, Trash2, UserPlus } from "lucide-react";
+import { BadgeCheck, Ban, CircleUserRound, Clock, Crown, Download, FileText, KeyRound, RotateCcw, Search, ShieldCheck, ShieldOff, SquareKanban, Trash2, UserPlus, Wallet, Zap } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { useAuth } from "../AuthProvider";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
-import { FeatureSwitches } from "./CampaignsTab";
+import { FeatureSwitches } from "./parts";
 
 const PLAN_OPTIONS = [
   { value: "free", label: "Free" },
@@ -51,6 +51,42 @@ function RefundCheck({ r }) {
       ) : (
         <p className="mt-2 text-sm text-emerald-800">Within the refund policy. Refund from the Paddle dashboard; the plan ends automatically.</p>
       )}
+    </div>
+  );
+}
+
+const KIND_ICON = { signup: UserPlus, verified: BadgeCheck, resume: FileText, profile: CircleUserRound, application: SquareKanban, ai: Zap, billing: Crown, payment: Wallet, admin: ShieldCheck };
+const kb = (n) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
+
+/** Everything that happened to the account, newest first, with its AI cost and storage. */
+function Timeline({ t }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? t.entries : t.entries.slice(0, 12);
+  return (
+    <div>
+      <p className="font-medium text-ink">Timeline</p>
+      <p className="mb-2 text-xs text-slate-500">
+        AI {t.totals.aiUses}× · {t.totals.aiCredits} credits · ${t.totals.aiCost.toFixed(3)} real cost · stores {kb(t.totals.storage)}
+        {t.totals.sameNetwork ? ` · ${t.totals.sameNetwork} other account${t.totals.sameNetwork === 1 ? "" : "s"} from the same network` : ""}
+      </p>
+      <ul className="max-h-96 overflow-auto rounded-xl border border-slate-200 text-sm">
+        {shown.map((e, i) => {
+          const Icon = KIND_ICON[e.kind] || Clock;
+          return (
+            <li key={i} className="flex items-start gap-2.5 border-t border-slate-100 px-3 py-2 first:border-t-0">
+              <Icon size={14} className="mt-0.5 shrink-0 text-brand" />
+              <span className="min-w-0 flex-1 text-slate-700">
+                {e.text}
+                {e.kind === "ai" ? <span className="text-slate-400"> · {e.credits} cr · ${e.cost.toFixed(4)}</span> : null}
+              </span>
+              <span className="shrink-0 text-xs text-slate-400 tabular-nums">{new Date(e.at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {!all && t.entries.length > 12 ? (
+        <Button type="link" size="small" className="!px-0" onClick={() => setAll(true)}>Show all {t.entries.length}</Button>
+      ) : null}
     </div>
   );
 }
@@ -128,7 +164,7 @@ function AccessOverrides({ u, meta, form }) {
   );
 }
 
-function UserDrawer({ id, onClose, onChanged, isSuper }) {
+export function UserDrawer({ id, onClose, onChanged, isSuper }) {
   const { message, modal } = App.useApp();
   const { data, loading, call, setData } = useAdmin(id ? `/users/${id}` : null);
   const meta = useAdmin(id ? "/settings" : null).data;
@@ -348,19 +384,7 @@ function UserDrawer({ id, onClose, onChanged, isSuper }) {
             ) : <p className="text-sm text-slate-500">No resumes.</p>}
           </div>
 
-          <div>
-            <p className="mb-2 font-medium text-ink">Recent AI activity</p>
-            {u.events.length ? (
-              <ul className="max-h-60 divide-y divide-slate-100 overflow-auto rounded-xl border border-slate-200 text-sm">
-                {u.events.map((e) => (
-                  <li key={e._id} className="flex justify-between px-3 py-1.5">
-                    <span className="text-slate-700">{e.feature}</span>
-                    <span className="text-xs text-slate-500 tabular-nums">{e.credits} cr · {new Date(e.at).toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-sm text-slate-500">No AI usage yet.</p>}
-          </div>
+          {u.timeline ? <Timeline t={u.timeline} /> : null}
 
           {u.role !== "superadmin" ? (
             <Popconfirm

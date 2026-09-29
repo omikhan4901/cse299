@@ -5,13 +5,11 @@
  * the big items, so they are shrunk in the browser and capped on the server.
  */
 const mongoose = require('mongoose');
-const Alert = require('../models/Alert');
 const Resume = require('../models/Resume');
 const CareerProfile = require('../models/CareerProfile');
 const Application = require('../models/Application');
 const User = require('../models/User');
-const { sendMail, canSendMail } = require('./mailer');
-const { superadminEmails } = require('./roles');
+const { raise } = require('./alerts');
 
 const MB = 1024 * 1024;
 const bytesOf = (doc) => Buffer.byteLength(JSON.stringify(doc));
@@ -64,17 +62,6 @@ async function storageReport(settings, { fresh = false } = {}) {
     return { ...report, usage: await usage(settings) };
 }
 
-/** Claims an alert id; true for the first caller only. */
-async function claim(id) {
-    try {
-        await Alert.create({ _id: id });
-        return true;
-    } catch (err) {
-        if (err.code === 11000) return false;
-        throw err;
-    }
-}
-
 let lastCheck = 0;
 /**
  * Emails the owner once a month when storage passes the alert level, and again at 90%.
@@ -88,14 +75,12 @@ async function checkStorage(settings, { force = false } = {}) {
         if (u.pct == null) return u;
         const month = new Date().toISOString().slice(0, 7);
         const level = [90, settings.storage?.alertAt ?? 70].filter((l) => l > 0 && u.pct >= l).sort((a, b) => b - a)[0];
-        if (!level || !(await claim(`storage-${level}-${month}`)) || !canSendMail()) return u;
-        const to = superadminEmails();
-        if (to.length) {
-            await sendMail({
-                to: to.join(','),
-                subject: `ResumeX: the database is ${Math.round(u.pct)}% full`,
+        if (level) {
+            await raise(`storage-${level}-${month}`, {
+                kind: 'storage',
+                subject: `the database is ${Math.round(u.pct)}% full`,
                 text: `The database uses ${(u.used / MB).toFixed(0)} MB of ${(u.quota / MB).toFixed(0)} MB (${u.pct}%). When it's full, saving stops working. Admin > Overview > Storage shows what uses the space and the biggest accounts.`,
-            }).catch((err) => console.error('Storage alert email failed:', err.message));
+            });
         }
         return u;
     } catch (err) {
@@ -104,4 +89,4 @@ async function checkStorage(settings, { force = false } = {}) {
     }
 }
 
-module.exports = { storageReport, checkStorage, usage, claim };
+module.exports = { storageReport, checkStorage, usage };

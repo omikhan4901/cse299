@@ -42,7 +42,11 @@ const usd = (v) => `$${v.toFixed(2)}`;
 /** Emails the owner (super admins) once per month per threshold. Never throws. */
 async function alertOnce(month, threshold, spent, settings) {
     const claimed = await AiSpend.updateOne({ _id: month, alerts: { $ne: threshold } }, { $addToSet: { alerts: threshold } });
-    if (!claimed.modifiedCount || !canSendMail()) return;
+    if (!claimed.modifiedCount) return;
+    // Listed under the admin console's bell (the email is sent below).
+    const reachedCap = threshold >= 100;
+    require('./alerts').raise(`ai-${month}-${threshold}`, { kind: 'ai', email: false, text: reachedCap ? `AI reached the ${usd(settings.aiSpend.cap)} monthly cap (${usd(spent)}) and is paused for everyone except admins.` : `AI spend is at ${threshold}% of the monthly cap: ${usd(spent)} of ${usd(settings.aiSpend.cap)}.` });
+    if (!canSendMail()) return;
     const to = superadminEmails();
     if (!to.length) return;
     const cap = settings.aiSpend.cap;

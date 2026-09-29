@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { rememberRef } from "@/lib/ref";
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = "token";
@@ -28,6 +29,7 @@ export function AuthProvider({ children }) {
   const [authOptions, setAuthOptions] = useState({});
 
   useEffect(() => {
+    rememberRef();
     const stored = readToken();
     if (!stored) {
       // localStorage only exists in the browser, so the logged-out state is known after mount.

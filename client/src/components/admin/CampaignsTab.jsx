@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Segmented, Select, Switch, Table, Tag, Tooltip } from "antd";
+import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag, Tooltip } from "antd";
 import { Calculator, Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { campaignEstimate } from "@/lib/campaignCost";
+import { FeatureSwitches, FirstSteps } from "./parts";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
 
 const PLAN_OPTIONS = [
@@ -13,35 +14,6 @@ const PLAN_OPTIONS = [
 ];
 
 const usd = (v, digits = 2) => `$${(v || 0).toFixed(digits)}`;
-
-/** One switch per feature: follow the plan, or always on / off for members. */
-export function FeatureSwitches({ value = {}, onChange, features, plan, freeMode }) {
-  const set = (key, v) => {
-    const next = { ...value };
-    if (v === "plan") delete next[key];
-    else next[key] = v === "on";
-    onChange?.(next);
-  };
-  return (
-    <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
-      {features.map((f) => {
-        const byPlan = freeMode || !!plan?.features?.[f.key];
-        const v = typeof value[f.key] === "boolean" ? (value[f.key] ? "on" : "off") : "plan";
-        return (
-          <div key={f.key} className="flex items-center justify-between gap-3 text-sm">
-            <span className="min-w-0 truncate text-slate-700">{f.name}</span>
-            <Segmented
-              size="small"
-              value={v}
-              onChange={(x) => set(f.key, x)}
-              options={[{ value: "plan", label: `Plan (${byPlan ? "on" : "off"})` }, { value: "on", label: "On" }, { value: "off", label: "Off" }]}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 /** The worst and typical AI cost of the campaign as it's being filled in, against this month's cap. */
 function Estimate({ values, settings, aiFeatures, spend }) {
@@ -189,6 +161,32 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
 }
 
 /** Sign-up campaigns: invite codes that give a plan and credits to a limited number of people. */
+/** A campaign's members, newest first, with what each has done (Admin › Sign-ups data). */
+function Members({ campaign }) {
+  const { data, loading } = useAdmin(`/signups?campaign=${campaign._id}&days=365&limit=100`);
+  if (loading && !data) return <p className="px-2 py-3 text-sm text-slate-500">Loading members…</p>;
+  const users = data?.users || [];
+  return (
+    <div className="px-2 py-1">
+      <p className="mb-2 text-xs text-slate-500">
+        {data?.total ?? 0} member{data?.total === 1 ? "" : "s"} · {users.filter((u) => u.verified).length} verified · {users.filter((u) => u.did.resumes || u.did.aiUses || u.did.applications).length} started using it
+        {campaign.maxUses ? ` · ${Math.max(0, campaign.maxUses - (campaign.uses || 0))} places left` : ""}
+      </p>
+      <ul className="max-h-72 divide-y divide-slate-100 overflow-auto rounded-xl border border-slate-200 bg-white text-sm">
+        {users.map((u) => (
+          <li key={u._id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+            <span className="min-w-0">
+              <span className="font-medium text-ink">{u.name}</span> <span className="text-xs text-slate-500">{u.email}</span>
+              {u.verified ? null : <Tag className="!ml-2">not verified</Tag>}
+            </span>
+            <FirstSteps did={u.did} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function CampaignsTab() {
   const { message } = App.useApp();
   const { data, error, loading, reload, call } = useAdmin("/campaigns");
@@ -289,7 +287,15 @@ export default function CampaignsTab() {
         <Button type="primary" icon={<Plus size={15} />} onClick={() => setEditing({})}>New campaign</Button>
       </div>
       {error ? <Alert type="error" showIcon title={error} className="mb-4" /> : null}
-      <Table rowKey="_id" loading={loading} columns={columns} dataSource={data || []} pagination={false} scroll={{ x: 800 }} />
+      <Table
+        rowKey="_id"
+        loading={loading}
+        columns={columns}
+        dataSource={data || []}
+        pagination={false}
+        scroll={{ x: 800 }}
+        expandable={{ expandedRowRender: (c) => <Members campaign={c} />, rowExpandable: (c) => (c.stats?.members || 0) > 0 }}
+      />
       <CampaignModal campaign={editing} onClose={() => setEditing(null)} onSaved={reload} call={call} />
     </div>
   );

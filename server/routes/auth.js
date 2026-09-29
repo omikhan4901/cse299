@@ -14,6 +14,8 @@ const { getSettings } = require('../lib/settings');
 const { sendMail, canSendMail } = require('../lib/mailer');
 const totp = require('../lib/totp');
 const { audit } = require('../lib/audit');
+const { networkOf, cleanRef } = require('../lib/network');
+const { afterSignup } = require('../lib/alerts');
 
 const MIN_PASSWORD = 8;
 const MAX_PASSWORD_BYTES = 72; // bcrypt ignores anything longer, so refuse it rather than silently truncate
@@ -50,7 +52,7 @@ const protect = async (req, res, next) => {
     }
 
     try {
-        const user = await User.findById(decoded.id).select('sessionVersion banned bannedReason').lean();
+        const user = await User.findById(decoded.id).select('sessionVersion banned bannedReason lastSeenAt').lean();
         if (!user) return res.status(401).json({ success: false, error: 'This account no longer exists.' });
         if (user.banned) return res.status(403).json({ success: false, code: 'banned', error: bannedMessage(user) });
         if ((decoded.v || 0) !== (user.sessionVersion || 0)) {
@@ -58,6 +60,10 @@ const protect = async (req, res, next) => {
         }
         req.userId = decoded.id;
         req.mfa = !!decoded.mfa;
+        // "Active" in the admin console: noted at most once an hour, without waiting for it.
+        if (!user.lastSeenAt || Date.now() - new Date(user.lastSeenAt) > 60 * 60 * 1000) {
+            User.updateOne({ _id: user._id }, { lastSeenAt: new Date() }).catch(() => {});
+        }
         next();
     } catch (err) {
         next(err);
@@ -192,6 +198,9 @@ router.post('/register', registerByIp, async (req, res) => {
                 email: String(email),
                 password: await hashPassword(password),
                 lastLoginAt: new Date(),
+                source: campaign ? 'campaign' : 'organic',
+                ref: cleanRef(req.body.ref) || undefined,
+                signupNet: networkOf(clientIp(req)) || undefined,
                 ...(campaign
                     ? {
                           campaign: campaign._id,
@@ -211,6 +220,7 @@ router.post('/register', registerByIp, async (req, res) => {
             if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
             throw err;
         }
+        afterSignup(user, settings);
         res.status(201).json({ success: true, token: getSignedJwtToken(user), user: publicUser(user) });
     } catch (err) {
         if (err.name === 'ValidationError') {

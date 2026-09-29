@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Result, Button, Tabs, Skeleton } from "antd";
-import { BarChart3, Users, Crown, Zap, Megaphone, ShieldCheck, ScrollText, Lock, Mail, Smartphone, LayoutTemplate, Gauge, Coins, Wallet } from "lucide-react";
+import { BarChart3, Users, Crown, Zap, Megaphone, ShieldCheck, ScrollText, Lock, Mail, Smartphone, LayoutTemplate, Gauge, Coins, Wallet, UserPlus } from "lucide-react";
 import { api } from "@/lib/api";
 import { EmailVerify, TwoFactorSetup } from "../security/TwoFactor";
 import AuditTab from "./AuditTab";
@@ -17,10 +17,13 @@ import TemplatesTab from "./TemplatesTab";
 import RateLimitsTab from "./RateLimitsTab";
 import EconomicsTab from "./EconomicsTab";
 import RevenueTab from "./RevenueTab";
+import SignupsTab from "./SignupsTab";
+import AlertsBell from "./AlertsBell";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: BarChart3, Comp: Overview },
   { key: "revenue", label: "Revenue", icon: Wallet, Comp: RevenueTab },
+  { key: "signups", label: "Sign-ups", icon: UserPlus, Comp: SignupsTab },
   { key: "users", label: "Users", icon: Users, Comp: UsersTab },
   { key: "plans", label: "Plans & pricing", icon: Crown, Comp: PlansTab },
   { key: "templates", label: "Templates", icon: LayoutTemplate, Comp: TemplatesTab },
@@ -116,6 +119,7 @@ export default function AdminConsole() {
           </h1>
           <p className="mt-1 text-sm text-slate-500">Signed in as {user.email} · {user.role === "superadmin" ? "Super admin" : "Admin"}</p>
         </div>
+        <AlertsBell />
       </div>
       <Tabs
         activeKey={tab}

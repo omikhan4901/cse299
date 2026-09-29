@@ -53,6 +53,12 @@ const UserSchema = new mongoose.Schema({
     banned: { type: Boolean, default: false },
     bannedReason: { type: String, default: '' },
     campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },
+    // How the account came in (Admin › Sign-ups): a campaign code, an admin, or on its own;
+    // the marketing tag of the link they arrived by (?ref= / utm_source); the network they
+    // signed up from as a salted hash (lib/network.js), never the address itself.
+    source: { type: String, enum: ['organic', 'campaign', 'admin'] },
+    ref: { type: String },
+    signupNet: { type: String, index: true },
     // Features this account gets or loses whatever its plan says ({ [featureKey]: boolean }),
     // set by an admin or copied from a campaign; they end at featuresExpireAt (empty = no end).
     features: { type: mongoose.Schema.Types.Mixed },
@@ -62,6 +68,8 @@ const UserSchema = new mongoose.Schema({
     // Can pay while payments are in test mode (Admin › Users).
     tester: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
+    // The last signed-in request, to the hour (routes/auth.js protect), for "active" counts.
+    lastSeenAt: { type: Date, index: true },
     // Set once the owner proves they receive email at this address (required for super admins).
     emailVerifiedAt: { type: Date },
     emailCode: { type: String, select: false },
@@ -83,7 +91,8 @@ const UserSchema = new mongoose.Schema({
     resetTokenExpires: { type: Date, select: false },
     createdAt: {
         type: Date,
-        default: Date.now
+        default: Date.now,
+        index: true
     }
 });
 

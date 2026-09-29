@@ -139,13 +139,46 @@ function Storage() {
   );
 }
 
+const usd = (v) => `$${v < 10 ? v.toFixed(2) : v.toFixed(0)}`;
+
+/** The beta at a glance: who's active, sign-ups today and left, AI spend against the cap. */
+function Glance({ g }) {
+  const pct = g.aiCap ? Math.min(100, Math.round((g.aiMonth / g.aiCap) * 100)) : null;
+  const items = [
+    { label: "Active today", value: g.activeToday },
+    { label: "Active this week", value: g.active7 },
+    { label: "Sign-ups today", value: g.signupsToday, sub: g.signupsLeft != null ? `${g.signupsLeft} places left` : null },
+  ];
+  return (
+    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((i) => (
+        <div key={i.label}>
+          <p className="text-xs text-slate-500">{i.label}</p>
+          <p className="mt-1 font-display text-2xl font-bold text-ink tabular-nums">{i.value.toLocaleString()}</p>
+          {i.sub ? <p className="text-xs text-slate-500">{i.sub}</p> : null}
+        </div>
+      ))}
+      <div>
+        <p className="text-xs text-slate-500">AI spend this month{g.aiPaused ? " · paused" : ""}</p>
+        <p className="mt-1 font-display text-2xl font-bold text-ink tabular-nums">
+          {usd(g.aiMonth)}
+          {g.aiCap ? <span className="text-sm font-normal text-slate-500"> of {usd(g.aiCap)}</span> : null}
+        </p>
+        {pct != null ? <Progress percent={pct} showInfo={false} size="small" strokeColor={pct >= 90 ? "#dc2626" : pct >= 70 ? "#d97706" : "#007b7b"} /> : null}
+        <p className="text-xs text-slate-500">{usd(g.aiToday)} today</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Overview() {
   const { data, error, loading } = useAdmin("/overview");
   if (loading && !data) return <Skeleton active paragraph={{ rows: 8 }} />;
   if (error) return <Alert type="error" showIcon title={error} />;
-  const { users, resumes, ai, campaigns, jobSearch } = data;
+  const { users, resumes, ai, campaigns, jobSearch, glance } = data;
   return (
     <div className="space-y-6">
+      {glance ? <Glance g={glance} /> : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={Users} label="Users" value={users.total} sub={`${users.new7} new this week · ${users.banned} banned`} />
         <Stat icon={Zap} label="AI credits today" value={ai.today.credits} sub={`${ai.last30.credits.toLocaleString()} in the last 30 days`} />

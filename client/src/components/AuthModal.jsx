@@ -9,6 +9,7 @@ import { MfaStep } from "./security/TwoFactor";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 import Logo from "./Logo";
+import { currentRef } from "@/lib/ref";
 
 export default function AuthModal() {
   const { authModal, setAuthModal } = useAuth();
@@ -88,7 +89,7 @@ function AuthForm({ mode, onModeChange }) {
     setError(null);
     try {
       const payload = isRegister
-        ? { name: values.name, email: values.email, password: values.password, campaignCode: values.campaignCode || undefined }
+        ? { name: values.name, email: values.email, password: values.password, campaignCode: values.campaignCode || undefined, ref: currentRef() }
         : { email: values.email, password: values.password };
       const data = await api(`/auth/${isRegister ? "register" : "login"}`, { method: "POST", body: payload });
       if (data.mfaRequired) setMfaToken(data.mfaToken);

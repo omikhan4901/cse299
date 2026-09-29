@@ -223,3 +223,24 @@ separately. Rough total: 12–16 working days of effort.
   account in a private Cloud Storage bucket, served through the API after a sign-in check
   (never a public link), fetched by the browser for the PDF, deleted with the account;
   signed-out drafts and private sessions keep theirs in the browser; privacy policy updated.
+
+**Phase 3 (admin visibility)**
+- Every new account records how it came in (organic, campaign, added by an admin), the tag
+  of the link it arrived by (`?ref=fb-post-3` or `utm_source`, remembered in the browser for
+  30 days, first visit wins), and a salted hash of its network (IPv4 /24, IPv6 /48), never
+  the address. Older accounts read their source from their campaign. The privacy policy
+  says so in one line.
+- Admin › Sign-ups: newest first with source, link tag (click to filter), verified, plan,
+  first steps (resumes, profile, applications, AI) and "+N from the same network"; filters
+  by range, source, campaign, verified and search; sign-ups per day (hover for the split).
+- Admin › Users › timeline: sign-up and how, verification, resumes, profile, applications
+  and moves, each AI use with its real cost, upgrade prompts and checkouts, payments,
+  refunds and admin changes; totals (AI uses, credits, cost, storage, same-network count).
+- "Active" means a signed-in request in the period (`lastSeenAt`, noted at most hourly),
+  because sessions last two weeks and logins alone undercount. Overview opens with active
+  today and this week, sign-ups today and places left, and AI spend against the cap.
+- Campaigns expand to their members and what each did, with places left.
+- Alerts are raised once by id (two servers never send the same one), listed under a bell
+  in the console (a badge for ones not yet seen in this browser) and emailed to the super
+  admins: AI spend thresholds, storage 70% and 90%, sign-ups nearly full (10% or 3 left) and
+  full, and 5 or more sign-ups from one network within an hour (once a day per network).

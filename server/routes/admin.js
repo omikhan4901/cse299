@@ -17,6 +17,9 @@ const { aiEconomics } = require('../lib/economics');
 const { pauseState, monthKey, nextMonth, callCost } = require('../lib/aiSpend');
 const { revenueReport, paymentsCsv } = require('../lib/revenue');
 const { storageReport, checkStorage } = require('../lib/storage');
+const { cleanRef } = require('../lib/network');
+const { userTimeline } = require('../lib/timeline');
+const { recentAlerts } = require('../lib/alerts');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 const { refundCheck } = require('../lib/refunds');
@@ -73,7 +76,7 @@ router.get('/overview', wrap(async (req, res) => {
         User.find().select('plan planExpiresAt passPlan passUntil heldPlan heldUntil').lean(),
         Resume.countDocuments(),
         Resume.countDocuments({ isPublic: true }),
-        AiEvent.find({ at: { $gte: since30 }, ok: { $ne: false } }).select('user feature credits at').limit(100000).lean(),
+        AiEvent.find({ at: { $gte: since30 }, ok: { $ne: false } }).select('user feature credits at model inputTokens outputTokens').limit(100000).lean(),
         Campaign.countDocuments({ active: true }),
         // V2 adoption: the numbers the job-search launch is measured by.
         CareerProfile.countDocuments(),
@@ -97,6 +100,16 @@ router.get('/overview', wrap(async (req, res) => {
         byUser[e.user] = (byUser[e.user] || 0) + e.credits;
         if (dayKey(e.at) === today) { todayStats.requests += 1; todayStats.credits += e.credits; }
     }
+    // The beta at a glance: who's active, sign-ups today and left, AI spend against the cap.
+    const settings = await getSettings();
+    const startOfDay = new Date(`${today}T00:00:00Z`);
+    const [activeToday, active7, signupsToday, spend] = await Promise.all([
+        User.countDocuments({ lastSeenAt: { $gte: startOfDay } }),
+        User.countDocuments({ lastSeenAt: { $gte: since7 } }),
+        User.countDocuments({ createdAt: { $gte: startOfDay } }),
+        pauseState(settings),
+    ]);
+    const spentToday = events.filter((e) => e.at >= startOfDay).reduce((n, e) => n + callCost(e, settings.aiPrices), 0);
     const topIds = Object.entries(byUser).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const topUsers = await User.find({ _id: { $in: topIds.map(([id]) => id) } }).select('name email').lean();
 
@@ -113,6 +126,16 @@ router.get('/overview', wrap(async (req, res) => {
                 topUsers: topIds.map(([id, credits]) => ({ ...topUsers.find((u) => String(u._id) === id), credits })).filter((u) => u._id),
             },
             campaigns: { active: campaignsActive },
+            glance: {
+                activeToday,
+                active7,
+                signupsToday,
+                signupsLeft: settings.signups.cap != null ? Math.max(0, settings.signups.cap - total) : null,
+                aiToday: spentToday,
+                aiMonth: spend.spent,
+                aiCap: settings.aiSpend.enabled ? settings.aiSpend.cap : null,
+                aiPaused: spend.paused,
+            },
             jobSearch: { profiles, applications, applications7, tailored },
         },
     });
@@ -139,6 +162,122 @@ router.get('/users', wrap(async (req, res) => {
     res.json({ success: true, data: { total, page, limit, users: await describeUsers(users) } });
 }));
 
+// ---------- Sign-ups feed ----------
+
+// How an account came in; accounts from before sources were recorded are read from their campaign.
+const sourceOf = (u) => u.source || (u.campaign ? 'campaign' : 'organic');
+const SOURCE_FILTERS = {
+    organic: { $or: [{ source: 'organic' }, { source: { $exists: false }, campaign: null }] },
+    campaign: { $or: [{ source: 'campaign' }, { source: { $exists: false }, campaign: { $ne: null } }] },
+    admin: { source: 'admin' },
+};
+const dayOf = (d) => new Date(d).toISOString().slice(0, 10);
+
+/**
+ * Newest accounts first with how they came in, whether they verified, their plan and what
+ * they did first; a per-day count for the range; how many signed up from the same network.
+ */
+router.get('/signups', wrap(async (req, res) => {
+    const days = Math.min(365, Math.max(1, Math.round(Number(req.query.days) || 30)));
+    const to = req.query.to && !Number.isNaN(Date.parse(req.query.to)) ? new Date(req.query.to) : new Date();
+    const from = req.query.from && !Number.isNaN(Date.parse(req.query.from)) ? new Date(req.query.from) : new Date(to.getTime() - days * 864e5);
+    const page = Math.max(1, Math.round(Number(req.query.page) || 1));
+    const limit = Math.min(100, Math.max(5, Math.round(Number(req.query.limit) || 25)));
+    const and = [{ createdAt: { $gte: from, $lte: to } }];
+    if (SOURCE_FILTERS[req.query.source]) and.push(SOURCE_FILTERS[req.query.source]);
+    if (typeof req.query.ref === 'string' && req.query.ref) and.push({ ref: cleanRef(req.query.ref) });
+    if (mongoose.isValidObjectId(req.query.campaign)) and.push({ campaign: req.query.campaign });
+    if (req.query.verified === 'yes') and.push({ emailVerifiedAt: { $ne: null } });
+    if (req.query.verified === 'no') and.push({ emailVerifiedAt: null });
+    const q = searchText(req.query.q);
+    if (q) and.push({ $or: [{ name: new RegExp(escapeRe(q), 'i') }, { email: new RegExp(escapeRe(q), 'i') }] });
+    const filter = { $and: and };
+
+    const fields = `${USER_FIELDS} source ref signupNet`;
+    const [all, rows, accounts, settings] = await Promise.all([
+        User.find(filter).select('createdAt source campaign').lean(),
+        User.find(filter).select(fields).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        User.countDocuments(),
+        getSettings(),
+    ]);
+    const ids = rows.map((u) => u._id);
+    const nets = [...new Set(rows.map((u) => u.signupNet).filter(Boolean))];
+    const campaignIds = [...new Set(rows.map((u) => u.campaign && String(u.campaign)).filter(Boolean))];
+    const [resumes, apps, profiles, aiEvents, sameNet, campaigns] = await Promise.all([
+        Resume.find({ user: { $in: ids } }).select('user').lean(),
+        Application.find({ user: { $in: ids } }).select('user').lean(),
+        CareerProfile.find({ user: { $in: ids } }).select('user').lean(),
+        AiEvent.find({ user: { $in: ids }, ok: { $ne: false } }).select('user credits').lean(),
+        nets.length ? User.find({ signupNet: { $in: nets } }).select('signupNet').lean() : [],
+        Campaign.find({ _id: { $in: campaignIds } }).select('code name').lean(),
+    ]);
+    const countBy = (list, key = 'user') => list.reduce((m, x) => m.set(String(x[key]), (m.get(String(x[key])) || 0) + 1), new Map());
+    const resumeN = countBy(resumes);
+    const appN = countBy(apps);
+    const profileN = countBy(profiles);
+    const netN = countBy(sameNet, 'signupNet');
+    const ai = new Map();
+    for (const e of aiEvents) {
+        const a = ai.get(String(e.user)) || { uses: 0, credits: 0 };
+        a.uses += 1;
+        a.credits += e.credits || 0;
+        ai.set(String(e.user), a);
+    }
+
+    // Per day, by source, across the whole range (not just this page).
+    const perDay = new Map();
+    const bySource = { organic: 0, campaign: 0, admin: 0 };
+    for (const u of all) {
+        const s = sourceOf(u);
+        bySource[s] += 1;
+        const d = perDay.get(dayOf(u.createdAt)) || { organic: 0, campaign: 0, admin: 0 };
+        d[s] += 1;
+        perDay.set(dayOf(u.createdAt), d);
+    }
+    const daily = [];
+    for (let t = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()); t <= to.getTime() && daily.length < 366; t += 864e5) {
+        const day = dayOf(t);
+        daily.push({ day, ...(perDay.get(day) || { organic: 0, campaign: 0, admin: 0 }) });
+    }
+
+    res.json({
+        success: true,
+        data: {
+            total: all.length,
+            page,
+            limit,
+            bySource,
+            daily,
+            accounts,
+            cap: settings.signups.cap,
+            users: rows.map((u) => {
+                const c = campaigns.find((x) => String(x._id) === String(u.campaign));
+                return {
+                    _id: u._id,
+                    name: u.name,
+                    email: u.email,
+                    createdAt: u.createdAt,
+                    lastLoginAt: u.lastLoginAt,
+                    source: sourceOf(u),
+                    ref: u.ref || null,
+                    campaign: c ? { _id: c._id, code: c.code, name: c.name } : null,
+                    verified: !!u.emailVerifiedAt,
+                    plan: effectivePlanId(u),
+                    banned: !!u.banned,
+                    sameNetwork: u.signupNet ? (netN.get(u.signupNet) || 1) - 1 : 0,
+                    did: {
+                        resumes: resumeN.get(String(u._id)) || 0,
+                        profile: profileN.has(String(u._id)),
+                        applications: appN.get(String(u._id)) || 0,
+                        aiUses: ai.get(String(u._id))?.uses || 0,
+                        aiCredits: ai.get(String(u._id))?.credits || 0,
+                    },
+                };
+            }),
+        },
+    });
+}));
+
 router.get('/users/export.csv', wrap(async (req, res) => {
     const users = await describeUsers(await User.find().select(USER_FIELDS).sort({ createdAt: -1 }).lean());
     // Names are typed by users: a leading = + - @ would run as a formula in Excel or Sheets.
@@ -157,16 +296,18 @@ router.get('/users/export.csv', wrap(async (req, res) => {
 
 router.get('/users/:id', wrap(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'User not found.', 404);
-    const user = await User.findById(req.params.id).select(USER_FIELDS).lean();
+    const user = await User.findById(req.params.id).select(`${USER_FIELDS} source ref signupNet`).lean();
     if (!user) return bad(res, 'User not found.', 404);
     const [described] = await describeUsers([user]);
+    delete described.signupNet;
     const [resumes, events, campaign] = await Promise.all([
         Resume.find({ user: user._id }).select('nickname template isPublic shortId isMaster updatedAt').sort({ updatedAt: -1 }).lean(),
         AiEvent.find({ user: user._id }).sort({ at: -1 }).limit(50).lean(),
         user.campaign ? Campaign.findById(user.campaign).select('name code').lean() : null,
     ]);
     const billing = await User.findById(user._id).select('firstPaidAt lastPaidAt refundIds chargebackIds').lean();
-    res.json({ success: true, data: { ...described, resumesList: resumes, events, campaign, refundCheck: await refundCheck(billing) } });
+    const timeline = await userTimeline(user, await getSettings());
+    res.json({ success: true, data: { ...described, resumesList: resumes, events, campaign, refundCheck: await refundCheck(billing), timeline } });
 }));
 
 /** Applies the editable fields from an admin request to a user document. */
@@ -265,7 +406,7 @@ router.post('/users', wrap(async (req, res) => {
     if (!validEmail(email)) return bad(res, 'Please enter a valid email.');
     if (await User.exists({ email: emailQuery(validEmail(email)) })) return bad(res, 'An account with that email already exists.');
     if (isSuperadmin({ email: validEmail(email).toLowerCase() })) return bad(res, 'That email is reserved for a super admin.', 403);
-    const user = new User({ name: 'placeholder', email: validEmail(email).toLowerCase(), password: 'placeholder' });
+    const user = new User({ name: 'placeholder', email: validEmail(email).toLowerCase(), password: 'placeholder', source: 'admin' });
     try {
         await applyUserFields(user, { ...req.body, name, email, password }, req);
     } catch (err) {
@@ -344,6 +485,11 @@ router.get('/economics', wrap(async (req, res) => {
 }));
 
 // @route GET /api/admin/ai-spend — this month's AI cost against the cap (lib/aiSpend.js)
+// The owner's alerts (the console's bell): spend, storage, sign-ups, bursts.
+router.get('/alerts', wrap(async (req, res) => {
+    res.json({ success: true, data: await recentAlerts() });
+}));
+
 // Database storage: used vs the quota, what uses it, the biggest accounts (lib/storage.js).
 router.get('/storage', wrap(async (req, res) => {
     const settings = await getSettings();
