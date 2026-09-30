@@ -314,3 +314,21 @@ separately. Rough total: 12–16 working days of effort.
   duplicate, new application) one at a time; the after-insert check stays for two servers.
 - **Needs the owner's OK (legal wording):** two privacy policy lines, "Feedback you send"
   and "Error reports".
+
+**Phase 7 (public pages and legal)**
+- V2 is the main version: the home page's V1 "Master profile" card is now "Help with the
+  words" (the assistant, true for every visitor); the About page no longer explains the
+  master profile. The Job Search section (shown when V2 is on) now covers bringing in an old
+  CV, a resume per job, the board with reminders, and interview prep, and says plainly that
+  it's part of Pro and Premium while the builder, ATS check and first resume stay free. The
+  FAQ no longer calls tailoring "free" and adds "What is interview prep?" and "Which plans
+  include this?". The pricing subtitle names the job-search tools when V2 is on.
+- Builder: with V2 on and no Career Profile on the plan, the old "Fill from master" button
+  is replaced by "Profile" with its plan tag, opening the upgrade dialog and its preview.
+- **Needs the owner's OK (legal wording):** Terms, new "Early access" and "Campaign and
+  invite access" sections, and the fair-use line (credits, input size, resume and
+  application limits); Refund Policy, new "During early access" section. Last updated 30
+  September 2026.
+- **For the owner to decide (refund policy):** the 14-day refund counts paid templates and
+  AI credits as "used", but not using the Career Profile or Applications, which are now
+  paid. Should creating a profile or tracking applications count too? Nothing changed yet.

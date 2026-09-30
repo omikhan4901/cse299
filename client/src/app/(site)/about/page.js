@@ -15,16 +15,15 @@ const JOURNEY = [
   { icon: Lightbulb, title: "The problem", text: "Formatting a resume is tedious, and the good tools are expensive or lock the PDF behind a paywall. Job seekers deserve a fast, honest alternative." },
   { icon: Layers, title: "The architecture", text: "A MongoDB, Express and Node.js API with JWT authentication, and a React front end — now on Next.js so every public page is fast and search-friendly." },
   { icon: Hammer, title: "The hard part: PDFs", text: "Browser printing made layouts break across pages. Version 2 renders real PDFs with a dedicated layout engine, so the preview and the download are identical." },
-  { icon: Rocket, title: "Version 2.0", text: "Fifty templates in seven categories, custom colours and fonts, live PDF preview, share links, master profiles and a builder that works without an account." },
+  { icon: Rocket, title: "Version 2.0", text: "Fifty templates in seven categories, custom colours and fonts, live PDF preview, share links and a builder that works without an account." },
 ];
 
 const FAQ = [
-  { q: "Is ResumeX really free?", a: "Yes. Building, downloading and sharing resumes is free, with no watermarks. Optional paid plans add extras such as more AI credits, but you never need one to get your PDF." },
+  { q: "Is ResumeX really free?", a: "Yes. Building, downloading and sharing resumes is free, with no watermarks. Optional paid plans add extras such as more templates and AI credits, but you never need one to get your PDF." },
   { q: "Do I need an account?", a: "No. You can build and download a resume straight away — your draft is kept in your browser. Create an account when you want to save several resumes, sync them across devices or share a public link." },
   { q: "Will my resume get through applicant tracking systems (ATS)?", a: "Every template exports a text-based PDF, so ATS software can read it. For online applications, the single-column templates (Compact ATS, Classic and Basic Stylish) are the safest choice." },
   { q: "Why does my PDF look exactly like the preview?", a: "Because the preview is the PDF. We render the real file as you type and show you its pages, instead of printing a web page." },
   { q: "Is my data private?", a: "Your resumes are stored in a database protected by your account and are private unless you turn on sharing. Passwords are hashed with bcrypt and we never sell your data." },
-  { q: "What is a master profile?", a: "A resume that holds all your experience in one place. When you create a resume for a specific job, you can fill it from your master profile in one click and then trim it down." },
 ];
 
 export default function AboutPage() {

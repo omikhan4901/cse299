@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowRight, Eye, Download, Share2, Crown, Palette, ScanSearch, Sparkles, FileText, MousePointerClick, CheckCircle2, Star,
+  ArrowRight, Eye, EyeOff, Download, Share2, Palette, ScanSearch, Sparkles, FileText, MousePointerClick, CheckCircle2, Star,
 } from "lucide-react";
 import { TEMPLATES, templateById } from "@/pdf/registry";
 import TemplateCard from "@/components/TemplateCard";
@@ -21,7 +21,7 @@ const FEATURES = [
   { icon: Palette, title: "Your colours & fonts", text: "Pick an accent colour, choose from 11 professional fonts and switch between A4 and US Letter." },
   { icon: ScanSearch, title: "Real ATS check", text: "We read your actual PDF like an applicant tracking system and run 30+ checks, including keyword match against the job.", href: "/ats-checker" },
   { icon: Share2, title: "Share with a link", text: "Publish your resume as a web page with a PDF download — perfect for LinkedIn and email." },
-  { icon: Crown, title: "Master profile", text: "Keep everything in one master resume, then spin off tailored versions for each job." },
+  { icon: EyeOff, title: "Private when you want it", text: "Start a private session and nothing is saved on our servers or in your browser. Download your PDF and go." },
 ];
 
 const STEPS = [
@@ -183,13 +183,13 @@ export default function HomePage() {
             </StaggerItem>
           ))}
         </Stagger>
-        <Reveal className="mt-6 flex flex-col items-start gap-4 rounded-2xl bg-gradient-to-r from-navy to-brand p-7 text-white sm:flex-row sm:items-center bg-[length:200%_100%] animate-[gradient-pan_10s_ease-in-out_infinite]">
-          <Sparkles size={28} className="shrink-0 animate-pulse text-teal-200" />
+        <Reveal className="mt-6 flex flex-col items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-7 sm:flex-row sm:items-center">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand"><Sparkles size={21} /></span>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold">
-              AI writing assistant {AI_ENABLED ? null : <span className="ml-2 rounded-full bg-white/15 px-2 py-0.5 align-middle text-xs font-medium">Coming back soon</span>}
+            <h3 className="text-lg font-semibold text-ink">
+              AI writing assistant {AI_ENABLED ? null : <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 align-middle text-xs font-medium text-slate-600">Coming back soon</span>}
             </h3>
-            <p className="mt-1 text-white/75">Rewrite and strengthen bullet points, check your resume against a job and draft cover letters. You see every change before it&apos;s made, and it never invents experience — powered by Google Gemini.</p>
+            <p className="mt-1 text-slate-600">Rewrite and strengthen bullet points, check your resume against a job and draft cover letters. You see every change before it&apos;s made, and it never invents experience — powered by Google Gemini.</p>
           </div>
         </Reveal>
       </section>

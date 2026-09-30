@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BellRing, CircleUserRound, SquareKanban, Wand2 } from "lucide-react";
+import { ArrowRight, CircleUserRound, MessagesSquare, SquareKanban, Wand2 } from "lucide-react";
 import { Reveal, Stagger, StaggerItem } from "./motion";
 import { useBilling } from "./BillingProvider";
 
 const POINTS = [
-  { icon: CircleUserRound, title: "One Career Profile", text: "Write your experience once. Every resume picks from it, and improvements can flow back." },
+  { icon: CircleUserRound, title: "One Career Profile", text: "Bring in your old CV once. Every resume picks from it, and improvements flow back." },
   { icon: Wand2, title: "A resume for each job", text: "Paste the job circular and get a resume that leads with what it asks for. Nothing is made up." },
-  { icon: SquareKanban, title: "Every application in one place", text: "Saved to offer on one board, with the exact resume you sent to each job." },
-  { icon: BellRing, title: "Never miss a deadline", text: "Email reminders for deadlines and interviews, and one-click calendar export." },
+  { icon: SquareKanban, title: "Every application in one place", text: "Saved to offer on one board, with the resume you sent, deadlines and email reminders." },
+  { icon: MessagesSquare, title: "Ready for the interview", text: "The questions a job is likely to ask, with points from your own experience to answer them." },
 ];
 
 /**
@@ -50,7 +50,7 @@ export default function JobSearchShowcase() {
       </Reveal>
       {config.showPricing ? (
         <p className="mt-4 text-center text-sm text-slate-500">
-          Free to start. <Link href="/pricing" className="font-medium text-brand hover:underline">Pro and Premium</Link> add more tracked jobs, tailored resumes and tailoring in bulk.
+          Part of <Link href="/pricing" className="font-medium text-brand hover:underline">Pro and Premium</Link>. The builder, the ATS check and your first resume stay free.
         </p>
       ) : null}
     </section>
@@ -59,8 +59,10 @@ export default function JobSearchShowcase() {
 
 const FAQ = [
   { q: "What is the Career Profile?", a: "One place for everything true about your career: every job, project and skill. Resumes are made from it, so you write things once. It replaces the master resume." },
-  { q: "How does tailoring work?", a: "Paste the job circular and ResumeX picks the jobs, points and skills from your profile that match it, with the skills the job asks for first. It's free, uses no AI and never adds anything that isn't in your profile." },
+  { q: "How does tailoring work?", a: "Paste the job circular and ResumeX picks the jobs, points and skills from your profile that match it, with the skills the job asks for first. It uses no AI and never adds anything that isn't in your profile." },
   { q: "Can I track my applications?", a: "Yes. Save each job, follow it from saved to offer on a board, and keep deadlines, interviews, contacts and the exact resume you sent. You can get email reminders and add dates to your calendar." },
+  { q: "What is interview prep?", a: "For each job you track, ResumeX lists the questions it's likely to ask, from the job circular, with the points from your own resume that answer them. Pro and Premium can also ask the AI for a fuller practice sheet." },
+  { q: "Which plans include this?", a: "The Career Profile, application tracking, tailoring and interview prep are part of Pro and Premium, and of some campaigns (for example a university's). The builder, the ATS check and your first resume are free for everyone." },
   { q: "Can I make a biodata?", a: "Yes. Choose a biodata template and fill in the personal details it asks for. They are kept in that one CV only: never in your profile, never sent to AI and never shown on share links." },
 ];
 

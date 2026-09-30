@@ -22,6 +22,16 @@ export default function TermsPage() {
       </section>
 
       <section>
+        <h2>Early access</h2>
+        <p>{SITE_NAME} is in early access (beta). Features, limits and plans may change as we learn what works. To keep the service affordable and reliable, AI features can pause for everyone when the monthly AI budget is reached, and the site can go into short maintenance where you can view your work but not save. We&apos;ll say so on the site when either happens.</p>
+      </section>
+
+      <section>
+        <h2>Campaign and invite access</h2>
+        <p>Some people join through a campaign or invite code (for example from a university) that gives a plan or extra credits for a set time. When it ends, the account moves to the Free plan and nothing you made is deleted: your resumes stay in your account, and your Career Profile and applications are kept, ready if you upgrade. Codes are for the people they were given to; one account per person.</p>
+      </section>
+
+      <section>
         <h2>Your account</h2>
         <ul>
           <li>Give accurate details and keep your password secure. You&apos;re responsible for activity on your account.</li>
@@ -40,7 +50,7 @@ export default function TermsPage() {
         <ul>
           <li>Don&apos;t use {SITE_NAME} for anything unlawful, misleading or harmful, including impersonating someone or creating fraudulent documents.</li>
           <li>Don&apos;t try to break, overload, scrape or get around the limits and security of the service.</li>
-          <li>Fair-use limits apply, such as a daily number of AI requests per account.</li>
+          <li>Fair-use limits apply, such as AI credits, the size of what you send to the AI, and the number of resumes and tracked applications on your plan.</li>
         </ul>
         <p className="mt-3">We may suspend accounts that break these rules.</p>
       </section>

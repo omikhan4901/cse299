@@ -645,6 +645,10 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
 
   const billing = useBilling();
   // V2: the Career Profile replaces the "master resume" for accounts that have V2.
+  // V2 is the main version: the Career Profile replaces the master resume. Without it on
+  // the plan, the builder offers it with its plan tag (and a preview) instead.
+  const lockedProfile = isAuthenticated && !!billing?.v2 && !!billing?.ready && !billing.canUse("profile");
+  const askForProfile = () => billing?.requireFeature?.("profile", "The Career Profile");
   const profileSync = useProfileSync({ token, resume, setResume, enabled: isAuthenticated && !!billing?.v2 && !!billing?.ready && billing.canUse("profile") });
   // Plan locks (only when free mode is off in the admin settings). Locked controls carry a
   // plan tag, and using one explains the upgrade instead of failing.
@@ -710,7 +714,13 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
         ...(billing?.v2 && resume.tailoredFor ? [aiItem("polish", <Wand2 size={15} />, "Polish for this job", runPolish)] : []),
       ] },
       { type: "divider" },
-      ...(profileSync.items.length ? profileSync.items : isAuthenticated ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }] : []),
+      ...(profileSync.items.length
+        ? profileSync.items
+        : lockedProfile
+          ? [{ key: "profile-locked", icon: <UserRound size={15} />, label: <span className="inline-flex items-center gap-1.5">Fill from Career Profile <PlanTag feature="profile" /></span>, onClick: askForProfile }]
+          : isAuthenticated && !billing?.v2
+            ? [{ key: "master", icon: <Crown size={15} />, label: "Fill from master profile", onClick: fillFromMaster }]
+            : []),
       {
         key: "clear",
         icon: <Eraser size={15} />,
@@ -815,7 +825,13 @@ function Editor({ initial, example, onSaved, startPrivate = false }) {
                 <span className="hidden xl:inline">Profile</span>
               </Button>
             </Dropdown>
-          ) : isAuthenticated ? (
+          ) : lockedProfile ? (
+            <Tooltip title="Fill resumes from one Career Profile">
+              <Button icon={<UserRound size={15} />} onClick={askForProfile}>
+                <span className="hidden items-center gap-1.5 xl:inline-flex">Profile <PlanTag feature="profile" /></span>
+              </Button>
+            </Tooltip>
+          ) : isAuthenticated && !billing?.v2 ? (
             <Tooltip title="Fill this resume from your master profile">
               <Button icon={<Crown size={15} />} onClick={fillFromMaster}>
                 <span className="hidden xl:inline">Fill from master</span>

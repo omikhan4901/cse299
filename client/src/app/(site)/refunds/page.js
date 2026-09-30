@@ -15,6 +15,11 @@ export default function RefundsPage() {
       intro={`We want you to be happy with ${SITE_NAME}. If a paid plan isn't right for you, here's when you can get your money back and how.`}
     >
       <section>
+        <h2>During early access</h2>
+        <p>While {SITE_NAME} is in early access, paid plans may not be on sale yet, and nothing is charged until they are. Plans given through a campaign or invite are free and have nothing to refund. Once paid plans open, this policy applies to every payment.</p>
+      </section>
+
+      <section>
         <h2>Who handles payments</h2>
         <p>
           {SITE_NAME} is operated by {SELLER_NAME}. Our order process is conducted by our online reseller Paddle.com. Paddle.com is the Merchant of Record for all our
