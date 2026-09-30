@@ -23,6 +23,8 @@ const hourKey = (d = new Date()) => d.toISOString().slice(0, 13);
  * Records one error. `where` is a page path (browser) or "METHOD /route" (server).
  * Returns the group id. Never throws.
  */
+const ERROR_KEEP_DAYS = 90;
+
 async function recordError({ kind, message, where, stack }, settings) {
     try {
         const msg = scrub(message, 300) || 'Unknown error';
@@ -34,7 +36,7 @@ async function recordError({ kind, message, where, stack }, settings) {
             { _id: id },
             {
                 $inc: { count: 1, [`hours.${hour}`]: 1 },
-                $set: { lastAt: now, message: msg, where: pathOnly(where), stack: scrub(stack, 2000) },
+                $set: { lastAt: now, expireAt: new Date(now.getTime() + ERROR_KEEP_DAYS * 864e5), message: msg, where: pathOnly(where), stack: scrub(stack, 2000) },
                 $setOnInsert: { kind, firstAt: now },
                 $unset: { resolvedAt: 1 },
             },

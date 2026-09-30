@@ -15,6 +15,7 @@ const { sendMail, canSendMail } = require('../lib/mailer');
 const totp = require('../lib/totp');
 const { audit } = require('../lib/audit');
 const { networkOf, cleanRef } = require('../lib/network');
+const { TERMS_VERSION } = require('../lib/legal');
 const { afterSignup } = require('../lib/alerts');
 const sessionCache = require('../lib/sessionCache');
 
@@ -215,6 +216,7 @@ router.post('/register', registerByIp, async (req, res) => {
                 source: campaign ? 'campaign' : 'organic',
                 ref: cleanRef(req.body.ref) || undefined,
                 signupNet: networkOf(clientIp(req)) || undefined,
+                termsAccepted: { version: TERMS_VERSION, at: new Date() },
                 ...(campaign
                     ? {
                           campaign: campaign._id,

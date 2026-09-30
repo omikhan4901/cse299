@@ -354,3 +354,21 @@ separately. Rough total: 12–16 working days of effort.
   tests, including sentences that aren't titles). The ATS checker said "5 free checks an
   hour", stale since the limit changed and admin-editable anyway: now "free, no sign-up"
   and "a fair-use limit per hour applies".
+
+**Legal review (owner asked, 30 Sep)** — see `docs/legal.md`.
+- No analytics, ad or tracking cookies anywhere, so no cookie banner is needed; the Privacy
+  Policy now lists everything kept in the browser (`/privacy#cookies`, footer "Cookies").
+- Bangladesh's Personal Data Protection Act 2026 treats under-18s as children needing a
+  parent's consent, so accounts are now 18+ (Terms, Privacy, sign-up line); the builder stays
+  open to anyone without an account. Revisit with a parent-consent flow if younger students ask.
+- Privacy Policy: who is responsible, legal bases, providers by name, storage abroad,
+  retention per kind of data (and a wrong "deleted after a few days" for AI records fixed:
+  it's 180 days), rights with a 30-day reply, breach notice.
+- Terms: our templates and IP, reporting content, suspension and 30 days' notice before any
+  shutdown, availability, indemnity, other services, Bangladesh law and Dhaka courts,
+  whole agreement.
+- Sign-up records the terms version and time (`User.termsAccepted`, `lib/legal.js`, same
+  date as `LEGAL_UPDATED`, checked by `test/legal.test.js`). Feedback now expires after 2
+  years and error reports 90 days after they last happened, as the policy says; backups keep
+  the last four.
+- **Needs the owner's OK (legal wording):** the new Privacy and Terms sections above, and 18+.

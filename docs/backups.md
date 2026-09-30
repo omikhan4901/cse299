@@ -48,8 +48,9 @@ $env:MONGO_URI="mongodb+srv://resumex-backup:<password>@<your-cluster>.mongodb.n
 ```
 
 It prints each collection with its number of documents and ends with
-`Saved N documents … to <folder>`. The folder name has the date and time. Keep the last few
-and delete older ones.
+`Saved N documents … to <folder>`. The folder name has the date and time. Keep the **last
+four** and delete older ones: the Privacy Policy promises that deleted data is gone from
+backups within about five weeks.
 
 ## 3. Restoring
 

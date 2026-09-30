@@ -17,6 +17,8 @@ const ErrorGroupSchema = new mongoose.Schema({
     hours: { type: mongoose.Schema.Types.Mixed, default: {} },
     firstAt: { type: Date },
     lastAt: { type: Date, index: true },
+    // Deleted 90 days after it last happened (the Privacy Policy says so).
+    expireAt: { type: Date, index: { expires: 0 } },
     resolvedAt: { type: Date },
 });
 

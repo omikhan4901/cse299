@@ -59,6 +59,9 @@ const UserSchema = new mongoose.Schema({
     source: { type: String, enum: ['organic', 'campaign', 'admin'] },
     ref: { type: String },
     signupNet: { type: String, index: true },
+    // Which version of the Terms and Privacy Policy the account agreed to at sign-up, and when
+    // (lib/legal.js), so there's a record of it.
+    termsAccepted: { _id: false, version: String, at: Date },
     // Features this account gets or loses whatever its plan says ({ [featureKey]: boolean }),
     // set by an admin or copied from a campaign; they end at featuresExpireAt (empty = no end).
     features: { type: mongoose.Schema.Types.Mixed },

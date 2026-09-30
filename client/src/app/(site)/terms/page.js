@@ -35,7 +35,7 @@ export default function TermsPage() {
         <h2>Your account</h2>
         <ul>
           <li>Give accurate details and keep your password secure. You&apos;re responsible for activity on your account.</li>
-          <li>You must be at least 16 years old to create an account.</li>
+          <li>You must be at least 18 years old to create an account. Anyone can use the builder without an account.</li>
           <li>You can delete your account at any time from <Link className="text-brand hover:underline" href="/account">Account settings</Link>.</li>
         </ul>
       </section>
@@ -46,13 +46,27 @@ export default function TermsPage() {
       </section>
 
       <section>
+        <h2>Our service and templates</h2>
+        <p>{SITE_NAME}, its design, templates and code belong to us. You can use, send, print and share the resumes you make with them as you like. Please don&apos;t copy, resell or redistribute the templates or the service itself.</p>
+      </section>
+
+      <section>
         <h2>Acceptable use</h2>
         <ul>
           <li>Don&apos;t use {SITE_NAME} for anything unlawful, misleading or harmful, including impersonating someone or creating fraudulent documents.</li>
           <li>Don&apos;t try to break, overload, scrape or get around the limits and security of the service.</li>
           <li>Fair-use limits apply, such as AI credits, the size of what you send to the AI, and the number of resumes and tracked applications on your plan.</li>
         </ul>
-        <p className="mt-3">We may suspend accounts that break these rules.</p>
+      </section>
+
+      <section>
+        <h2>Reporting content</h2>
+        <p>If a shared resume uses your work or your personal details without permission, <Contact /> with the link. We&apos;ll look into it and remove it where appropriate.</p>
+      </section>
+
+      <section>
+        <h2>Suspending or closing accounts</h2>
+        <p>You can stop using {SITE_NAME} and delete your account at any time. We may suspend or close an account that breaks these terms or the law, or to protect other people or the service. Where it&apos;s reasonable, we&apos;ll tell you first and give you a chance to download your data. If we ever shut {SITE_NAME} down, we&apos;ll give at least 30 days&apos; notice so you can download your resumes.</p>
       </section>
 
       <section>
@@ -72,12 +86,28 @@ export default function TermsPage() {
 
       <section>
         <h2>Disclaimers and liability</h2>
-        <p>{SITE_NAME} is provided &quot;as is&quot;. To the extent the law allows, we aren&apos;t liable for indirect or consequential losses, lost opportunities or data loss, and our total liability is limited to the amount you paid us in the 12 months before the claim. Nothing in these terms limits rights you have under consumer protection law.</p>
+        <p>{SITE_NAME} is provided &quot;as is&quot;. We work to keep it available and your data safe, but we can&apos;t promise it will always be available or free of errors, so keep a downloaded copy of resumes that matter to you. To the extent the law allows, we aren&apos;t liable for indirect or consequential losses, lost opportunities or data loss, and our total liability is limited to the amount you paid us in the 12 months before the claim. Nothing in these terms limits rights you have under consumer protection law.</p>
+        <p className="mt-3">If you break these terms or the law while using {SITE_NAME} and someone makes a claim against us because of it, you&apos;re responsible for that claim, to the extent the law allows.</p>
+      </section>
+
+      <section>
+        <h2>Other services</h2>
+        <p>Some parts of {SITE_NAME} rely on other companies, such as Paddle for payments and Google for AI features. Their own terms apply to what they provide.</p>
+      </section>
+
+      <section>
+        <h2>Disputes and governing law</h2>
+        <p>If something goes wrong, please <Contact /> first so we can try to put it right. These terms are governed by the laws of Bangladesh, and the courts of Dhaka will hear any dispute. If you&apos;re a consumer living elsewhere, you also keep the protection of the laws where you live and can bring a claim there.</p>
+      </section>
+
+      <section>
+        <h2>General</h2>
+        <p>These terms, the <Link className="text-brand hover:underline" href="/privacy">Privacy Policy</Link> and the <Link className="text-brand hover:underline" href="/refunds">Refund Policy</Link> are the whole agreement between you and us. If a part of them can&apos;t be enforced, the rest still applies. If we don&apos;t enforce a right straight away, we haven&apos;t given it up.</p>
       </section>
 
       <section>
         <h2>Changes and contact</h2>
-        <p>We may update these terms and will note the date at the top; significant changes will be announced in the app. Questions? <Contact />.</p>
+        <p>We may update these terms and will note the date at the top. Significant changes will be announced in the app before they take effect; if you keep using {SITE_NAME} after that, the new terms apply, and if you don&apos;t agree you can delete your account. Questions? <Contact />.</p>
       </section>
     </LegalPage>
   );

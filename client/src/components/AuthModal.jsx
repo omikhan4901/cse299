@@ -166,6 +166,13 @@ function AuthForm({ mode, onModeChange }) {
             <Input size="large" prefix={<Ticket size={16} className="text-slate-400" />} placeholder={registration === "campaign" ? "Campaign code" : "Campaign code (optional)"} autoComplete="off" className="uppercase" />
           </Form.Item>
         ) : null}
+        {isRegister ? (
+          <p className="-mt-1 mb-3 text-center text-xs text-slate-500">
+            By creating an account you confirm you&apos;re 18 or older and agree to our{" "}
+            <Link href="/terms" target="_blank" className="text-brand hover:underline">Terms</Link> and{" "}
+            <Link href="/privacy" target="_blank" className="text-brand hover:underline">Privacy Policy</Link>.
+          </p>
+        ) : null}
         <Button type="primary" htmlType="submit" size="large" block loading={loading}>
           {isRegister ? "Create account" : "Log in"}
         </Button>
@@ -177,13 +184,6 @@ function AuthForm({ mode, onModeChange }) {
       ) : null}
       {isRegister && registration === "closed" ? (
         <Alert type="info" showIcon className="mt-3" title="Sign-ups are closed right now. You can still log in." />
-      ) : null}
-      {isRegister ? (
-        <p className="mt-4 text-center text-xs text-slate-500">
-          By creating an account you agree to our{" "}
-          <Link href="/terms" target="_blank" className="text-brand hover:underline">Terms</Link> and{" "}
-          <Link href="/privacy" target="_blank" className="text-brand hover:underline">Privacy Policy</Link>.
-        </p>
       ) : null}
       <p className="mt-2 text-center text-xs text-slate-400">The first request can take up to a minute while our free server wakes up.</p>
     </>

@@ -24,6 +24,7 @@ export default function Footer() {
             <li><Link className="hover:text-white" href="/privacy">Privacy policy</Link></li>
             <li><Link className="hover:text-white" href="/terms">Terms of service</Link></li>
             <li><Link className="hover:text-white" href="/refunds">Refund policy</Link></li>
+            <li><Link className="hover:text-white" href="/privacy#cookies">Cookies</Link></li>
             <li><a className="hover:text-white" href={`mailto:${CONTACT_EMAIL}`}>Contact support</a></li>
           </ul>
         </div>
