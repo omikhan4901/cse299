@@ -54,7 +54,12 @@ Write every post for **one** of these people.
 
 7. **A CV for every job, in seconds.** Paste the circular; ResumeX picks from your Career Profile. No AI, and nothing is made up.
 8. **One board for the whole search:** deadlines, interviews, reminders and the exact CV you sent.
-9. **Biodata done privately:** formal biodata templates, with personal details kept in that one CV.
+9. **Ready for the interview:** the questions a job is likely to ask, with points from your own CV.
+10. **Biodata done privately:** formal biodata templates, with personal details kept in that one CV.
+
+Points 7 to 9 are **Pro and Premium** features (and campaign invites, like the beta). Say
+"in Pro" or "free for invited students", never just "free". The builder, the ATS check and
+the first CV are free for everyone.
 
 **Never promise jobs** ("guaranteed interview", "get hired in 7 days"). Promise a better CV, faster.
 
@@ -103,6 +108,12 @@ Do these once. About 2 to 3 hours in total.
 
 ---
 
+## 2a. The beta (first 80 students)
+
+Before the public launch, run the invite-only beta in **[beta-launch.md](beta-launch.md)**:
+set-up clicks, a four-week posting and follow-up sequence, invite messages in English and
+Bangla, and the daily admin check. The animated clips in [`videos/`](videos) are made for it.
+
 ## 2b. Job-search launch week (when V2 goes live)
 
 Do this once you've switched on **Admin › Plans › V2 workspace for everyone**, and ideally after email reminders work. The home page shows the new "Your whole job search" section automatically once it's on.
@@ -110,7 +121,7 @@ Do this once you've switched on **Admin › Plans › V2 workspace for everyone*
 | Day | What to do |
 |---|---|
 | **Day 1** | Personal-profile post: why you built it (your own job-hunt chaos). Page: J1, pinned. Replace the page bio and About text (see the posts file). |
-| **Day 2** | Record a 30-second screen video: paste a circular → tailored CV → keyword match goes up. Post it as a Reel. |
+| **Day 2** | Post `videos/jobsearch-story.mp4` as a Reel and `jobsearch-square.mp4` on the page (paste a circular → it lands on the board). |
 | **Day 3** | Page: J2 (tailoring). Bangla: B7. |
 | **Day 4** | Groups: a value-first post on keeping track of applications, with J6's question at the end. |
 | **Day 5** | Page: J3 (Career Profile). Message your ambassadors: a new reason to share. |

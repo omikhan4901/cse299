@@ -1,6 +1,6 @@
 # ResumeX marketing kit
 
-Everything you need to launch ResumeX on Facebook and grow it with search. The job-search posts and graphics (11–16, J1–J7, B7–B8) are for after V2 is switched on for everyone.
+Everything you need to launch ResumeX on Facebook and grow it with search, starting with an invite-only beta for 80 students. The job-search posts, graphics and clips (11–16, J1–J7, B7–B8, `jobsearch-*`) are for after V2 is switched on for everyone. Those tools are part of Pro and Premium (and of the beta invite), so never call them free.
 
 | Start here | |
 |---|---|
@@ -8,6 +8,8 @@ Everything you need to launch ResumeX on Facebook and grow it with search. The j
 | 2. [SEO checklist](seo-checklist.md) | Google Search Console, Bing, backlinks and a monthly routine (30 minutes to set up) |
 | 3. [Facebook posts](facebook-posts.md) | Page setup text plus 37 ready-to-post posts in English and Bangla, including the job-search launch |
 | 4. [Outreach templates](outreach-templates.md) | Messages for group admins, clubs, career offices and ambassadors, and replies to common comments |
+| 5. [Beta launch](beta-launch.md) | The first 80 students: set-up clicks, a four-week sequence, invite messages (English and Bangla), the daily admin check |
+| 6. [Animated mockups](videos/README.md) | Screen recordings of the real app in square, 4:5, 9:16 and a wide GIF, each with post copy |
 
 ## Graphics
 

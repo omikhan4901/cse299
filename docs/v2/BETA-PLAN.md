@@ -332,3 +332,20 @@ separately. Rough total: 12–16 working days of effort.
 - **For the owner to decide (refund policy):** the 14-day refund counts paid templates and
   AI credits as "used", but not using the Career Profile or Applications, which are now
   paid. Should creating a profile or tracking applications count too? Nothing changed yet.
+
+**Phase 8 (marketing)**
+- `docs/marketing/beta-launch.md`: set-up clicks for the 80-student beta (campaign-only
+  sign-ups, a random code, Pro for 28 days with 40 credits a month: about $67 worst case,
+  $17 typical, the $40 cap on top), a four-week sequence, invite messages in English and
+  Bangla, and the daily admin check.
+- Animated mockups recorded from the real app with sample data (`docs/marketing/video/
+  record.mjs`, Chrome screencast frames at full resolution, a drawn pointer and caption
+  pill, ffmpeg): build, ats and jobsearch, each as 1:1, 4:5, 9:16 (phone layout) MP4 and a
+  wide GIF, with post copy in `docs/marketing/videos/README.md`.
+- Job-search posts and the plan no longer call Profile, Applications, tailoring or interview
+  prep "free" (they're Pro and Premium, or the beta invite).
+- Found while recording and fixed: the job analyzer missed "Junior Software Engineer at
+  Pathao, Dhaka…" (a one-paragraph post); "title at company" openings are now read (with
+  tests, including sentences that aren't titles). The ATS checker said "5 free checks an
+  hour", stale since the limit changed and admin-editable anyway: now "free, no sign-up"
+  and "a fair-use limit per hour applies".

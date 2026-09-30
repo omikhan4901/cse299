@@ -32,6 +32,23 @@ describe('job capture', () => {
         });
     }
 
+    it('"title at company" openings, as in one-paragraph posts and LinkedIn shares; not every "at"', async () => {
+        const { captureJob } = await lib();
+        const cases = [
+            ['Junior Software Engineer at Pathao, Dhaka. We are looking for a graduate with JavaScript, React and SQL. Apply by 25 October 2026.', 'Junior Software Engineer', 'Pathao'],
+            ['Data Analyst @ bKash (Dhaka). SQL and Python.', 'Data Analyst', 'bKash'],
+            ['Hiring: Backend Developer at ShopUp - remote friendly', 'Backend Developer', 'ShopUp'],
+            ['Senior Product Designer at Brain Station 23 in Dhaka', 'Senior Product Designer', 'Brain Station 23'],
+            ['We are looking at new ways to work at Acme. Nothing here.', '', ''],
+            ['Engineers at Google say hello', '', ''],
+        ];
+        for (const [text, title, organisation] of cases) {
+            const got = captureJob(text, { now: NOW });
+            assert.equal(got.title, title, text);
+            assert.equal(got.organisation, organisation, text);
+        }
+    });
+
     it('dates: Bangla digits and months, ordinals, two-digit years, and impossible dates', async () => {
         const { findDates, findDeadline } = await lib();
         assert.deepEqual(findDates('১৫ অক্টোবর ২০২৬').map((d) => d.iso), ['2026-10-15']);

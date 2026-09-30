@@ -83,11 +83,27 @@ const field = (text, labels) => {
 
 const ROLE = /(engineer|developer|manager|analyst|designer|specialist|consultant|intern(ship)?|officer|lead|architect|scientist|coordinator|associate|assistant|representative|executive|administrator|technician|nurse|accountant|teacher|lecturer|professor|instructor|director|writer|marketer|programmer|researcher|strategist|agent|advisor|operator|trainee|head|supervisor|clerk|doctor|pharmacist|editor|tutor|faculty)\b/i;
 
+/**
+ * "Junior Software Engineer at Pathao, Dhaka." / "Data Analyst @ bKash": the most common way
+ * a post or a LinkedIn share starts. Only in the first lines or sentences, and only when the
+ * first part names a role.
+ */
+function titleAtOrg(lines) {
+  const heads = lines.slice(0, 3).flatMap((l) => l.split(/(?<=[.!?])\s+/).slice(0, 2));
+  for (const h of heads) {
+    const m = h.match(/^(?:(?:we(?:'re| are) )?(?:hiring|now hiring|job|vacancy|opening)\s*[:!–-]\s*)?(?:an?\s+)?([A-Z][\w&/()+#.' -]{2,70}?)\s+(?:at|@)\s+([A-Z0-9][\w&.'’ -]{1,50}?)(?=\s*[,.(|\n–-]|\s+(?:in|is|are|for|to|with|on|as)\b|\s*$)/i);
+    if (m && ROLE.test(m[1])) return { title: clean(m[1]), organisation: clean(m[2]) };
+  }
+  return null;
+}
+
 function findTitle(text, lines) {
   const labelled = field(text, "job title|position|post name|name of (?:the )?post|designation|job position|role|পদের নাম|পদবি|পদ");
   if (labelled) return labelled.replace(/\s*\(.*?\)\s*$/, "").trim();
   const invited = text.match(/(?:for the (?:post|position)s? of|position of|post of|hiring|looking for(?: our next)?|seeking|vacancy for)\s+(?:an?\s+)?([A-Z][\w&/().,' -]{2,70}?)(?=\s+(?:at|in|for|to|who|with|on)\b|[.,:;\n(]|$)/);
   if (invited && ROLE.test(invited[1])) return clean(invited[1]);
+  const at = titleAtOrg(lines);
+  if (at) return at.title;
   // A short line near the top that names a role (Bdjobs and LinkedIn start with the title).
   const line = lines.slice(0, 6).find((l) => l.split(/\s+/).length <= 9 && ROLE.test(l) && !/[.!?]$/.test(l) && !/^(about|we|our|job description|responsibilities)/i.test(l));
   return line ? clean(line) : "";
@@ -101,6 +117,8 @@ const FREE_MAIL = new Set(["gmail", "yahoo", "hotmail", "outlook", "live", "iclo
 function findOrganisation(text, lines, title) {
   const labelled = field(text, "company(?: name)?|organi[sz]ation(?: name)?|employer|institution|প্রতিষ্ঠানের নাম|প্রতিষ্ঠান|অফিসের নাম");
   if (labelled) return labelled;
+  const headline = titleAtOrg(lines);
+  if (headline) return headline.organisation;
   const at = text.match(/(?:\bat|\bjoin|\bby)\s+((?:[A-Z][\w&.'-]*[ ]?){1,6})(?=[,.\n]|\s+(?:is|are|as|in|and|we)\b)/);
   if (at && ORG_SUFFIX.test(at[1])) return clean(at[1]);
   const invites = text.match(/((?:[A-Z][\w&.'-]*[ ]?){1,7})\s+(?:is (?:looking|seeking|hiring)|invites|is inviting|seeks)/);

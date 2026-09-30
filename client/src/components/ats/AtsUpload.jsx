@@ -141,7 +141,7 @@ export default function AtsUpload({ intro }) {
                   {job.trim() ? "Check against this job" : "Check my resume"}
                 </Button>
                 <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
-                  <ShieldCheck size={13} /> Read once, never stored · 5 free checks an hour
+                  <ShieldCheck size={13} /> Read once, never stored · free, no sign-up
                 </p>
               </motion.div>
             )}

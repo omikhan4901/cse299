@@ -46,7 +46,7 @@ const STEPS = [
 
 const FAQS = [
   { q: "What is an ATS?", a: "An applicant tracking system is software that companies use to collect, parse and rank job applications. It reads the text of your resume, sorts it into fields and matches it against the job, often before a recruiter sees it." },
-  { q: "Is the ATS checker free?", a: `Yes. You can check up to 5 resume PDFs an hour here without an account, and run as many checks as you like inside the ${SITE_NAME} builder.` },
+  { q: "Is the ATS checker free?", a: `Yes. You can check resume PDFs here without an account (a fair-use limit per hour applies), and run as many checks as you like inside the ${SITE_NAME} builder.` },
   { q: "How is the ATS score calculated?", a: "Your score combines three groups: parsing (can the PDF be read), content quality (verbs, numbers, structure) and, if you paste a job description, keyword and requirement match. Critical problems such as unreadable text cap the score." },
   { q: "What is a good ATS score?", a: "85 or above is excellent and 70 to 84 is good. More important than the number is fixing the items marked as failures, especially parsing problems and missing keywords from the job." },
   { q: "Does the checker read my actual PDF?", a: "Yes. We extract the text from the PDF you upload and find its sections the way an ATS does, so layout problems such as columns, images and unreadable fonts show up too." },

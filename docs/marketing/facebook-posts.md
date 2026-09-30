@@ -402,7 +402,7 @@ and add these lines to the About text, under the templates line:
 
 ## Job-search launch posts
 
-**Post these only after "V2 workspace for everyone" is switched on in Admin › Plans.** Until then, visitors can't open these tools and the posts would promise something they can't use. Launch-week order: J1 (pin it), J2 two days later, then one a week. Every plan can use these tools; the Free plan has limits (a few tracked jobs and tailored CVs, set in Admin › Plans), so say "free to start" or "free to try", never "unlimited". Post J4 only once reminder emails are set up (SMTP and the Cloud Scheduler jobs).
+**Post these only after "V2 workspace for everyone" is switched on in Admin › Plans.** Until then, visitors can't open these tools and the posts would promise something they can't use. Launch-week order: J1 (pin it), J2 two days later, then one a week. The Career Profile, applications, tailoring and interview prep are part of **Pro and Premium** (and of campaigns, like the beta invites). The builder, the ATS check and the first CV stay free. So say "in Pro" or "free for invited students during the beta", never "free" for these tools. Post J4 only once reminder emails are set up (SMTP and the Cloud Scheduler jobs).
 
 ### J1. Launch: your whole job search in one place (pin this)
 **Graphic:** `11-job-search.png`
@@ -416,7 +416,7 @@ and add these lines to the About text, under the templates line:
 > 📋 **Application board:** saved → applied → interview → offer
 > 🔔 **Reminders** for deadlines and interviews, plus calendar export
 >
-> Free to start 👉 https://resumex.cc
+> Part of ResumeX Pro. Builder and ATS check free 👉 https://resumex.cc
 
 ---
 
@@ -432,7 +432,7 @@ and add these lines to the About text, under the templates line:
 >
 > And it's honest: tailoring **never adds anything you didn't write**. If the job wants a skill you don't have in your profile, we just tell you. 🙌
 >
-> Free to try 👉 https://resumex.cc
+> In ResumeX Pro 👉 https://resumex.cc
 
 ---
 
@@ -492,7 +492,7 @@ and add these lines to the About text, under the templates line:
 > 3️⃣ Screenshots of circulars 📸
 > 4️⃣ I don't… and I've forgotten some 😬
 >
-> Comment your number! (If it's 4, our free tracker is at resumex.cc 😉)
+> Comment your number! (If it's 4, our tracker is at resumex.cc 😉)
 
 ---
 
@@ -501,7 +501,7 @@ and add these lines to the About text, under the templates line:
 
 > Applying to a lot of jobs this month? 📈
 >
-> ResumeX is free to start. **Pro** is made for an active search:
+> The builder is free. **Pro** is made for an active search:
 > ✅ track as many applications as you like
 > ✅ a tailored CV for every job, and several at once
 > ✅ interview prep for each interview, from your own experience
@@ -618,7 +618,7 @@ and add these lines to the About text, under the templates line:
 >
 > আর আপনি যা লেখেননি, তা কখনো যোগ হবে না। 🙌
 >
-> ফ্রি 👉 https://resumex.cc
+> ResumeX Pro-তে 👉 https://resumex.cc
 
 ---
 
