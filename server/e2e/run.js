@@ -3,7 +3,7 @@
  * running API and site. It prepares the settings and a campaign directly in the database,
  * then goes through what a beta student and a Free visitor do, on desktop and on a phone:
  *
- *   sign up with a campaign code → build a resume (autosave) → download the PDF →
+ *   sign up with a campaign code (and the emailed code) → build a resume (autosave) → download the PDF →
  *   Career Profile and Applications open (campaign Pro) → add an application →
  *   ATS checker → pricing says "Coming soon" → AI paused notice →
  *   campaign ends → back to Free: Profile and Applications locked, a second resume refused →
@@ -70,6 +70,12 @@ async function student(browser, code, { phone = false } = {}) {
         const confirm = page.getByPlaceholder('Confirm password');
         if (await confirm.count()) await confirm.fill('password123');
         await page.getByRole('button', { name: 'Create account' }).click();
+        // The code goes by email; here a known code is put on the pending sign-up instead.
+        await page.getByText('Check your email').waitFor({ timeout: 20000 });
+        const PendingSignup = require('../models/PendingSignup');
+        await PendingSignup.updateOne({ email }, { $set: { codeHash: require('crypto').createHash('sha256').update('123456').digest('hex') } });
+        await page.locator('.ant-otp input').first().click();
+        await page.keyboard.type('123456');
         await page.waitForURL(/builder|dashboard|welcome/, { timeout: 20000 });
         const u = await User.findOne({ email }).lean();
         if (!u || u.plan !== 'pro' || u.source !== 'campaign') throw new Error(`account not set up by the campaign: ${JSON.stringify(u && { plan: u.plan, source: u.source })}`);

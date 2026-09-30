@@ -13,7 +13,8 @@ const realSend = mailer.sendMail;
 describe('reminder emails', () => {
     before(async () => {
         await start('reminders');
-        mailer.sendMail = async (m) => sent.push(m);
+        // Sign-up codes go by email too; these tests count reminders only.
+        mailer.sendMail = async (m) => { if (!/sign-up code/.test(m.subject)) sent.push(m); };
     });
     after(async () => {
         mailer.sendMail = realSend;

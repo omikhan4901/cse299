@@ -132,6 +132,8 @@ router.get('/overview', wrap(async (req, res) => {
                 topUsers: topIds.map(([id, credits]) => ({ ...topUsers.find((u) => String(u._id) === id), credits })).filter((u) => u._id),
             },
             campaigns: { active: campaignsActive },
+            // Sign-ups need the emailed code, so without email nobody new can join.
+            emailOn: canSendMail(),
             glance: {
                 activeToday,
                 active7,
@@ -481,8 +483,14 @@ router.delete('/users/:id', wrap(async (req, res) => {
     if (roleOf(user) === 'admin' && req.role !== 'superadmin') return bad(res, 'Only super admins can delete admin accounts.', 403);
     await deleteUserData(user._id);
     await user.deleteOne();
-    await audit(req, 'user.delete', user.email);
-    res.json({ success: true });
+    // A campaign member removed before their campaign days ended gives the place back, so a
+    // real student can have it.
+    let placeFreed = false;
+    if (user.campaign && !user.campaignEndedAt) {
+        placeFreed = (await Campaign.updateOne({ _id: user.campaign, uses: { $gt: 0 } }, { $inc: { uses: -1 } })).modifiedCount > 0;
+    }
+    await audit(req, 'user.delete', user.email, placeFreed ? { placeFreed } : undefined);
+    res.json({ success: true, placeFreed });
 }));
 
 // ---------- AI economics ----------

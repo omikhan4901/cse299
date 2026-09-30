@@ -5,7 +5,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, setSettings, resetState, uniqueEmail } = require('./helpers');
+const { start, stop, api, register, setSettings, resetState, uniqueEmail, signUp } = require('./helpers');
 
 describe('hardening', () => {
     before(() => start('hardening'));
@@ -56,7 +56,7 @@ describe('hardening', () => {
     });
 
     it('throwaway email domains are refused at sign-up (subdomains too); the list is editable', async () => {
-        const reg = (email) => api('POST', '/auth/register', { body: { name: 'X', email, password: 'password123' } });
+        const reg = (email) => signUp({ name: 'X', email, password: 'password123' });
         const r = await reg('someone@mailinator.com');
         assert.equal(r.status, 400);
         assert.equal(r.body.code, 'email-blocked');

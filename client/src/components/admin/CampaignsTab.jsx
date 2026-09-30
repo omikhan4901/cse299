@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag, Tooltip } from "antd";
 import { Calculator, ChevronDown, Copy, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { campaignEstimate } from "@/lib/campaignCost";
-import { FeatureSwitches, FirstSteps } from "./parts";
+import { DeleteUserButton, FeatureSwitches, FirstSteps } from "./parts";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
 
 const PLAN_OPTIONS = [
@@ -226,8 +226,8 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
 
 /** Sign-up campaigns: invite codes that give a plan and credits to a limited number of people. */
 /** A campaign's members, newest first, with what each has done (Admin › Sign-ups data). */
-function Members({ campaign }) {
-  const { data, loading } = useAdmin(`/signups?campaign=${campaign._id}&days=365&limit=100`);
+function Members({ campaign, onChanged }) {
+  const { data, loading, reload, call } = useAdmin(`/signups?campaign=${campaign._id}&days=365&limit=100`);
   if (loading && !data) return <p className="px-2 py-3 text-sm text-slate-500">Loading members…</p>;
   const users = data?.users || [];
   return (
@@ -243,7 +243,10 @@ function Members({ campaign }) {
               <span className="font-medium text-ink">{u.name}</span> <span className="text-xs text-slate-500">{u.email}</span>
               {u.verified ? null : <Tag className="!ml-2">not verified</Tag>}
             </span>
-            <FirstSteps did={u.did} />
+            <span className="flex items-center gap-2">
+              <FirstSteps did={u.did} />
+              <DeleteUserButton user={u} call={call} onDone={() => (reload(), onChanged?.())} />
+            </span>
           </li>
         ))}
       </ul>
@@ -358,7 +361,7 @@ export default function CampaignsTab() {
         dataSource={data || []}
         pagination={false}
         scroll={{ x: 800 }}
-        expandable={{ expandedRowRender: (c) => <Members campaign={c} />, rowExpandable: (c) => (c.stats?.members || 0) > 0 }}
+        expandable={{ expandedRowRender: (c) => <Members campaign={c} onChanged={reload} />, rowExpandable: (c) => (c.stats?.members || 0) > 0 }}
       />
       <CampaignModal campaign={editing} onClose={() => setEditing(null)} onSaved={reload} call={call} />
     </div>

@@ -8,7 +8,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, superadmin, setSettings, resetState, uniqueEmail } = require('./helpers');
+const { start, stop, api, superadmin, setSettings, resetState, uniqueEmail, signUp } = require('./helpers');
 const { DEFAULTS } = require('../lib/settings');
 
 describe('when a campaign ends', () => {
@@ -19,7 +19,7 @@ describe('when a campaign ends', () => {
     const User = () => require('../models/User');
     const create = (token, body) => api('POST', '/admin/campaigns', { token, body: { name: 'Beta', code: `E${Date.now() % 1e7}`, maxUses: 10, durationDays: 7, ...body } });
     const join = async (code) => {
-        const r = await api('POST', '/auth/register', { body: { name: 'Member', email: uniqueEmail(), password: 'password123', campaignCode: code } });
+        const r = await signUp({ name: 'Member', email: uniqueEmail(), password: 'password123', campaignCode: code });
         assert.equal(r.status, 201, JSON.stringify(r.body));
         return r.body;
     };
@@ -96,6 +96,29 @@ describe('when a campaign ends', () => {
         const r = await api('POST', '/internal/reminders', { body: {}, headers: { 'X-Internal-Key': 'internal-test-key-123' } });
         assert.equal(r.status, 200, JSON.stringify(r.body));
         assert.ok(r.body.data.ended, JSON.stringify(r.body.data));
+    });
+
+    it('an admin deleting a member frees the place; not once their campaign days are over', async () => {
+        const admin = await superadmin();
+        const c = (await create(admin.token, { plan: 'pro', maxUses: 2 })).body.data;
+        const a = await join(c.code);
+        const b = await join(c.code);
+        const Campaign = require('../models/Campaign');
+        assert.equal((await Campaign.findById(c._id).lean()).uses, 2);
+        const del = await api('DELETE', `/admin/users/${a.user.id}`, { token: admin.token });
+        assert.equal(del.status, 200);
+        assert.equal(del.body.placeFreed, true);
+        assert.equal((await Campaign.findById(c._id).lean()).uses, 1, 'a real student can have it');
+        assert.equal(await User().countDocuments({ _id: a.user.id }), 0);
+        assert.equal((await join(c.code)).user.plan, 'pro', 'the freed place is taken again');
+
+        await age(b.user.id);
+        await require('../lib/campaignEnd').endExpiredGrants();
+        const done = await api('DELETE', `/admin/users/${b.user.id}`, { token: admin.token });
+        assert.equal(done.body.placeFreed, false, 'a finished member used their place');
+        assert.equal((await Campaign.findById(c._id).lean()).uses, 2);
+        const log = (await api('GET', '/admin/audit', { token: admin.token })).body.data;
+        assert.ok(JSON.stringify(log).includes('user.delete'));
     });
 
     it('a Free campaign with Applications switched on: members can track applications until it ends', async () => {

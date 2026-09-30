@@ -31,6 +31,9 @@ describe('who can open the admin API', () => {
 
     it('a super admin email must be verified first (someone could register it before the owner)', async () => {
         const squatter = await register({ email: 'boss@test.dev' });
+        // Sign-up verifies the address now; an account from before that, or made while the
+        // server had no email (the owner's only way in), can still be unverified.
+        await User().updateOne({ email: 'boss@test.dev' }, { $unset: { emailVerifiedAt: 1 } });
         const totp = require('../lib/totp');
         await User().updateOne({ email: 'boss@test.dev' }, { twoFactor: { enabled: true, secret: totp.encrypt(totp.generateSecret()) } });
         const u = await User().findOne({ email: 'boss@test.dev' });

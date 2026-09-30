@@ -5,6 +5,10 @@ and learning from them. Everything here uses features that are already built.
 
 ## 1. Set up (30 minutes, the day before)
 
+**Email must work first.** Every sign-up confirms its address with a 6-digit code, so
+without email (`SMTP_URL`, `MAIL_FROM`) nobody can join; the admin Overview shows a red
+warning when it's missing. Only verified addresses take a campaign place.
+
 **Admin console › Credits & access**
 - Who can sign up: **Only people with a campaign code**.
 - Close sign-ups after: **90** accounts (80 students, you and a few spares).

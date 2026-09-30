@@ -14,6 +14,7 @@ const devFallback = () => !mailEnabled() && process.env.NODE_ENV !== 'production
 async function sendMail({ to, subject, text, html }) {
     if (!mailEnabled()) {
         if (devFallback()) {
+            if (process.env.NODE_ENV === 'test') return; // tests read codes from the database
             console.log(`\n[mail] To: ${to}\n[mail] Subject: ${subject}\n${text}\n`);
             return;
         }

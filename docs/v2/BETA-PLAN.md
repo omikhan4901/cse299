@@ -398,3 +398,14 @@ separately. Rough total: 12–16 working days of effort.
 - A feature switched on for an account whose plan leaves it out (a Free campaign with
   Applications on) now gets the limits of the cheapest plan that has it; before, the plan's
   limit of 0 made the switch useless. Same rule in client/src/lib/access.js (parity test).
+- Verified emails only (owner, 30 Sep): sign-up is two steps. `POST /auth/register` checks
+  everything and emails a 6-digit code (`PendingSignup`, 30 minutes, 5 tries, once);
+  `POST /auth/register/verify` creates the account, already verified, and only then claims a
+  campaign place and counts towards the cap (checked again at that step). A made-up address
+  never becomes an account or takes a place. Without email on the server only the owner
+  (SUPERADMIN_EMAILS) can sign up; the admin Overview shows a red warning. Rate limits:
+  5 codes an hour per address, 30 code checks per 15 minutes per network. Privacy Policy:
+  unfinished sign-ups kept 30 minutes.
+- Delete accounts from the lists (owner, 30 Sep): a delete button on each row of Admin ›
+  Users and of a campaign's members; deleting a member still inside their campaign days
+  gives the place back (`placeFreed`, in the audit log).

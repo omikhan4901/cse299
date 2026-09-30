@@ -180,6 +180,9 @@ export default function Overview() {
   const { users, resumes, ai, campaigns, jobSearch, glance } = data;
   return (
     <div className="space-y-6">
+      {data.emailOn === false ? (
+        <Alert type="error" showIcon title="Email isn't set up, so nobody can sign up" description="Every sign-up confirms its email with a code. Set SMTP_URL and MAIL_FROM on the API (see docs/deploy-cloud-run.md)." />
+      ) : null}
       {glance ? <Glance g={glance} /> : null}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat icon={Users} label="Users" value={users.total} sub={`${users.new7} new this week · ${users.banned} banned`} />

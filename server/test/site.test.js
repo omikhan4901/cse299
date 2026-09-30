@@ -5,7 +5,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, superadmin, setSettings, resetState } = require('./helpers');
+const { start, stop, api, register, superadmin, setSettings, resetState, signUp } = require('./helpers');
 
 describe('site settings', () => {
     before(() => start('site'));
@@ -33,7 +33,7 @@ describe('site settings', () => {
         assert.equal(w.status, 503);
         assert.equal(w.body.code, 'maintenance');
         assert.equal(w.body.error, 'Back in 5 minutes.');
-        assert.equal((await api('POST', '/auth/register', { body: { name: 'N', email: 'new@x.dev', password: 'password123' } })).status, 503, 'no sign-ups');
+        assert.equal((await signUp({ name: 'N', email: 'new@x.dev', password: 'password123' })).status, 503, 'no sign-ups');
         assert.equal((await api('POST', '/auth/login', { body: { email: u.email, password: u.password } })).status, 200, 'signing in works');
         assert.equal((await api('POST', '/reports/feedback', { token: u.token, body: { message: 'Is it down?' } })).status, 201, 'feedback works');
         assert.equal((await api('POST', '/resumes', { token: admin.token, body: { nickname: 'Admin CV' } })).status, 201, 'admins can still change things');

@@ -1,6 +1,6 @@
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, resetState, uniqueEmail } = require('./helpers');
+const { start, stop, api, register, resetState, uniqueEmail, signUp } = require('./helpers');
 
 before(() => start('auth'));
 after(stop);
@@ -19,7 +19,7 @@ describe('registration', () => {
     it('treats emails case-insensitively (no duplicate accounts)', async () => {
         const email = uniqueEmail('Case');
         await register({ email });
-        const again = await api('POST', '/auth/register', { body: { name: 'X', email: email.toUpperCase(), password: 'password123' } });
+        const again = await signUp({ name: 'X', email: email.toUpperCase(), password: 'password123' });
         assert.equal(again.status, 400);
         const login = await api('POST', '/auth/login', { body: { email: email.toUpperCase(), password: 'password123' } });
         assert.equal(login.status, 200);
@@ -27,22 +27,22 @@ describe('registration', () => {
 
     for (const [label, password] of [['short', 'short'], ['over 72 bytes', 'é'.repeat(40)]]) {
         it(`rejects a ${label} password`, async () => {
-            const r = await api('POST', '/auth/register', { body: { name: 'X', email: uniqueEmail(), password } });
+            const r = await signUp({ name: 'X', email: uniqueEmail(), password });
             assert.equal(r.status, 400);
         });
     }
 
     it('rejects an invalid email', async () => {
-        const r = await api('POST', '/auth/register', { body: { name: 'X', email: 'not-an-email', password: 'password123' } });
+        const r = await signUp({ name: 'X', email: 'not-an-email', password: 'password123' });
         assert.equal(r.status, 400);
     });
 
     it('respects registration = closed and = campaign', async () => {
         const { setSettings } = require('./helpers');
         await setSettings({ registration: 'closed' });
-        assert.equal((await api('POST', '/auth/register', { body: { name: 'X', email: uniqueEmail(), password: 'password123' } })).status, 403);
+        assert.equal((await signUp({ name: 'X', email: uniqueEmail(), password: 'password123' })).status, 403);
         await setSettings({ registration: 'campaign' });
-        assert.equal((await api('POST', '/auth/register', { body: { name: 'X', email: uniqueEmail(), password: 'password123' } })).status, 403);
+        assert.equal((await signUp({ name: 'X', email: uniqueEmail(), password: 'password123' })).status, 403);
     });
 });
 
@@ -150,7 +150,7 @@ describe('two-factor authentication', () => {
 describe('email input', () => {
     it('rejects malformed emails with a 4xx instead of crashing the lookup', async () => {
         for (const email of ['a\u0000b@x.com', '\u0000', 'no-at-sign', 'x'.repeat(300) + '@a.com', { $gt: '' }, ['a@b.co'], 42]) {
-            const reg = await api('POST', '/auth/register', { body: { name: 'N', email, password: 'password123' } });
+            const reg = await signUp({ name: 'N', email, password: 'password123' });
             assert.equal(reg.status, 400, `register ${JSON.stringify(email)}`);
             const login = await api('POST', '/auth/login', { body: { email, password: 'password123' } });
             assert.ok([400, 401].includes(login.status), `login ${JSON.stringify(email)} -> ${login.status}`);
@@ -160,7 +160,7 @@ describe('email input', () => {
     });
 
     it('a name must be text', async () => {
-        const r = await api('POST', '/auth/register', { body: { name: { first: 'A' }, email: uniqueEmail(), password: 'password123' } });
+        const r = await signUp({ name: { first: 'A' }, email: uniqueEmail(), password: 'password123' });
         assert.equal(r.status, 400);
     });
 });

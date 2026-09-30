@@ -1,6 +1,6 @@
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, resetState, setSettings, ai, uniqueEmail, needsRealMongo } = require('./helpers');
+const { start, stop, api, register, resetState, setSettings, ai, uniqueEmail, needsRealMongo, signUp } = require('./helpers');
 
 before(() => start('plans'));
 after(stop);
@@ -72,7 +72,7 @@ describe('AI credits', () => {
 
 describe('campaigns', () => {
     const Campaign = () => require('../models/Campaign');
-    const join = (code, email = uniqueEmail()) => api('POST', '/auth/register', { body: { name: 'C', email, password: 'password123', campaignCode: code } });
+    const join = (code, email = uniqueEmail()) => signUp({ name: 'C', email, password: 'password123', campaignCode: code });
 
     it('gives the plan and a credit allowance that ends with the campaign', async () => {
         await Campaign().create({ name: 'Uni', code: 'UNI1', plan: 'pro', creditLimit: 50, creditPeriod: 'day', durationDays: 30, maxUses: 5 });

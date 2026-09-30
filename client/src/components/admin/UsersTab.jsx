@@ -6,7 +6,7 @@ import { BadgeCheck, Ban, CircleUserRound, Clock, Crown, Download, FileText, Key
 import { API_URL } from "@/lib/config";
 import { useAuth } from "../AuthProvider";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
-import { FeatureSwitches } from "./parts";
+import { FeatureSwitches, DeleteUserButton } from "./parts";
 
 const PLAN_OPTIONS = [
   { value: "free", label: "Free" },
@@ -447,7 +447,7 @@ export default function UsersTab({ isSuper }) {
   const [selected, setSelected] = useState(null);
   const [adding, setAdding] = useState(false);
   const params = new URLSearchParams({ q: query.q, plan: query.plan, status: query.status, page: String(query.page), limit: "20" });
-  const { data, loading, error, reload } = useAdmin(`/users?${params}`);
+  const { data, loading, error, reload, call } = useAdmin(`/users?${params}`);
 
   const exportCsv = async () => {
     const res = await fetch(`${API_URL}/admin/users/export.csv`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
@@ -486,6 +486,7 @@ export default function UsersTab({ isSuper }) {
     { title: "Resumes", dataIndex: "resumes", key: "resumes", align: "right" },
     { title: "Joined", dataIndex: "createdAt", key: "createdAt", render: fmtDate },
     { title: "Last login", dataIndex: "lastLoginAt", key: "lastLoginAt", render: fmtDate },
+    { title: "", key: "delete", width: 48, render: (_, u) => <DeleteUserButton user={u} call={call} onDone={reload} /> },
   ];
 
   return (

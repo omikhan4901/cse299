@@ -7,7 +7,7 @@
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { start, stop, api, superadmin, setSettings, resetState, ai, uniqueEmail } = require('./helpers');
+const { start, stop, api, superadmin, setSettings, resetState, ai, uniqueEmail, signUp } = require('./helpers');
 const { DEFAULTS, AI_FEATURES } = require('../lib/settings');
 const { cleanLimits } = require('../lib/aiLimits');
 
@@ -120,7 +120,7 @@ describe('campaign feature switches', () => {
     beforeEach(resetState);
 
     const create = async (token, body) => api('POST', '/admin/campaigns', { token, body: { name: 'Beta', code: `B${Date.now() % 1e6}`, maxUses: 5, durationDays: 30, ...body } });
-    const join = (code) => api('POST', '/auth/register', { body: { name: 'Member', email: uniqueEmail(), password: 'password123', campaignCode: code } });
+    const join = (code) => signUp({ name: 'Member', email: uniqueEmail(), password: 'password123', campaignCode: code });
 
     it('keeps only known features with true/false; members get them at sign-up, for the campaign\'s length', async () => {
         await setSettings({ freeMode: { enabled: false } });

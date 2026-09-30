@@ -5,7 +5,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, superadmin, setSettings, resetState } = require('./helpers');
+const { start, stop, api, register, superadmin, setSettings, resetState, signUp } = require('./helpers');
 
 const until = async (fn, ms = 2000) => {
     const end = Date.now() + ms;
@@ -45,7 +45,7 @@ describe('owner alerts', () => {
         const full = await until(async () => (await bell(admin)).find((a) => a.kind === 'signups' && /closed/.test(a.text)));
         assert.ok(full, 'full');
         assert.equal((await bell(admin)).filter((a) => a.kind === 'signups').length, 2, 'no repeats');
-        assert.equal((await api('POST', '/auth/register', { body: { name: 'Late', email: 'late@test.dev', password: 'password123' } })).body.code, 'signups-full');
+        assert.equal((await signUp({ name: 'Late', email: 'late@test.dev', password: 'password123' })).body.code, 'signups-full');
     });
 
     it('5 sign-ups in an hour from one network raise one burst alert', async () => {

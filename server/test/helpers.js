@@ -102,10 +102,24 @@ let counter = 0;
 const uniqueEmail = (prefix = 'user') => `${prefix}${Date.now()}${++counter}@test.dev`;
 
 /** Registers a user and returns { token, user, email, password }. */
+/**
+ * Signs up in both steps (routes/auth.js): asks for the code, puts a known code on the
+ * pending sign-up (the real one only goes by email), then enters it. Returns the first
+ * step's answer when that one fails, else the second's.
+ */
+async function signUp(body, code = '123456') {
+    const first = await api('POST', '/auth/register', { body });
+    if (first.status !== 200 || !first.body.pending) return first;
+    const PendingSignup = require('../models/PendingSignup');
+    const crypto = require('node:crypto');
+    await PendingSignup.updateOne({ email: first.body.email }, { $set: { codeHash: crypto.createHash('sha256').update(code).digest('hex') } });
+    return api('POST', '/auth/register/verify', { body: { email: body.email, code } });
+}
+
 async function register(extra = {}) {
     const email = extra.email || uniqueEmail();
     const password = extra.password || 'password123';
-    const r = await api('POST', '/auth/register', { body: { name: extra.name || 'Test User', email, password, ...extra.body } });
+    const r = await signUp({ name: extra.name || 'Test User', email, password, ...extra.body });
     if (r.status !== 201) throw new Error(`register failed: ${r.status} ${JSON.stringify(r.body)}`);
     return { token: r.body.token, user: r.body.user, email, password };
 }
@@ -166,4 +180,4 @@ async function resetState() {
 /** The API's base URL (for raw fetch calls). */
 const baseUrl = () => base;
 
-module.exports = { paddleApi, baseUrl, needsRealMongo, start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai };
+module.exports = { signUp, paddleApi, baseUrl, needsRealMongo, start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai };

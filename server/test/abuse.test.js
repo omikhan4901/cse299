@@ -6,7 +6,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, setSettings, resetState, uniqueEmail, baseUrl, needsRealMongo } = require('./helpers');
+const { start, stop, api, register, setSettings, resetState, uniqueEmail, baseUrl, needsRealMongo, signUp } = require('./helpers');
 
 describe('abuse', () => {
     before(() => start('abuse'));
@@ -44,7 +44,7 @@ describe('abuse', () => {
         await Campaign.create({ name: 'Race', code: 'RACE-ABCDEFGH', plan: 'pro', maxUses: 50, durationDays: 30 });
         const now = await User.countDocuments();
         await setSettings({ signups: { cap: now + 3 } });
-        const join = () => api('POST', '/auth/register', { body: { name: 'R', email: uniqueEmail('race'), password: 'password123', campaignCode: 'RACE-ABCDEFGH' } });
+        const join = () => signUp({ name: 'R', email: uniqueEmail('race'), password: 'password123', campaignCode: 'RACE-ABCDEFGH' });
         const results = await Promise.all(Array.from({ length: 12 }, join));
         const made = results.filter((r) => r.status === 201).length;
         // Sign-ups landing in the same instant can pass the account cap by a few (campaign

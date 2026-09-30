@@ -4,33 +4,33 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, superadmin, setSettings, resetState, ai, uniqueEmail } = require('./helpers');
+const { start, stop, api, register, superadmin, setSettings, resetState, ai, uniqueEmail, signUp } = require('./helpers');
 
 describe('sign-up controls', () => {
     before(() => start('signups'));
     after(stop);
     beforeEach(resetState);
 
-    const signUp = (email = uniqueEmail()) => api('POST', '/auth/register', { body: { name: 'New', email, password: 'password123' } });
+    const join = (email = uniqueEmail()) => signUp({ name: 'New', email, password: 'password123' });
 
     it('the cap closes sign-ups at N accounts; super admins can still sign up; no cap means none', async () => {
         const User = require('../models/User');
         const now = await User.countDocuments();
         await setSettings({ signups: { cap: now + 1, requireVerifiedEmail: false } });
-        assert.equal((await signUp()).status, 201);
-        const full = await signUp();
+        assert.equal((await join()).status, 201);
+        const full = await join();
         assert.equal(full.status, 403);
         assert.equal(full.body.code, 'signups-full');
         const before = process.env.SUPERADMIN_EMAILS;
         process.env.SUPERADMIN_EMAILS = [before, 'boss@test.dev'].filter(Boolean).join(',');
         try {
-            assert.equal((await signUp('boss@test.dev')).status, 201, 'the owner is never locked out');
+            assert.equal((await join('boss@test.dev')).status, 201, 'the owner is never locked out');
         } finally {
             process.env.SUPERADMIN_EMAILS = before;
             if (before === undefined) delete process.env.SUPERADMIN_EMAILS;
         }
         await setSettings({ signups: { cap: null, requireVerifiedEmail: false } });
-        assert.equal((await signUp()).status, 201);
+        assert.equal((await join()).status, 201);
         const cfg = (await superadmin()).token;
         const s = (await api('GET', '/admin/settings', { token: cfg })).body.data;
         assert.equal(s.settings.signups.cap, null);
@@ -40,6 +40,8 @@ describe('sign-up controls', () => {
     it('AI needs a verified email: refused with no charge until verified; admins exempt; switchable', async () => {
         await setSettings({ signups: { cap: null, requireVerifiedEmail: true } });
         const { token, user } = await register();
+        // Sign-up verifies the address now; this is an account from before that.
+        await require('../models/User').updateOne({ _id: user.id }, { $unset: { emailVerifiedAt: 1 } });
         const refine = () => api('POST', '/ai/refine', { token, body: { resumeText: 'handled complaints', sectionType: 'experience' } });
         ai.reply = 'Resolved complaints';
         const r = await refine();
@@ -58,6 +60,7 @@ describe('sign-up controls', () => {
         assert.equal((await api('POST', '/ai/refine', { token: admin.token, body: { resumeText: 'x y', sectionType: 'experience' } })).status, 200, 'admins can always test');
 
         const other = await register();
+        await User.updateOne({ _id: other.user.id }, { $unset: { emailVerifiedAt: 1 } });
         await setSettings({ signups: { cap: null, requireVerifiedEmail: false } });
         assert.equal((await api('POST', '/ai/refine', { token: other.token, body: { resumeText: 'x y', sectionType: 'experience' } })).status, 200, 'switched off');
         assert.equal((await api('GET', '/billing/plans')).body.data.verifyForAi, false);

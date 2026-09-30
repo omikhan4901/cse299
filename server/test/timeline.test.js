@@ -4,7 +4,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, superadmin, setSettings, resetState, uniqueEmail, ai } = require('./helpers');
+const { start, stop, api, superadmin, setSettings, resetState, uniqueEmail, ai, signUp } = require('./helpers');
 
 describe('account timeline', () => {
     before(() => start('timeline'));
@@ -16,7 +16,7 @@ describe('account timeline', () => {
 
     it('lists sign-up, resumes, profile, applications and their moves, AI with cost, prompts and admin actions, newest first', async () => {
         const admin = await superadmin();
-        const reg = await api('POST', '/auth/register', { body: { name: 'Tia', email: uniqueEmail(), password: 'password123', ref: 'ig-story' } });
+        const reg = await signUp({ name: 'Tia', email: uniqueEmail(), password: 'password123', ref: 'ig-story' });
         const token = reg.body.token;
         const id = reg.body.user.id;
         const resume = (await api('POST', '/resumes', { token, body: { nickname: 'Main CV', summary: 'Engineer' } })).body.data;

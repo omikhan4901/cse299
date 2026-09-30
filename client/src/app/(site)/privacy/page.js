@@ -96,6 +96,7 @@ export default function PrivacyPage() {
         <h2>How long we keep it</h2>
         <ul>
           <li><b>Your account, resumes, Career Profile and applications:</b> until you delete them. Deleting removes them from our database straight away.</li>
+          <li><b>Unfinished sign-ups:</b> 30 minutes. Until you enter the code we email you, only your name, email and a hashed password are held, and no account exists.</li>
           <li><b>Feedback:</b> two years, or until you delete your account.</li>
           <li><b>Error reports:</b> 90 days after the error last happened.</li>
           <li><b>AI usage records:</b> 180 days. <b>PDF download records:</b> 12 months. <b>Upgrade steps:</b> about 13 months.</li>

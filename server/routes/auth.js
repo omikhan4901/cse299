@@ -8,10 +8,12 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { deleteUserData, exportUserData } = require('../lib/userData');
 const Campaign = require('../models/Campaign');
+const PendingSignup = require('../models/PendingSignup');
 const { limit, clientIp } = require('../lib/rateLimit');
 const { effectivePlanId } = require('../lib/credits');
 const { getSettings } = require('../lib/settings');
-const { sendMail, canSendMail } = require('../lib/mailer');
+const mailer = require('../lib/mailer');
+const { sendMail, canSendMail } = mailer;
 const totp = require('../lib/totp');
 const { audit } = require('../lib/audit');
 const { networkOf, cleanRef } = require('../lib/network');
@@ -160,8 +162,101 @@ const unsubscribeByIp = limit({ name: 'unsubscribe-ip', windowMs: 60 * 60 * 1000
 const exportByUser = limit({ name: 'export', windowMs: 60 * 60 * 1000, max: 5, key: (req) => req.userId, message: 'Too many exports.', label: 'Data exports', group: 'Sign-in & accounts', scope: 'account', description: 'Downloads of everything stored about an account (a heavy request).' });
 const sensitiveByUser = limit({ name: 'account', windowMs: 15 * 60 * 1000, max: 10, key: (req) => req.userId, message: 'Too many attempts.', label: 'Sensitive account actions', group: 'Sign-in & accounts', scope: 'account', description: 'Password change, account deletion, sign out everywhere and starting 2FA setup.' });
 
-// @route   POST /api/auth/register
-router.post('/register', registerByIp, async (req, res) => {
+// Sign-up takes two steps, so every account has a verified email address:
+//   POST /register        checks everything and emails a 6-digit code (nothing is created,
+//                         no campaign place is taken, the sign-up cap isn't touched);
+//   POST /register/verify creates the account once the code is right.
+// Without email on the server, only the owner (SUPERADMIN_EMAILS) can sign up, to set it up.
+const SIGNUP_CODE_MINUTES = 30;
+const signupEmail = (req) => (typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : null);
+const signupCodeByEmail = limit({ name: 'signup-code', shared: true, windowMs: 60 * 60 * 1000, max: 5, key: signupEmail, message: 'Too many codes sent to this address. Please try again later.', label: 'Sign-up codes (per email)', group: 'Sign-in & accounts', description: 'Sign-up codes emailed to one address in an hour.' });
+const signupVerifyByIp = limit({ name: 'signup-verify-ip', shared: true, windowMs: 15 * 60 * 1000, max: 30, key: clientIp, message: 'Too many attempts. Please wait a few minutes.', label: 'Sign-up code checks (per IP)', group: 'Sign-in & accounts', description: 'Sign-up codes entered from one network.' });
+const hashCode = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
+const fail = (status, error, code) => ({ status, body: { success: false, error, ...(code ? { code } : {}) } });
+
+/** What would stop this sign-up right now ({ status, body }), or null. Checked at both steps. */
+async function signupProblem(lowerEmail, code, settings) {
+    const owner = isSuperadmin({ email: lowerEmail });
+    if (settings.registration === 'closed' && !owner) return fail(403, 'Sign-ups are closed right now. Please check back soon.');
+    // Throwaway email services (Admin › Credits & access), subdomains included.
+    const domain = lowerEmail.split('@')[1] || '';
+    if (!owner && (settings.signups.blockedDomains || []).some((d) => domain === d || domain.endsWith(`.${d}`))) {
+        return fail(400, "Temporary email addresses can't be used. Please sign up with your university or personal email.", 'email-blocked');
+    }
+    // The hard cap on accounts (Admin › Credits & access).
+    if (settings.signups.cap != null && !owner && (await User.countDocuments()) >= settings.signups.cap) {
+        return fail(403, 'Sign-ups are full for now. Please check back soon.', 'signups-full');
+    }
+    if (code) {
+        const problem = campaignProblem(await Campaign.findOne({ code }).lean(), lowerEmail);
+        if (problem) return fail(400, problem);
+    } else if (settings.registration === 'campaign' && !owner) {
+        return fail(403, 'Sign-ups need a campaign code right now.');
+    }
+    return null;
+}
+
+/** Creates the account (claiming its campaign place atomically) → { status, body }. */
+async function createAccount({ name, email, passwordHash, code, ref, net, verifiedAt }, settings) {
+    const lowerEmail = String(email).trim().toLowerCase();
+    let campaign = null;
+    if (code) {
+        campaign = await Campaign.findOne({ code }).lean();
+        const problem = campaignProblem(campaign, lowerEmail);
+        if (problem) return fail(400, problem);
+        campaign = await Campaign.findOneAndUpdate({ _id: campaign._id, uses: { $lt: campaign.maxUses } }, { $inc: { uses: 1 } }, { new: true });
+        if (!campaign) return fail(400, 'This campaign is full.');
+    }
+    let user;
+    try {
+        const until = campaign ? new Date(Date.now() + campaign.durationDays * 864e5) : null;
+        user = await User.create({
+            name: String(name),
+            email: String(email),
+            password: passwordHash,
+            emailVerifiedAt: verifiedAt || undefined,
+            lastLoginAt: new Date(),
+            source: campaign ? 'campaign' : 'organic',
+            ref: ref || undefined,
+            signupNet: net || undefined,
+            termsAccepted: { version: TERMS_VERSION, at: new Date() },
+            ...(campaign
+                ? {
+                      campaign: campaign._id,
+                      plan: campaign.plan,
+                      planExpiresAt: campaign.plan !== 'free' ? until : undefined,
+                      creditLimit: campaign.creditLimit,
+                      creditPeriod: campaign.creditPeriod,
+                      creditLimitExpiresAt: campaign.creditLimit != null ? until : undefined,
+                      // The campaign's feature switches, for as long as the campaign gives.
+                      ...(campaign.features && Object.keys(campaign.features).length ? { features: campaign.features, featuresExpireAt: until } : {}),
+                  }
+                : {}),
+        });
+    } catch (err) {
+        if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
+        throw err;
+    }
+    // The cap check can be raced by sign-ups arriving together: an account past the cap in
+    // creation order is undone (and its campaign place given back).
+    if (settings.signups.cap != null && !isSuperadmin({ email: lowerEmail }) && (await User.countDocuments({ _id: { $lte: user._id } })) > settings.signups.cap) {
+        await User.deleteOne({ _id: user._id });
+        if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
+        return fail(403, 'Sign-ups are full for now. Please check back soon.', 'signups-full');
+    }
+    afterSignup(user, settings);
+    return { status: 201, body: { success: true, token: getSignedJwtToken(user), user: publicUser(user) } };
+}
+
+const signupError = (res, err) => {
+    if (err.name === 'ValidationError') return res.status(400).json({ success: false, error: Object.values(err.errors)[0].message });
+    if (err.code === 11000) return res.status(400).json({ success: false, error: 'User already exists.' });
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Server Error during registration.' });
+};
+
+// @route   POST /api/auth/register — step 1: checks, then emails a code
+router.post('/register', registerByIp, signupCodeByEmail, async (req, res) => {
     const { name, email, password } = req.body;
     const code = typeof req.body.campaignCode === 'string' ? req.body.campaignCode.trim().toUpperCase() : '';
 
@@ -175,85 +270,78 @@ router.post('/register', registerByIp, async (req, res) => {
     }
 
     try {
-        let user = await User.findOne({ email: emailQuery(email) });
-        if (user) {
+        if (await User.exists({ email: emailQuery(email) })) {
             return res.status(400).json({ success: false, error: 'User already exists.' });
         }
-
         const settings = await getSettings();
         const lowerEmail = String(email).trim().toLowerCase();
-        if (settings.registration === 'closed' && !isSuperadmin({ email: lowerEmail })) {
-            return res.status(403).json({ success: false, error: 'Sign-ups are closed right now. Please check back soon.' });
-        }
-        // Throwaway email services (Admin › Credits & access), subdomains included.
-        const domain = lowerEmail.split('@')[1] || '';
-        if (!isSuperadmin({ email: lowerEmail }) && (settings.signups.blockedDomains || []).some((d) => domain === d || domain.endsWith(`.${d}`))) {
-            return res.status(400).json({ success: false, code: 'email-blocked', error: "Temporary email addresses can't be used. Please sign up with your university or personal email." });
-        }
-                // The hard cap on accounts (Admin › Credits & access).
-        if (settings.signups.cap != null && !isSuperadmin({ email: lowerEmail }) && (await User.countDocuments()) >= settings.signups.cap) {
-            return res.status(403).json({ success: false, code: 'signups-full', error: 'Sign-ups are full for now. Please check back soon.' });
-        }
-        // A campaign code gives the campaign's plan and credits. Claiming a place is atomic,
-        // so a campaign never goes over its limit.
-        let campaign = null;
-        if (code) {
-            campaign = await Campaign.findOne({ code }).lean();
-            const problem = campaignProblem(campaign, lowerEmail);
-            if (problem) return res.status(400).json({ success: false, error: problem });
-            campaign = await Campaign.findOneAndUpdate({ _id: campaign._id, uses: { $lt: campaign.maxUses } }, { $inc: { uses: 1 } }, { new: true });
-            if (!campaign) return res.status(400).json({ success: false, error: 'This campaign is full.' });
-        } else if (settings.registration === 'campaign' && !isSuperadmin({ email: lowerEmail })) {
-            return res.status(403).json({ success: false, error: 'Sign-ups need a campaign code right now.' });
+        const problem = await signupProblem(lowerEmail, code, settings);
+        if (problem) return res.status(problem.status).json(problem.body);
+        const details = { name: String(name).trim().slice(0, 200), code, ref: cleanRef(req.body.ref) || undefined, net: networkOf(clientIp(req)) || undefined };
+
+        if (!mailer.canSendMail()) {
+            if (!isSuperadmin({ email: lowerEmail })) {
+                return res.status(503).json({ success: false, code: 'email-off', error: 'Sign-ups are paused for a moment while we set up email. Please check back soon.' });
+            }
+            const out = await createAccount({ ...details, email: String(email).trim(), passwordHash: await hashPassword(password) }, settings);
+            return res.status(out.status).json(out.body);
         }
 
-        try {
-            user = await User.create({
-                name: String(name),
-                email: String(email),
-                password: await hashPassword(password),
-                lastLoginAt: new Date(),
-                source: campaign ? 'campaign' : 'organic',
-                ref: cleanRef(req.body.ref) || undefined,
-                signupNet: networkOf(clientIp(req)) || undefined,
-                termsAccepted: { version: TERMS_VERSION, at: new Date() },
-                ...(campaign
-                    ? {
-                          campaign: campaign._id,
-                          plan: campaign.plan,
-                          planExpiresAt: campaign.plan !== 'free' ? new Date(Date.now() + campaign.durationDays * 864e5) : undefined,
-                          creditLimit: campaign.creditLimit,
-                          creditPeriod: campaign.creditPeriod,
-                          creditLimitExpiresAt: campaign.creditLimit != null ? new Date(Date.now() + campaign.durationDays * 864e5) : undefined,
-                          // The campaign's feature switches, for as long as the campaign gives.
-                          ...(campaign.features && Object.keys(campaign.features).length
-                              ? { features: campaign.features, featuresExpireAt: new Date(Date.now() + campaign.durationDays * 864e5) }
-                              : {}),
-                      }
-                    : {}),
-            });
-        } catch (err) {
-            if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
-            throw err;
-        }
-        // The cap check above can be raced by sign-ups arriving together: an account past the
-        // cap in creation order is undone (and its campaign place given back).
-        if (settings.signups.cap != null && !isSuperadmin({ email: lowerEmail }) && (await User.countDocuments({ _id: { $lte: user._id } })) > settings.signups.cap) {
-            await User.deleteOne({ _id: user._id });
-            if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
-            return res.status(403).json({ success: false, code: 'signups-full', error: 'Sign-ups are full for now. Please check back soon.' });
-        }
-        afterSignup(user, settings);
-        res.status(201).json({ success: true, token: getSignedJwtToken(user), user: publicUser(user) });
+        const six = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
+        await PendingSignup.updateOne(
+            { email: lowerEmail },
+            {
+                $set: {
+                    typedEmail: String(email).trim(),
+                    name: details.name,
+                    passwordHash: await hashPassword(password),
+                    campaignCode: code || null,
+                    ref: details.ref || null,
+                    net: details.net || null,
+                    codeHash: hashCode(six),
+                    attempts: 0,
+                    expiresAt: new Date(Date.now() + SIGNUP_CODE_MINUTES * 60 * 1000),
+                },
+            },
+            { upsert: true }
+        );
+        await mailer.sendMail({
+            to: String(email).trim(),
+            subject: `${six} is your ResumeX sign-up code`,
+            text: `Your ResumeX sign-up code is ${six}. Enter it to create your account. It expires in ${SIGNUP_CODE_MINUTES} minutes. If you didn't try to sign up, you can ignore this email.`,
+            html: `<p>Your ResumeX sign-up code is</p><p style="font-size:28px;font-weight:700;letter-spacing:4px">${six}</p><p>Enter it to create your account. It expires in ${SIGNUP_CODE_MINUTES} minutes. If you didn't try to sign up, you can ignore this email.</p>`,
+        });
+        res.json({ success: true, pending: true, email: lowerEmail, minutes: SIGNUP_CODE_MINUTES });
     } catch (err) {
-        if (err.name === 'ValidationError') {
-            return res.status(400).json({ success: false, error: Object.values(err.errors)[0].message });
+        signupError(res, err);
+    }
+});
+
+// @route   POST /api/auth/register/verify — step 2: { email, code } creates the account
+router.post('/register/verify', signupVerifyByIp, async (req, res) => {
+    const lowerEmail = signupEmail(req) || '';
+    const given = String(req.body?.code ?? '').trim();
+    try {
+        const p = lowerEmail ? await PendingSignup.findOne({ email: lowerEmail }).select('+passwordHash +codeHash') : null;
+        if (!p || !p.expiresAt || p.expiresAt < new Date() || p.attempts >= 5) {
+            return res.status(400).json({ success: false, code: 'code-expired', error: 'That code has expired. Go back and send a new one.' });
         }
-        if (err.code === 11000) {
-            return res.status(400).json({ success: false, error: 'User already exists.' });
+        if (!/^\d{6}$/.test(given) || !crypto.timingSafeEqual(Buffer.from(hashCode(given)), Buffer.from(p.codeHash))) {
+            await PendingSignup.updateOne({ _id: p._id }, { $inc: { attempts: 1 } });
+            return res.status(400).json({ success: false, error: 'That code is not right.' });
         }
-        console.error(err);
-        res.status(500).json({ success: false, error: 'Server Error during registration.' });
+        // Used once: a second request with the same code finds nothing.
+        const { deletedCount } = await PendingSignup.deleteOne({ _id: p._id });
+        if (!deletedCount) return res.status(400).json({ success: false, code: 'code-expired', error: 'That code has expired. Go back and send a new one.' });
+        if (await User.exists({ email: emailQuery(p.typedEmail || lowerEmail) })) return res.status(400).json({ success: false, error: 'User already exists.' });
+        // Things may have changed while the email was on its way (cap, campaign places).
+        const settings = await getSettings();
+        const problem = await signupProblem(lowerEmail, p.campaignCode || '', settings);
+        if (problem) return res.status(problem.status).json(problem.body);
+        const out = await createAccount({ name: p.name, email: p.typedEmail || lowerEmail, passwordHash: p.passwordHash, code: p.campaignCode || '', ref: p.ref, net: p.net, verifiedAt: new Date() }, settings);
+        res.status(out.status).json(out.body);
+    } catch (err) {
+        signupError(res, err);
     }
 });
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Modal, Form, Input, Button, Alert, Segmented } from "antd";
 import { Mail, Lock, User, ArrowLeft, MailCheck, Ticket } from "lucide-react";
 import { useBilling } from "./BillingProvider";
-import { MfaStep } from "./security/TwoFactor";
+import { CodeInput, MfaStep } from "./security/TwoFactor";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 import Logo from "./Logo";
@@ -72,6 +72,58 @@ function ForgotForm({ onBack }) {
   );
 }
 
+/**
+ * Sign-up, step 2: the 6-digit code emailed to the address. The account (and any campaign
+ * place) is only made once it's entered, so every account has a real, verified email.
+ */
+function SignupCodeStep({ pending, onDone, onBack }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [resent, setResent] = useState(false);
+  const verify = async (value) => {
+    setLoading(true);
+    setError(null);
+    try {
+      onDone(await api("/auth/register/verify", { method: "POST", body: { email: pending.email, code: value } }));
+    } catch (err) {
+      setError(err.message);
+      setCode("");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const resend = async () => {
+    setError(null);
+    try {
+      await api("/auth/register", { method: "POST", body: pending.payload });
+      setResent(true);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+  return (
+    <>
+      <div className="flex flex-col items-center pt-2 pb-4 text-center">
+        <span className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand"><MailCheck size={20} /></span>
+        <h2 className="mt-4 text-xl font-semibold text-ink">Check your email</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          We sent a 6-digit code to <b className="text-ink">{pending.email}</b>. Enter it to create your account.
+        </p>
+      </div>
+      {error ? <Alert type="error" showIcon title={error} className="mb-4" /> : null}
+      <CodeInput value={code} onChange={setCode} onComplete={verify} disabled={loading} />
+      <p className="mt-3 text-center text-xs text-slate-500">
+        {resent ? "A new code is on its way." : "No email? Check spam, or "}
+        {resent ? null : <button type="button" onClick={resend} className="font-medium text-brand hover:underline">send a new code</button>}
+      </p>
+      <button type="button" onClick={onBack} className="mx-auto mt-4 flex items-center gap-1 text-sm text-slate-500 hover:text-brand">
+        <ArrowLeft size={14} /> Use a different email
+      </button>
+    </>
+  );
+}
+
 function AuthForm({ mode, onModeChange }) {
   const { login, authOptions } = useAuth();
   const billing = useBilling();
@@ -80,11 +132,19 @@ function AuthForm({ mode, onModeChange }) {
   const [rememberedCode] = useState(() => (typeof window === "undefined" ? "" : currentCampaign()));
   const [showCode, setShowCode] = useState(!!authOptions?.campaignCode || !!rememberedCode || registration === "campaign");
   const [mfaToken, setMfaToken] = useState(null);
+  const [pending, setPending] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const isRegister = mode === "register";
   if (mode === "forgot") return <ForgotForm onBack={() => onModeChange("login")} />;
   if (mfaToken) return <MfaStep mfaToken={mfaToken} onDone={(data) => login(data, "login")} onCancel={() => setMfaToken(null)} />;
+  if (pending) {
+    const done = (data) => {
+      forgetCampaign(); // used: don't offer it to the next person on this browser
+      login(data, "register");
+    };
+    return <SignupCodeStep pending={pending} onDone={done} onBack={() => setPending(null)} />;
+  }
 
   const submit = async (values) => {
     setLoading(true);
@@ -95,6 +155,7 @@ function AuthForm({ mode, onModeChange }) {
         : { email: values.email, password: values.password };
       const data = await api(`/auth/${isRegister ? "register" : "login"}`, { method: "POST", body: payload });
       if (data.mfaRequired) setMfaToken(data.mfaToken);
+      else if (data.pending) setPending({ email: data.email, payload });
       else {
         if (isRegister) forgetCampaign(); // used: don't offer it to the next person on this browser
         login(data, mode);

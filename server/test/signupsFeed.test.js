@@ -5,7 +5,7 @@
  */
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai } = require('./helpers');
+const { start, stop, api, register, superadmin, setSettings, resetState, uniqueEmail, ai, signUp } = require('./helpers');
 const { networkOf, networkPrefix, cleanRef } = require('../lib/network');
 
 describe('network hash and marketing tags', () => {
@@ -45,9 +45,9 @@ describe('sign-ups feed', () => {
 
     it('shows how each account came in, with its first actions, newest first', async () => {
         const admin = await superadmin();
-        const organic = await api('POST', '/auth/register', { body: { name: 'Org', email: uniqueEmail(), password: 'password123', ref: 'FB-Post-1' } });
+        const organic = await signUp({ name: 'Org', email: uniqueEmail(), password: 'password123', ref: 'FB-Post-1' });
         const camp = await api('POST', '/admin/campaigns', { token: admin.token, body: { name: 'Beta', code: 'FEED80', maxUses: 5, durationDays: 30, plan: 'pro' } });
-        const member = await api('POST', '/auth/register', { body: { name: 'Mem', email: uniqueEmail(), password: 'password123', campaignCode: 'FEED80' } });
+        const member = await signUp({ name: 'Mem', email: uniqueEmail(), password: 'password123', campaignCode: 'FEED80' });
         const made = await api('POST', '/admin/users', { token: admin.token, body: { name: 'Made', email: uniqueEmail(), password: 'password123' } });
         assert.equal(made.status, 201, JSON.stringify(made.body));
 
@@ -80,16 +80,18 @@ describe('sign-ups feed', () => {
     it('filters by source, tag, campaign, verified, search and date; pages', async () => {
         const admin = await superadmin();
         const t0 = new Date().toISOString();
-        for (let i = 0; i < 3; i++) await api('POST', '/auth/register', { body: { name: `Ref ${i}`, email: uniqueEmail('tagged'), password: 'password123', ref: 'ig' } });
-        await register({ name: 'Plain' });
+        for (let i = 0; i < 3; i++) await signUp({ name: `Ref ${i}`, email: uniqueEmail('tagged'), password: 'password123', ref: 'ig' });
+        const plain = await register({ name: 'Plain' });
+        // Every sign-up verifies its email now; this one is from before that.
+        await require('../models/User').updateOne({ _id: plain.user.id }, { $unset: { emailVerifiedAt: 1 } });
         // Only accounts made in this test (earlier tests' accounts stay in the database).
         const q = async (s) => (await feed(admin.token, `${s}${s.includes('?') ? '&' : '?'}from=${t0}`)).body.data;
         assert.equal((await q('?ref=IG')).total, 3);
         assert.equal((await q('?source=campaign')).total, 0);
         assert.equal((await q('?source=admin')).total, 0);
         assert.equal((await q('?source=organic')).total, 4);
-        assert.equal((await q('?verified=yes')).total, 0);
-        assert.equal((await q('?verified=no')).total, 4);
+        assert.equal((await q('?verified=yes')).total, 3);
+        assert.equal((await q('?verified=no')).total, 1);
         assert.equal((await q('?q=tagged')).total, 3);
         assert.equal((await q('?q=.*')).total, 0, 'search is literal text');
         const paged = await q('?limit=5&page=2');
