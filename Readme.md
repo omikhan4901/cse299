@@ -23,7 +23,9 @@ Most resume builders render HTML in the browser and hope the print dialog behave
 
 ## V2: your whole job search
 
-> Built behind an admin **V2 preview** switch: admins and chosen accounts see it now, and one switch (Admin › Plans › *V2 workspace for everyone*) opens it to all. The plan and its status live in [`docs/v2/`](docs/v2).
+> V2 is the main version. One admin switch (Admin › Plans › *V2 workspace for everyone*) opens it to all at the beta launch; until then admins and chosen accounts see it. The job-search tools are part of Pro and Premium (and of campaign invites). The plan and its status live in [`docs/v2/`](docs/v2).
+
+![Paste a job circular: title, company and deadline found, and it lands on the board](docs/marketing/videos/jobsearch-wide.gif)
 
 ![Job search on the home page](docs/screenshots/job-search.jpg)
 
@@ -58,10 +60,25 @@ Tailoring scores every job, point and project in your profile against the job's 
 
 ---
 
+## The beta
+
+ResumeX opens as an invite-only beta for about 80 university students. Everything around it
+is built in: money safety (a monthly AI spending cap, per-feature limits, campaign cost
+estimates), plans and storage limits, an admin view of sign-ups and each account's timeline,
+feedback and error reports, maintenance mode, backups, load, abuse and end-to-end tests,
+and a security review.
+
+- [Beta plan and decision log](docs/v2/BETA-PLAN.md)
+- [Security review](docs/security-review.md)
+- [Backups](docs/backups.md) · [Deploying to Cloud Run](docs/deploy-cloud-run.md)
+- [Beta launch playbook](docs/marketing/beta-launch.md) · [Marketing kit](docs/marketing/README.md)
+
 ## Highlights
 
 ### A builder where the preview *is* the PDF
 The preview is the real document, rendered with `@react-pdf/renderer` in a Web Worker and painted with pdf.js. Page breaks, fonts and spacing are exactly what you download. Content and design live side by side, with a floating action dock for zoom, AI, save, share and download.
+
+![Typing a name and switching designs: the PDF updates live](docs/marketing/videos/build-wide.gif)
 
 ![Builder](docs/screenshots/builder.jpg)
 
@@ -73,6 +90,8 @@ ATS-Optimized (including two biodata layouts), Modern / Minimalist, Aesthetic / 
 
 ### An ATS check that isn't a hoax
 It renders your real PDF, extracts the text like an ATS, and runs 30+ explainable checks: readable name and contacts, standard headings, reading order, dates, action verbs, quantified results, clichés, length. Paste a job description to get weighted keyword matching (required vs nice-to-have), skills backed by experience, and title, years and degree fit. It's deterministic, runs in the browser and needs no AI.
+
+![Dropping a PDF into the ATS checker with a job description](docs/marketing/videos/ats-wide.gif)
 
 | Staged scan | Results |
 | --- | --- |
