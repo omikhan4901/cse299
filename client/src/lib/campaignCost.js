@@ -1,16 +1,33 @@
 /**
- * What a campaign could cost in AI, before it's created (Admin › Campaigns): places ×
- * credits per member for the campaign's length × the worst cost of a credit among the AI
- * features members can use. Worst case assumes every member uses every credit on the
- * dearest feature; the typical case is a quarter of that. Covers the campaign period only.
+ * What a campaign could cost in AI, before it's created (Admin › Campaigns), for the
+ * campaign's length:
+ * - likely: members use about as many credits a month as accounts really do (measured by
+ *   GET /admin/ai-usage, else an assumption), never more than their allowance, at what a
+ *   credit really costs (measured, else a typical share of the worst case);
+ * - worst: every member uses every credit on the dearest feature, as far as the AI rate
+ *   limit lets them;
+ * - atMost: the worst case, but no more than the monthly AI cap can let through.
  */
 import { worstPerCredit } from "./aiCost.js";
+
+/** Until there's data: the credits an account uses in a month (most use few or none). */
+export const ASSUMED_CREDITS_PER_MONTH = 25;
+/** Until there's data: a typical request is about a third of the biggest one allowed. */
+export const TYPICAL_SHARE_OF_WORST = 0.35;
+const MONTH_DAYS = 30.44;
 
 /** Allowance periods a window of `days` can touch (credits reset per calendar day or month). */
 export function periodsIn(days, period) {
   const d = Math.max(1, Math.round(Number(days) || 1));
   // A month-based allowance: a window of d days touches at most floor((d - 1) / 28) + 2 calendar months.
   return period === "day" ? d : Math.floor((d - 1) / 28) + 2;
+}
+
+/** Allowance periods a member can expect: members join on different days, so a monthly
+ * allowance resets on average d / 30.44 times during d days. */
+export function expectedPeriods(days, period) {
+  const d = Math.max(1, Math.round(Number(days) || 1));
+  return period === "day" ? d : Math.min(periodsIn(d, period), 1 + d / MONTH_DAYS);
 }
 
 /** The credits each member gets per period, as the server decides it (lib/credits.js allowanceFor). */
@@ -31,18 +48,60 @@ export function memberAiFeatures(c, settings, aiFeatures) {
   });
 }
 
-/** { worst, typical, perCredit, credits, periods, feature } in US dollars. */
-export function campaignEstimate(c, settings, aiFeatures) {
+/**
+ * { likely, worst, atMost, … } in US dollars. `basis` is GET /admin/ai-usage (measured cost
+ * per credit, credits per account, AI requests a minute); `spend` is GET /admin/ai-spend.
+ */
+export function campaignEstimate(c, settings, aiFeatures, basis = {}, spend = null) {
   const { credits, period } = memberAllowance(c, settings);
-  const periods = periodsIn(c.durationDays, period);
-  const allowed = memberAiFeatures(c, settings, aiFeatures);
+  const days = Math.max(1, Math.round(Number(c.durationDays) || 1));
+  const periods = periodsIn(days, period);
+  const allowed = memberAiFeatures(c, settings, aiFeatures).filter((f) => settings.featureCosts?.[f.key]);
   let perCredit = 0;
   let feature = null;
+  let sum = 0;
   for (const f of allowed) {
     const v = worstPerCredit(f.key, settings) || 0;
+    sum += v;
     if (v > perCredit) [perCredit, feature] = [v, f];
   }
   const places = Math.max(0, Number(c.maxUses) || 0);
-  const worst = places * credits * periods * perCredit;
-  return { worst, typical: worst * 0.25, perCredit, credits, period, periods, feature, places };
+
+  // Worst: every credit, unless the per-minute AI limit can't even get through them.
+  const maxPerRequest = Math.max(0, ...allowed.map((f) => settings.featureCosts[f.key]));
+  const rateCredits = basis?.aiPerMinute ? basis.aiPerMinute * 1440 * days * maxPerRequest : Infinity;
+  const worstCredits = Math.min(credits * periods, rateCredits);
+  const worst = places * worstCredits * perCredit;
+
+  // Likely: real use per month (capped by the allowance), at a real or typical credit cost.
+  const measuredUse = basis?.creditsPerAccount;
+  const measuredCost = basis?.perCredit;
+  const monthlyAllowance = period === "day" ? credits * MONTH_DAYS : credits;
+  const usePerMonth = allowed.length ? Math.min(monthlyAllowance, measuredUse ?? ASSUMED_CREDITS_PER_MONTH) : 0;
+  const typicalPerCredit = measuredCost ?? (allowed.length ? (sum / allowed.length) * TYPICAL_SHARE_OF_WORST : 0);
+  const likelyCredits = Math.min(credits * expectedPeriods(days, period), usePerMonth * (days / MONTH_DAYS));
+  const likely = places * likelyCredits * typicalPerCredit;
+
+  // At most: the AI cap pauses all AI for the month once reached (it covers the whole site).
+  const capOn = !!spend?.enabled;
+  const capBound = capOn ? Math.max(0, spend.cap - spend.spent) + spend.cap * (periodsIn(days, "month") - 1) : Infinity;
+  const atMost = Math.min(worst, capBound);
+
+  return {
+    likely,
+    worst,
+    atMost,
+    capped: atMost < worst,
+    rateLimited: rateCredits < credits * periods,
+    perCredit,
+    typicalPerCredit,
+    usePerMonth,
+    measured: { use: measuredUse != null, cost: measuredCost != null },
+    credits,
+    period,
+    periods,
+    feature,
+    places,
+    aiPerMinute: basis?.aiPerMinute || null,
+  };
 }

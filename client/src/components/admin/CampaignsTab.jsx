@@ -15,31 +15,35 @@ const PLAN_OPTIONS = [
 
 const usd = (v, digits = 2) => `$${(v || 0).toFixed(digits)}`;
 
-/** The worst and typical AI cost of the campaign as it's being filled in, against this month's cap. */
-function Estimate({ values, settings, aiFeatures, spend }) {
+/** What the campaign's AI is likely to cost, and the most it can, against the monthly cap. */
+function Estimate({ values, settings, aiFeatures, spend, basis }) {
   const c = { ...values, creditLimit: values.customCredits ? values.creditLimit : null, creditPeriod: values.customCredits ? values.creditPeriod : null };
-  const e = campaignEstimate(c, settings, aiFeatures);
-  const left = spend?.enabled ? Math.max(0, spend.cap - spend.spent) : null;
-  const over = left != null && e.worst > left;
+  const e = campaignEstimate(c, settings, aiFeatures, basis || {}, spend);
+  const noCap = spend && !spend.enabled;
   return (
-    <div className={`mb-4 rounded-xl border p-3 ${over ? "border-amber-300 bg-amber-50/60" : "border-slate-200 bg-slate-50/60"}`}>
+    <div className={`mb-4 rounded-xl border p-3 ${noCap && e.worst > 20 ? "border-amber-300 bg-amber-50/60" : "border-slate-200 bg-slate-50/60"}`}>
       <p className="flex items-center gap-1.5 text-sm font-medium text-ink"><Calculator size={14} className="text-brand" /> What it could cost in AI</p>
       <div className="mt-2 grid grid-cols-2 gap-3">
         <div>
-          <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.worst)}</p>
-          <p className="text-xs text-slate-500">Worst case: all {e.places} members use every credit on the dearest feature{e.feature ? ` (${e.feature.name})` : ""}</p>
+          <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.likely)}</p>
+          <p className="text-xs text-slate-500">
+            Likely: each member uses about {Math.round(e.usePerMonth)} credits a month{e.measured.use ? "" : " (a guess until more people use the site)"}, at {usd(e.typicalPerCredit, 4)} a credit{e.measured.cost ? " (measured)" : " (estimated)"}
+          </p>
         </div>
         <div>
-          <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.typical)}</p>
-          <p className="text-xs text-slate-500">Typical: about a quarter of that</p>
+          <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.atMost)}</p>
+          <p className="text-xs text-slate-500">
+            At most{e.capped ? `: your $${spend.cap} monthly AI cap pauses AI before more is spent` : `: all ${e.places} members use every credit on the dearest feature${e.feature ? ` (${e.feature.name})` : ""}`}
+          </p>
         </div>
       </div>
       <p className="mt-2 text-xs text-slate-500">
-        {e.credits} credits a {e.period} × up to {e.periods} {e.period === "day" ? "days" : "calendar months (credits reset on the 1st)"} × {usd(e.perCredit, 4)} a credit at most.
-        {left != null ? ` ${usd(left)} left under this month's AI cap.` : " The AI cap is off."} Rate limits only slow spending down; credits set the total.
+        {e.capped ? `Without the cap, every credit used on ${e.feature?.name || "the dearest feature"} would be ${usd(e.worst)}. The cap covers all AI on the site. ` : ""}
+        {e.aiPerMinute ? `Rate limit: ${e.aiPerMinute} AI requests a minute per account${e.rateLimited ? ", which keeps members below their credits." : "; it slows bursts, but credits set the total."}` : ""}
       </p>
-      {over ? <p className="mt-1.5 text-xs font-medium text-amber-800">The worst case is more than what&apos;s left under the cap: if it happened, AI would pause for everyone. Fewer places or credits lower it.</p> : null}
-      {e.period === "day" ? <p className="mt-1.5 text-xs font-medium text-amber-800">Credits per day add up fast: {e.credits} a day is {e.credits * 30} a month per member.</p> : null}
+      {noCap ? <p className="mt-1.5 text-xs font-medium text-amber-800">The AI cap is off, so nothing stops the worst case. Turn it on in AI costs.</p> : null}
+      {e.period === "day" ? <p className="mt-1.5 text-xs font-medium text-amber-800">Credits per day add up fast: {e.credits} a day is {Math.round(e.credits * 30.44)} a month per member.</p> : null}
+      {e.period === "month" && e.periods > 2 ? <p className="mt-1.5 text-xs text-slate-500">Tip: 28 days or fewer keeps each member to two months&apos; credits (credits reset on the 1st).</p> : null}
     </div>
   );
 }
@@ -56,6 +60,7 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
   const [form] = Form.useForm();
   const meta = useAdmin(campaign ? "/settings" : null).data;
   const spend = useAdmin(campaign ? "/ai-spend" : null).data;
+  const basis = useAdmin(campaign ? "/ai-usage" : null).data;
   const { message } = App.useApp();
   const [saving, setSaving] = useState(false);
   const isNew = campaign && !campaign._id;
@@ -170,7 +175,7 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
                 )}
               </Form.Item>
               <Form.Item noStyle shouldUpdate>
-                {({ getFieldsValue }) => <Estimate values={getFieldsValue(true)} settings={meta.settings} aiFeatures={meta.aiFeatures} spend={spend} />}
+                {({ getFieldsValue }) => <Estimate values={getFieldsValue(true)} settings={meta.settings} aiFeatures={meta.aiFeatures} spend={spend} basis={basis} />}
               </Form.Item>
             </>
           ) : null}

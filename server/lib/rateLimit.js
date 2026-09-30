@@ -30,6 +30,14 @@ const setOverrides = (next) => {
 /** Every limit with its defaults, for the admin console. */
 const describeLimits = () => [...catalog.values()];
 
+/** A limit's current `max` and `windowMs`, with the admin's change applied (null if unknown). */
+function currentLimit(name) {
+    const base = catalog.get(name);
+    if (!base) return null;
+    const o = overrides[name] || {};
+    return { max: Number(o.max) || base.max, windowMs: Number(o.windowMs) || base.windowMs };
+}
+
 const retryIn = (seconds) =>
     seconds >= 3600 ? `${Math.ceil(seconds / 3600)} hour${seconds >= 7200 ? 's' : ''}`
     : seconds >= 60 ? `${Math.ceil(seconds / 60)} minute${seconds >= 120 ? 's' : ''}`
@@ -116,4 +124,4 @@ const resetLimits = async () => {
     await require('../models/RateCount').deleteMany({}).catch(() => {});
 };
 
-module.exports = { limit, clientIp, retryIn, setOverrides, describeLimits, resetLimits };
+module.exports = { limit, clientIp, retryIn, setOverrides, describeLimits, currentLimit, resetLimits };

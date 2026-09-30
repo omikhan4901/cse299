@@ -41,9 +41,52 @@ describe('campaign cost estimate (browser)', () => {
         const perCredit = worstPerCredit('refine', s);
         assert.equal(e.feature.key, 'refine');
         assert.equal(e.worst, 80 * 60 * 2 * perCredit);
-        assert.equal(e.typical, e.worst / 4);
+        assert.equal(e.atMost, e.worst, 'no cap given: nothing lowers the worst case');
         const none = campaignEstimate({ plan: 'free', features: { chat: false, refine: false }, maxUses: 80, creditLimit: 60, creditPeriod: 'month', durationDays: 30 }, s, AI_FEATURES);
         assert.equal(none.worst, 0, 'no AI features, no AI cost');
+        assert.equal(none.likely, 0);
+    });
+
+    it('likely: real use (else 25 credits a month), never over the allowance, at the real (else typical) credit cost', async () => {
+        const { campaignEstimate, expectedPeriods, ASSUMED_CREDITS_PER_MONTH, TYPICAL_SHARE_OF_WORST } = await costLib();
+        const { worstPerCredit } = await aiCostLib();
+        const s = structuredClone(settings);
+        s.freeMode.enabled = false;
+        assert.ok(Math.abs(expectedPeriods(30, 'month') - (1 + 30 / 30.44)) < 1e-9, 'members join on different days');
+        assert.ok(expectedPeriods(30, 'month') < 3);
+        const base = { plan: 'premium', maxUses: 50, durationDays: 30 };
+        const guess = campaignEstimate(base, s, AI_FEATURES);
+        assert.equal(guess.usePerMonth, ASSUMED_CREDITS_PER_MONTH);
+        assert.equal(guess.measured.use, false);
+        const costed = AI_FEATURES.filter((f) => s.featureCosts[f.key] && s.plans.find((p) => p.id === 'premium').features[f.key]);
+        const mean = costed.reduce((t, f) => t + worstPerCredit(f.key, s), 0) / costed.length;
+        assert.ok(Math.abs(guess.typicalPerCredit - mean * TYPICAL_SHARE_OF_WORST) < 1e-12);
+        assert.ok(Math.abs(guess.likely - 50 * 25 * (30 / 30.44) * guess.typicalPerCredit) < 1e-9);
+        assert.ok(guess.likely < guess.worst / 50, `a 1000-credit plan isn't used up: ${guess.likely} vs ${guess.worst}`);
+
+        const real = campaignEstimate(base, s, AI_FEATURES, { perCredit: 0.002, creditsPerAccount: 12, aiPerMinute: 8 });
+        assert.equal(real.usePerMonth, 12);
+        assert.equal(real.typicalPerCredit, 0.002);
+        assert.deepEqual(real.measured, { use: true, cost: true });
+        const small = campaignEstimate({ ...base, plan: 'pro', creditLimit: 5, creditPeriod: 'month' }, s, AI_FEATURES, { creditsPerAccount: 40 });
+        assert.equal(small.usePerMonth, 5, 'never more than the allowance');
+    });
+
+    it('at most: the monthly AI cap bounds the worst case; the rate limit only when it binds', async () => {
+        const { campaignEstimate } = await costLib();
+        const s = structuredClone(settings);
+        s.freeMode.enabled = false;
+        const c = { plan: 'premium', maxUses: 50, durationDays: 30 };
+        const e = campaignEstimate(c, s, AI_FEATURES, { aiPerMinute: 8 }, { enabled: true, cap: 40, spent: 10 });
+        assert.ok(e.worst > 500);
+        assert.equal(e.capped, true);
+        assert.equal(e.atMost, 30 + 40 * 2, "what's left this month, plus a full cap for each further month it touches");
+        assert.equal(e.rateLimited, false, '8 a minute is far above 1000 credits a month');
+        const off = campaignEstimate(c, s, AI_FEATURES, {}, { enabled: false, cap: 40, spent: 0 });
+        assert.equal(off.atMost, off.worst);
+        const slow = campaignEstimate({ ...c, creditLimit: 100000, creditPeriod: 'day', durationDays: 1 }, s, AI_FEATURES, { aiPerMinute: 1 });
+        assert.equal(slow.rateLimited, true, 'one a minute can\'t spend 100,000 credits in a day');
+        assert.ok(slow.worst < 50 * 100000 * slow.perCredit);
     });
 });
 
@@ -112,5 +155,46 @@ describe('campaign feature switches', () => {
         assert.equal(row.stats.active, 2, 'signing up counts as a login');
         assert.equal(row.stats.credits, 1);
         assert.equal(row.stats.aiCost.toFixed(3), '0.055', '100k in × $0.30 + 10k out × $2.50');
+    });
+});
+
+describe('AI usage basis (the campaign estimate)', () => {
+    before(() => start('aiusage'));
+    after(stop);
+    beforeEach(resetState);
+
+    it('measures cost per credit and credits per account only once there is enough to go on; admins only', async () => {
+        const admin = await superadmin();
+        const { MIN_CREDITS, MIN_ACCOUNTS } = require('../lib/economics');
+        const AiEvent = require('../models/AiEvent');
+        const User = require('../models/User');
+        const mongoose = require('mongoose');
+        const get = async () => (await api('GET', '/admin/ai-usage', { token: admin.token })).body.data;
+        let b = await get();
+        assert.equal(b.perCredit, null);
+        assert.equal(b.creditsPerAccount, null);
+        assert.equal(b.aiPerMinute, 8);
+
+        const user = new mongoose.Types.ObjectId();
+        const now = new Date();
+        // 1,000,000 input tokens at $0.30 and 100,000 output at $2.50 = $0.55, over MIN_CREDITS credits…
+        await AiEvent.create({ user, feature: 'refine', credits: MIN_CREDITS, model: 'gemini-2.5-flash', inputTokens: 1e6, outputTokens: 1e5, at: now });
+        // …plus a failed call: paid for, but its credits were refunded.
+        await AiEvent.create({ user, feature: 'refine', credits: 0, ok: false, model: 'gemini-2.5-flash', inputTokens: 1e6, outputTokens: 0, at: now });
+        // Too old to count.
+        await AiEvent.create({ user, feature: 'refine', credits: 500, model: 'gemini-2.5-flash', inputTokens: 1e6, outputTokens: 0, at: new Date(Date.now() - 70 * 864e5) });
+        b = await get();
+        assert.ok(Math.abs(b.perCredit - 0.85 / MIN_CREDITS) < 1e-12, String(b.perCredit));
+
+        const seen = new Date();
+        await User.collection.insertMany(Array.from({ length: MIN_ACCOUNTS }, (_, i) => ({ name: `U${i}`, email: `u${i}-${Date.now()}@x.dev`, password: 'x', lastSeenAt: seen })));
+        b = await get();
+        const accounts = await User.countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - 30 * 864e5) } });
+        assert.equal(b.accounts, accounts);
+        assert.ok(Math.abs(b.creditsPerAccount - MIN_CREDITS / accounts) < 1e-9);
+
+        const { register } = require('./helpers');
+        const u = await register();
+        assert.equal((await api('GET', '/admin/ai-usage', { token: u.token })).status, 403);
     });
 });

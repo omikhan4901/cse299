@@ -13,7 +13,7 @@ const { audit } = require('../lib/audit');
 const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email');
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { deleteUserData } = require('../lib/userData');
-const { aiEconomics } = require('../lib/economics');
+const { aiEconomics, usageBasis } = require('../lib/economics');
 const { pauseState, monthKey, nextMonth, callCost } = require('../lib/aiSpend');
 const { revenueReport, paymentsCsv } = require('../lib/revenue');
 const { storageReport, checkStorage } = require('../lib/storage');
@@ -585,6 +585,11 @@ router.get('/storage', wrap(async (req, res) => {
     const report = await storageReport(settings, { fresh: req.query.fresh === '1' });
     checkStorage(settings);
     res.json({ success: true, data: report });
+}));
+
+// What a credit really costs and how many credits accounts really use (the campaign estimate).
+router.get('/ai-usage', wrap(async (req, res) => {
+    res.json({ success: true, data: await usageBasis(await getSettings()) });
 }));
 
 router.get('/ai-spend', wrap(async (req, res) => {

@@ -86,4 +86,43 @@ async function aiEconomics({ days = 30, settings }) {
     };
 }
 
-module.exports = { aiEconomics, priceFor };
+/**
+ * What AI really costs and how much of it accounts really use, for the campaign estimate
+ * (client/src/lib/campaignCost.js): the cost of a credit over the last 60 days (failed calls
+ * included: they're paid for but refunded), and the credits an account uses in a month,
+ * averaged over every account seen in the last 30 days (most use none). Each is null until
+ * there's enough to go on, and the estimate then uses a stated assumption instead.
+ */
+const MIN_CREDITS = 200;
+const MIN_ACCOUNTS = 20;
+
+async function usageBasis(settings) {
+    const User = require('../models/User');
+    const { currentLimit } = require('./rateLimit');
+    const prices = settings.aiPrices || { default: { input: 0, output: 0 } };
+    const now = Date.now();
+    const [events, seen] = await Promise.all([
+        AiEvent.find({ at: { $gte: new Date(now - 60 * 864e5) } }).select('user model ok credits inputTokens outputTokens at').limit(500000).lean(),
+        User.countDocuments({ lastSeenAt: { $gte: new Date(now - 30 * 864e5) } }),
+    ]);
+    let cost = 0;
+    let credits = 0;
+    let recentCredits = 0;
+    const since30 = now - 30 * 864e5;
+    for (const e of events) {
+        cost += costOf({ model: e.model, inputTokens: e.inputTokens || 0, outputTokens: e.outputTokens || 0 }, prices);
+        if (e.ok === false) continue;
+        credits += e.credits || 0;
+        if (new Date(e.at).getTime() >= since30) recentCredits += e.credits || 0;
+    }
+    const burst = currentLimit('ai-minute');
+    return {
+        credits,
+        perCredit: credits >= MIN_CREDITS ? cost / credits : null,
+        accounts: seen,
+        creditsPerAccount: seen >= MIN_ACCOUNTS ? recentCredits / seen : null,
+        aiPerMinute: burst ? Math.round((burst.max * 60000) / burst.windowMs) : null,
+    };
+}
+
+module.exports = { aiEconomics, priceFor, usageBasis, MIN_CREDITS, MIN_ACCOUNTS };
