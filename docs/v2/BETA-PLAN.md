@@ -340,8 +340,13 @@ separately. Rough total: 12–16 working days of effort.
   Bangla, and the daily admin check.
 - Animated mockups recorded from the real app with sample data (`docs/marketing/video/
   record.mjs`, Chrome screencast frames at full resolution, a drawn pointer and caption
-  pill, ffmpeg): build, ats and jobsearch, each as 1:1, 4:5, 9:16 (phone layout) MP4 and a
-  wide GIF, with post copy in `docs/marketing/videos/README.md`.
+  pill, ffmpeg): build, ats, jobsearch, tailor, prep, templates and private, each as 1:1,
+  4:5, 9:16 (phone layout) MP4 and a wide GIF, with post copy (English and Bangla) in
+  `docs/marketing/videos/README.md`. Tailor, prep and jobsearch are Pro and wait for V2 to
+  be on for everyone.
+- A beta post series (BT1–BT5 in `facebook-posts.md`): teaser, invites open,
+  the ATS check, week-one fixes, before it ends. The app's "Free, no AI credits" labels on V2 tools now say
+  "Uses no AI credits" (the tools are Pro; only the credits are free).
 - Job-search posts and the plan no longer call Profile, Applications, tailoring or interview
   prep "free" (they're Pro and Premium, or the beta invite).
 - Found while recording and fixed: the job analyzer missed "Junior Software Engineer at

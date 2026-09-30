@@ -140,7 +140,7 @@ function One({ app, profile, token, templateFor, tailoredCount, onDone, onClose 
         </p>
       ) : null}
       <div className="mt-6 flex items-center justify-between gap-2">
-        <span className="text-xs text-slate-400">Free, no AI credits</span>
+        <span className="text-xs text-slate-400">Uses no AI credits</span>
         <div className="flex gap-2">
           <Button onClick={onClose}>Cancel</Button>
           <Button type="primary" loading={busy} icon={<ArrowRight size={15} />} iconPlacement="end" onClick={create}>

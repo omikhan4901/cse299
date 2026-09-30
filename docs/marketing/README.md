@@ -6,7 +6,7 @@ Everything you need to launch ResumeX on Facebook and grow it with search, start
 |---|---|
 | 1. [Marketing plan](marketing-plan.md) | Who to target, where, the launch week, the 90-day plan, ambassadors, ads and metrics |
 | 2. [SEO checklist](seo-checklist.md) | Google Search Console, Bing, backlinks and a monthly routine (30 minutes to set up) |
-| 3. [Facebook posts](facebook-posts.md) | Page setup text plus 37 ready-to-post posts in English and Bangla, including the job-search launch |
+| 3. [Facebook posts](facebook-posts.md) | Page setup text plus 42 ready-to-post posts in English and Bangla: the beta series, the job-search launch and more |
 | 4. [Outreach templates](outreach-templates.md) | Messages for group admins, clubs, career offices and ambassadors, and replies to common comments |
 | 5. [Beta launch](beta-launch.md) | The first 80 students: set-up clicks, a four-week sequence, invite messages (English and Bangla), the daily admin check |
 | 6. [Animated mockups](videos/README.md) | Screen recordings of the real app in square, 4:5, 9:16 and a wide GIF, each with post copy |

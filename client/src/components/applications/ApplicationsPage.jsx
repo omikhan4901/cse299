@@ -146,7 +146,7 @@ export default function ApplicationsPage() {
             </Tooltip>
           ) : null}
           {untailored.length >= 2 ? (
-            <Tooltip title="One resume per job, picked from your profile. Free, no AI credits.">
+            <Tooltip title="One resume per job, picked from your profile. Uses no AI credits.">
               <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)} aria-label="Tailor resumes">
                 <span className="hidden sm:inline">Tailor resumes</span>
               </Button>

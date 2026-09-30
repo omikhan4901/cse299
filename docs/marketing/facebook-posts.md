@@ -400,6 +400,58 @@ and add these lines to the About text, under the templates line:
 
 ---
 
+## Beta posts (the first 80 students)
+
+Use these with the sequence in [beta-launch.md](beta-launch.md). Replace `[CODE]` with the
+campaign code. The clips are in [`videos/`](videos).
+
+### BT1. Teaser (two days before)
+**Clip:** `build-portrait.mp4`
+
+> Building something for our batch 👀
+> A CV builder where the preview **is** the PDF, an ATS check that reads your CV like the
+> software employers use, and a board for every job you apply to.
+> 80 early spots open on Sunday. Comment "in" if you want one.
+
+### BT2. Invites are open (pin this)
+**Clip:** `jobsearch-square.mp4`
+
+> 🎓 80 early spots for ResumeX Pro, free for 4 weeks.
+> ✅ Your CV, live as you type, 50+ templates
+> ✅ An ATS check with the keywords each job wants
+> ✅ Every application on one board, with deadline reminders
+> ✅ A tailored CV for each job and interview prep
+> 👉 https://resumex.cc/join/[CODE]
+> First come, first served. The "Beta" tag at the top of the site is for telling me what's
+> broken or confusing: that's the deal 🙏
+
+### BT3. Day 3: the ATS check
+**Clip:** `ats-square.mp4`
+
+> Quick one for everyone in the beta (and everyone else, this part is free):
+> before a human reads your CV, software does. Drop your PDF in the ATS checker, add the job
+> circular, and fix the missing keywords before you apply.
+> 👉 https://resumex.cc/ats-checker
+
+### BT4. Week 1: what we fixed
+**No clip** (or a screenshot of the change)
+
+> One week of the beta: thank you! You sent [N] notes. What we fixed:
+> • [fix 1]
+> • [fix 2]
+> • [fix 3]
+> Keep them coming: the "Beta" tag at the top → Send feedback.
+
+### BT5. Before the beta ends (day 26)
+**Clip:** `tailor-square.mp4`
+
+> Two days left of beta Pro 🙌
+> When it ends you keep everything you made: your CVs stay, and the builder, the ATS check
+> and PDF downloads stay free. Thanks for building this with us.
+> Tell us one thing we should build next 👇
+
+---
+
 ## Job-search launch posts
 
 **Post these only after "V2 workspace for everyone" is switched on in Admin › Plans.** Until then, visitors can't open these tools and the posts would promise something they can't use. Launch-week order: J1 (pin it), J2 two days later, then one a week. The Career Profile, applications, tailoring and interview prep are part of **Pro and Premium** (and of campaigns, like the beta invites). The builder, the ATS check and the first CV stay free. So say "in Pro" or "free for invited students during the beta", never "free" for these tools. Post J4 only once reminder emails are set up (SMTP and the Cloud Scheduler jobs).

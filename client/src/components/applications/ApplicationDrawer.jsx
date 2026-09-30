@@ -294,7 +294,7 @@ function Body({ a, save, token, onClose, onDelete, setFull }) {
               <Button type={a.resume ? "default" : "primary"} icon={<Wand2 size={15} />} onClick={() => setTailoring(true)}>
                 {a.resume ? "Tailor a version for this job" : "Tailor a resume for this job"}
               </Button>
-              <span className="text-xs text-slate-400">Free, no AI credits</span>
+              <span className="text-xs text-slate-400">Uses no AI credits</span>
             </div>
           ) : null}
           {a.snapshot?.at && a.resume ? (

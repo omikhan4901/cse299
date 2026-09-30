@@ -79,7 +79,7 @@ export default function AddApplication({ open, onClose, token, onCreate }) {
             <Briefcase size={18} />
           </span>
           <h2 className="mt-4 font-display text-lg font-bold text-ink">Add an application</h2>
-          <p className="text-sm text-slate-500">Paste the job link or the whole circular. We&apos;ll pick out the title, organisation and deadline. Free, no AI credits.</p>
+          <p className="text-sm text-slate-500">Paste the job link or the whole circular. We&apos;ll pick out the title, organisation and deadline. Uses no AI credits.</p>
           <Input.TextArea
             className="!mt-4"
             value={input}

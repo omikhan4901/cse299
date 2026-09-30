@@ -54,3 +54,74 @@ feature (and part of the beta invite).
 > জব সার্কুলার পেস্ট করো: পদের নাম, প্রতিষ্ঠান আর ডেডলাইন নিজেই খুঁজে বোর্ডে রাখবে, আর
 > ডেডলাইনের আগে মনে করিয়ে দেবে।
 > ResumeX Pro-তে (বেটা স্টুডেন্টদের জন্য ফ্রি) 👉 https://resumex.cc
+
+## tailor: "A resume for each job" (about 20 s)
+
+Shows: an application on the board, "Tailor resume", the skills and experience picked from
+the Career Profile, the tailored resume opening in the builder. **Post only once V2 is on for
+everyone**; it's a Pro feature and uses no AI credits.
+
+> 🎯 One CV for every job? Recruiters notice.
+> Keep everything once in your Career Profile. For each job, ResumeX picks what fits, puts the
+> job's skills first and opens a ready resume. Only your own experience, nothing made up.
+> In ResumeX Pro (free for our beta students) 👉 https://resumex.cc
+>
+> #CV #JobSearch #FreshGraduate #BangladeshJobs
+
+**Bangla**
+
+> 🎯 সব চাকরিতে একই সিভি? রিক্রুটাররা বুঝে ফেলে।
+> সবকিছু একবার Career Profile-এ রাখো। প্রতিটা চাকরির জন্য ResumeX মানানসই অংশগুলো বেছে নেয়,
+> চাকরির স্কিলগুলো আগে রাখে, আর রেডি সিভি খুলে দেয়। শুধু তোমার নিজের অভিজ্ঞতা, বানানো কিছু না।
+> ResumeX Pro-তে (বেটা স্টুডেন্টদের জন্য ফ্রি) 👉 https://resumex.cc
+
+## prep: "An interview coming up?" (about 20 s)
+
+Shows: an application at the interview stage, interview prep, the likely questions with
+points from the student's own experience. **Post only once V2 is on for everyone**; it's a
+Pro feature.
+
+> 🗣️ Interview on Sunday?
+> ResumeX lists the questions that job is likely to ask, with talking points from your own
+> projects and experience, so you walk in with answers, not guesses.
+> In ResumeX Pro (free for our beta students) 👉 https://resumex.cc
+>
+> #InterviewTips #JobSearch #FreshGraduate
+
+**Bangla**
+
+> 🗣️ রবিবার ইন্টারভিউ?
+> ওই চাকরিতে কোন প্রশ্নগুলো আসতে পারে ResumeX দেখিয়ে দেয়, সাথে তোমার নিজের প্রজেক্ট আর
+> অভিজ্ঞতা থেকে উত্তরের পয়েন্ট। আন্দাজে না, প্রস্তুতি নিয়ে যাও।
+> ResumeX Pro-তে (বেটা স্টুডেন্টদের জন্য ফ্রি) 👉 https://resumex.cc
+
+## templates: "52 templates in 7 styles" (about 20 s)
+
+Shows: the template gallery, the style filters, colours and fonts. Some designs are part of
+Pro (set in Admin › Plans), so the copy doesn't promise every one is free.
+
+> 🎨 ATS-friendly, modern, creative, academic, two-column…
+> 52 templates in 7 styles, any colour and 11 fonts. Pick one, switch any time, and your
+> content stays put. Free to build and download, no watermark.
+> 👉 https://resumex.cc/templates
+>
+> #CV #ResumeTemplate #FreshGraduate
+
+## private: "Using a shared computer?" (about 15 s)
+
+Shows: starting a private session, the banner saying nothing is saved, downloading the PDF.
+Good for campus labs and cyber cafés.
+
+> 🔒 Making your CV on a lab or café computer?
+> Start a private session: nothing is saved, not on the computer and not on our servers.
+> Build, download your PDF and go. No account needed.
+> 👉 https://resumex.cc
+>
+> #CV #Privacy #StudentLife
+
+**Bangla**
+
+> 🔒 ল্যাব বা সাইবার ক্যাফের কম্পিউটারে সিভি বানাচ্ছো?
+> প্রাইভেট সেশন চালু করো: কিছুই সেভ হয় না, কম্পিউটারেও না, আমাদের সার্ভারেও না।
+> বানাও, PDF ডাউনলোড করো, চলে যাও। অ্যাকাউন্ট লাগবে না।
+> 👉 https://resumex.cc

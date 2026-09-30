@@ -10,7 +10,7 @@
  *   SITE=http://localhost:3400 API=http://localhost:5000/api DEMO_TOKEN=<jwt of the demo account> \
  *   FFMPEG=/path/to/ffmpeg PLAYWRIGHT_PATH=/path/to/playwright node record.mjs [scene…] [--formats=square,story]
  *
- * Scenes: build, ats, jobsearch. Output goes to ./out (git-ignored); copy the keepers to ../videos.
+ * Scenes: build, ats, jobsearch, tailor, prep, templates, private. Output goes to ./out (git-ignored); copy the keepers to ../videos.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -219,6 +219,88 @@ const SCENES = {
       await clickOn(page, page.getByRole("button", { name: "Save application" }));
       await sleep(2200);
       await caption(page, "Reminders before every deadline");
+      await sleep(2500);
+    },
+  },
+  tailor: {
+    name: "tailor",
+    signedIn: true,
+    async run(page) {
+      await page.goto(`${SITE}/applications`);
+      await sleep(3500);
+      await caption(page, "One Career Profile, a resume for each job");
+      await clickOn(page, page.getByText("SSLCommerz", { exact: true }).first());
+      await sleep(1800);
+      await clickOn(page, page.getByRole("button", { name: /Tailor a (version|resume) for this job/ }).first());
+      await sleep(2200);
+      await caption(page, "Picked from your profile. Nothing made up");
+      await sleep(2600);
+      await clickOn(page, page.getByRole("button", { name: /Create and open/ }).first());
+      await caption(page, "The job's skills first, ready to send");
+      await page.locator('canvas[aria-label="Resume page 1"]').waitFor({ state: "visible", timeout: 45000 }).catch(() => {});
+      await sleep(4000);
+    },
+  },
+  prep: {
+    name: "prep",
+    signedIn: true,
+    async run(page) {
+      await page.goto(`${SITE}/applications`);
+      await sleep(3500);
+      await caption(page, "An interview coming up?");
+      await clickOn(page, page.getByText("Unilever", { exact: true }).first());
+      await sleep(1800);
+      await clickOn(page, page.getByRole("button", { name: /Prepare for it/ }).first());
+      await sleep(2500);
+      await caption(page, "The questions it's likely to ask");
+      await sleep(2200);
+      const more = page.getByRole("button", { name: /^Show all/ }).first();
+      if (await more.count()) {
+        await clickOn(page, more);
+        await sleep(1200);
+      }
+      await caption(page, "With points from your own experience");
+      await page.mouse.wheel(0, 350);
+      await sleep(2600);
+      await page.mouse.wheel(0, 350);
+      await sleep(2200);
+    },
+  },
+  templates: {
+    name: "templates",
+    async run(page) {
+      await page.goto(`${SITE}/templates`);
+      await sleep(2500);
+      await caption(page, "52 templates in 7 styles");
+      for (let i = 0; i < 5; i++) {
+        await page.mouse.wheel(0, 380);
+        await sleep(1300);
+      }
+      await caption(page, "ATS-friendly, modern, creative, academic…");
+      for (let i = 0; i < 4; i++) {
+        await page.mouse.wheel(0, 380);
+        await sleep(1300);
+      }
+      await caption(page, "Any colour, 11 fonts, free to download");
+      await sleep(2000);
+    },
+  },
+  private: {
+    name: "private",
+    async run(page) {
+      await page.goto(`${SITE}/`);
+      await sleep(2500);
+      await caption(page, "Using a shared computer?");
+      await clickOn(page, page.getByRole("link", { name: "Start a private session" }).first());
+      await page.getByPlaceholder("Jane Doe").waitFor({ timeout: 60000 });
+      await sleep(1500);
+      await caption(page, "A private session saves nothing, anywhere");
+      const field = page.getByPlaceholder("Jane Doe");
+      await clickOn(page, field);
+      await field.selectText().catch(() => {});
+      await field.pressSequentially("Nusrat Jahan", { delay: 60 });
+      await sleep(1800);
+      await caption(page, "Download your PDF and go");
       await sleep(2500);
     },
   },

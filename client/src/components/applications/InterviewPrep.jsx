@@ -354,7 +354,7 @@ export default function InterviewPrep({ open, onClose, app, profile, resume, onP
             ) : (
               <>
                 <QuickSheet prep={prep} />
-                <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-400"><Sparkles size={12} /> Free, no AI credits. Made from your own experience and the job text; nothing here is invented.</p>
+                <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-400"><Sparkles size={12} /> Uses no AI credits. Made from your own experience and the job text; nothing here is invented.</p>
               </>
             )}
           </div>
