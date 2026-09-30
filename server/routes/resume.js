@@ -8,7 +8,7 @@ const { limit } = require("../lib/rateLimit");
 const User = require("../models/User");
 const { getSettings } = require("../lib/settings");
 const { canUse, USER_FIELDS: ACCESS_FIELDS } = require("../lib/credits");
-const { roomForResumes } = require("../lib/resumeLimit");
+const { roomForResumes, keptWithinLimit } = require("../lib/resumeLimit");
 const { templateAllowed, templateTier } = require("../lib/templates");
 const { CONTENT_KEYS, pick, tooBig } = require("../lib/resumeInput");
 
@@ -80,6 +80,7 @@ router.post("/", protect, perAccount, createByUser, async (req, res) => {
     if (typeof data.template === "string" && !(await templateOk(req, res, data.template))) return;
     if (data.isMaster) await Resume.updateMany({ user: req.userId }, { isMaster: false });
     const resume = await Resume.create({ ...data, user: req.userId });
+    if (!(await keptWithinLimit(req, res, [resume._id]))) return;
     res.status(201).json({ success: true, data: resume });
   } catch (err) {
     handleError(res, err, "Server error while saving the resume.");
@@ -148,6 +149,7 @@ router.post("/:id/duplicate", protect, perAccount, createByUser, async (req, res
     if (!(await underResumeCap(req, res))) return;
     const copy = pickEditable(resume.toObject());
     const created = await Resume.create({ ...copy, nickname: `${resume.nickname} (copy)`.slice(0, 120), isMaster: false, isPublic: false, user: req.userId });
+    if (!(await keptWithinLimit(req, res, [created._id]))) return;
     res.status(201).json({ success: true, data: created });
   } catch (err) {
     handleError(res, err, "Server error while duplicating the resume.");

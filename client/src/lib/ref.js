@@ -28,3 +28,31 @@ export function currentRef() {
     return undefined;
   }
 }
+
+const CODE_KEY = "resumex.campaign";
+
+/** The invite code of a /join page, kept for 30 days so any sign-up form fills it in. */
+export function rememberCampaign(code) {
+  try {
+    if (code) localStorage.setItem(CODE_KEY, JSON.stringify({ code: String(code).slice(0, 32), at: Date.now() }));
+  } catch {
+    // Storage blocked: the join page's own button still carries the code.
+  }
+}
+
+export function currentCampaign() {
+  try {
+    const had = JSON.parse(localStorage.getItem(CODE_KEY) || "null");
+    return had?.code && Date.now() - had.at < DAYS * 864e5 ? had.code : "";
+  } catch {
+    return "";
+  }
+}
+
+export function forgetCampaign() {
+  try {
+    localStorage.removeItem(CODE_KEY);
+  } catch {
+    // Nothing stored.
+  }
+}

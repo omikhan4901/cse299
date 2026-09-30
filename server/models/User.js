@@ -96,5 +96,21 @@ const UserSchema = new mongoose.Schema({
     }
 });
 
+// Any change to an account forgets its cached session check (lib/sessionCache.js), so a ban,
+// a password change or "sign out everywhere" applies at once on this server.
+const sessionCache = require('../lib/sessionCache');
+const idOf = (q) => q?.getQuery?.()._id;
+UserSchema.post('save', (doc) => sessionCache.forget(doc._id));
+UserSchema.post('deleteOne', { document: true, query: false }, (doc) => sessionCache.forget(doc._id));
+for (const op of ['updateOne', 'findOneAndUpdate', 'deleteOne', 'findOneAndDelete']) {
+    UserSchema.post(op, function () {
+        const id = idOf(this);
+        if (id && typeof id !== 'object') sessionCache.forget(id);
+        else if (id && id.toString && !id.$in) sessionCache.forget(id);
+        else sessionCache.clear(); // many accounts at once: forget everything
+    });
+}
+for (const op of ['updateMany', 'deleteMany']) UserSchema.post(op, () => sessionCache.clear());
+
 // Export the model
 module.exports = mongoose.model('User', UserSchema);

@@ -17,12 +17,14 @@ const isPdf = (buf) => buf.length > 5 && buf.subarray(0, 5).toString('latin1') =
 const scanLimit = limit({
     name: 'ats-scan',
     windowMs: 60 * 60 * 1000,
-    max: 5,
-    key: clientIp,
+    // Signed in: per account. Signed out: per network, sized for a campus sharing one address
+    // (reading files is bounded by the worker pool anyway, lib/files.js).
+    max: 30,
+    key: (req) => (req.accountKey ? `u:${req.accountKey}` : clientIp(req)),
     message: "You've used all your free ATS checks for now.",
     label: 'ATS checks of an uploaded PDF',
     group: 'ATS checker',
-    description: 'Resume PDFs checked on the public ATS checker page, per network (no account needed). Checks inside the builder are not counted.',
+    description: 'Resume PDFs checked on the public ATS checker page: per account when signed in, per network when not (a campus shares one). Checks inside the builder are not counted.',
 });
 
 // Only counted once the upload is a real PDF, so picking the wrong file doesn't use up a check.

@@ -70,6 +70,38 @@ describe('hardening', () => {
         assert.equal((await reg(`z${Date.now()}@bad.io`)).body.code, 'email-blocked');
     });
 
+    it('the session check is cached for 30 s, and any change to the account applies at once', async () => {
+        const sessionCache = require('../lib/sessionCache');
+        const User = require('../models/User');
+        const { superadmin } = require('./helpers');
+        const admin = await superadmin();
+        const u = await register();
+        assert.equal((await api('GET', '/billing/me', { token: u.token })).status, 200);
+        assert.ok(sessionCache.get(u.user.id), 'cached after the first request');
+        // A ban by an admin is seen on the very next request.
+        assert.equal((await api('PATCH', `/admin/users/${u.user.id}`, { token: admin.token, body: { banned: true } })).status, 200);
+        assert.equal(sessionCache.get(u.user.id), null, 'forgotten when the account changes');
+        assert.equal((await api('GET', '/billing/me', { token: u.token })).status, 403);
+        // Any mongoose update forgets it too (e.g. sign out everywhere bumps sessionVersion).
+        await User.updateOne({ _id: u.user.id }, { banned: false });
+        assert.equal((await api('GET', '/billing/me', { token: u.token })).status, 401, 'the ban also signed them out everywhere');
+        const again = await api('POST', '/auth/login', { body: { email: u.email, password: u.password } });
+        assert.equal(again.status, 200);
+        assert.equal((await api('GET', '/billing/me', { token: again.body.token })).status, 200);
+        assert.ok(sessionCache.get(u.user.id));
+        await User.updateOne({ _id: u.user.id }, { $inc: { sessionVersion: 1 } });
+        assert.equal((await api('GET', '/billing/me', { token: again.body.token })).status, 401, 'sign out everywhere applies at once');
+        // Entries expire on their own.
+        sessionCache.put('abc', { sessionVersion: 0 });
+        const realNow = Date.now;
+        Date.now = () => realNow() + 31_000;
+        try {
+            assert.equal(sessionCache.get('abc'), null);
+        } finally {
+            Date.now = realNow;
+        }
+    });
+
     it('the network hash handles addresses forwarded by the site server', () => {
         const { networkOf } = require('../lib/network');
         assert.equal(networkOf('fwd:203.0.113.5'), networkOf('203.0.113.9'));

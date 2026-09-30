@@ -16,6 +16,7 @@ const totp = require('../lib/totp');
 const { audit } = require('../lib/audit');
 const { networkOf, cleanRef } = require('../lib/network');
 const { afterSignup } = require('../lib/alerts');
+const sessionCache = require('../lib/sessionCache');
 
 const MIN_PASSWORD = 8;
 const MAX_PASSWORD_BYTES = 72; // bcrypt ignores anything longer, so refuse it rather than silently truncate
@@ -52,7 +53,11 @@ const protect = async (req, res, next) => {
     }
 
     try {
-        const user = await User.findById(decoded.id).select('sessionVersion banned bannedReason lastSeenAt').lean();
+        let user = sessionCache.get(decoded.id);
+        if (!user) {
+            user = await User.findById(decoded.id).select('sessionVersion banned bannedReason lastSeenAt').lean();
+            if (user) sessionCache.put(decoded.id, user);
+        }
         if (!user) return res.status(401).json({ success: false, error: 'This account no longer exists.' });
         if (user.banned) return res.status(403).json({ success: false, code: 'banned', error: bannedMessage(user) });
         if ((decoded.v || 0) !== (user.sessionVersion || 0)) {
@@ -62,7 +67,9 @@ const protect = async (req, res, next) => {
         req.mfa = !!decoded.mfa;
         // "Active" in the admin console: noted at most once an hour, without waiting for it.
         if (!user.lastSeenAt || Date.now() - new Date(user.lastSeenAt) > 60 * 60 * 1000) {
-            User.updateOne({ _id: user._id }, { lastSeenAt: new Date() }).catch(() => {});
+            user.lastSeenAt = new Date(); // the cached copy too, so it's written once an hour
+            // Straight to the collection: it changes nothing the cached check depends on.
+            User.collection.updateOne({ _id: user._id }, { $set: { lastSeenAt: user.lastSeenAt } }).catch(() => {});
         }
         next();
     } catch (err) {
@@ -224,6 +231,13 @@ router.post('/register', registerByIp, async (req, res) => {
         } catch (err) {
             if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
             throw err;
+        }
+        // The cap check above can be raced by sign-ups arriving together: an account past the
+        // cap in creation order is undone (and its campaign place given back).
+        if (settings.signups.cap != null && !isSuperadmin({ email: lowerEmail }) && (await User.countDocuments({ _id: { $lte: user._id } })) > settings.signups.cap) {
+            await User.deleteOne({ _id: user._id });
+            if (campaign) await Campaign.updateOne({ _id: campaign._id }, { $inc: { uses: -1 } });
+            return res.status(403).json({ success: false, code: 'signups-full', error: 'Sign-ups are full for now. Please check back soon.' });
         }
         afterSignup(user, settings);
         res.status(201).json({ success: true, token: getSignedJwtToken(user), user: publicUser(user) });

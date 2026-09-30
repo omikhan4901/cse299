@@ -1,11 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import { Button } from "antd";
 import { CalendarClock, GraduationCap, Mail, Users, Zap } from "lucide-react";
 import { useAuth } from "../AuthProvider";
+import { rememberCampaign } from "@/lib/ref";
 
 /** Landing card for a campaign invite link (/join/CODE). */
 export default function JoinCampaign({ campaign }) {
+  // Kept in this browser, so signing up later from any page still uses the invite.
+  useEffect(() => rememberCampaign(campaign?.code), [campaign?.code]);
   const { openAuth, isAuthenticated } = useAuth();
   const rows = [
     { icon: Zap, text: `${campaign.credits} AI credits a ${campaign.creditPeriod}` },

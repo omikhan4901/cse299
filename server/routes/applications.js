@@ -205,6 +205,12 @@ router.post('/', async (req, res, next) => {
         if (['applied', 'interviewing', 'offer'].includes(status)) app.appliedAt = now;
         if (status === 'applied' && data.resume) app.snapshot = await snapshotOf(req.userId, data.resume);
         await app.save();
+        // Racing requests can all pass the check above: one past the limit (in creation order) is undone.
+        const max = ACTIVE.includes(status) && !data.archived ? planLimit(req.account, req.settings, 'applications') : null;
+        if (max != null && (await Application.countDocuments({ user: req.userId, archived: { $ne: true }, status: { $in: ACTIVE }, _id: { $lte: app._id } })) > max) {
+            await Application.deleteOne({ _id: app._id });
+            return underLimit(req, res, { except: app._id });
+        }
         res.status(201).json({ success: true, data: app });
     } catch (err) {
         invalid(res, err, next);

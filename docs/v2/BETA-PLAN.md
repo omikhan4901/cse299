@@ -262,3 +262,27 @@ separately. Rough total: 12–16 working days of effort.
 - Database pool 20 per instance (M0 allows 500), request timeouts, graceful shutdown on
   SIGTERM. Deploy doc: 2 instances, 1 GiB each, with the exact console clicks.
 - `docs/security-review.md` walks the OWASP Top 10; npm audit is clean.
+
+**Phase 5 (testing)**
+- Load (`npm run load` in server/, simulated students autosaving every ~3 s, checking
+  credits, tracking applications, scanning PDFs; FerretDB locally): 80 users, 0 errors,
+  p95 under 100 ms; 150 users, 0 errors, p95 under about 650 ms; a 10-minute soak with 80
+  users, 23,338 requests, 0 errors, memory flat at about 240 MB. Past that the local
+  FerretDB is the bottleneck (3 of 4 cores), not the API (under 20%).
+- Atlas M0 allows about 100 operations a second, and an autosave cost 3. The per-request
+  session check is now cached for 30 s per server (any change to the account on that server
+  forgets it at once), so an autosave costs 2.
+- The public ATS checker counted 5 checks an hour per address, which a classroom would use
+  up in a minute: now 10 per account when signed in and 30 per address when not.
+- Abuse (`test/abuse.test.js`): racing "New resume", duplicates and new applications could
+  pass plan limits; they're re-checked after creating and the extras (in creation order)
+  undone. The account cap can be passed by a few in the same instant (campaign places are
+  exact). A body nested 20,000 levels deep crashed the injection filter: bodies deeper than 40
+  levels are refused. Prototype pollution and huge lists are handled.
+- End to end (`npm run e2e`, Playwright, desktop and phone, 18 steps): campaign sign-up,
+  autosave, PDF download, Profile and Applications for campaign members, adding an
+  application, ATS checker, "Coming soon" pricing, AI paused notice, campaign end back to
+  Free with locks, account deletion, no page errors. Found and fixed: an invite code was lost
+  if someone used the menu's "Sign up" on the invite page (the code is now remembered in the
+  browser for 30 days and filled into any sign-up, then forgotten); the phone's icon-only
+  "Add" and "Tailor" buttons had no accessible names.

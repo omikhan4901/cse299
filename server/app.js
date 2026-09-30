@@ -68,12 +68,17 @@ app.use(express.json({ limit: '100kb' }));
 
 // Drop keys starting with "$" (and dotted keys) from request bodies and queries,
 // so user input can never smuggle MongoDB operators like {"$gt": ""} into a query.
-const stripOperators = (value) => {
-    if (Array.isArray(value)) return value.map(stripOperators);
+// Real requests nest a few levels (a resume is about 4); anything far deeper is refused
+// before it can exhaust the stack here or in a route.
+const MAX_DEPTH = 40;
+const tooDeep = () => Object.assign(new Error('That request is nested too deeply.'), { status: 400 });
+const stripOperators = (value, depth = 0) => {
+    if (depth > MAX_DEPTH) throw tooDeep();
+    if (Array.isArray(value)) return value.map((v) => stripOperators(v, depth + 1));
     if (value && typeof value === 'object') {
         for (const key of Object.keys(value)) {
             if (key.startsWith('$') || key.includes('.')) delete value[key];
-            else value[key] = stripOperators(value[key]);
+            else value[key] = stripOperators(value[key], depth + 1);
         }
     }
     return value;
@@ -106,9 +111,13 @@ app.use('/api', (req, res, next) => {
 });
 
 app.use((req, res, next) => {
-    if (req.body) stripOperators(req.body);
-    // Query strings can nest too (?q[$ne]=x becomes { q: { $ne: 'x' } }), so clean them the same way.
-    if (req.query) stripOperators(req.query);
+    try {
+        if (req.body) stripOperators(req.body);
+        // Query strings can nest too (?q[$ne]=x becomes { q: { $ne: 'x' } }), so clean them the same way.
+        if (req.query) stripOperators(req.query);
+    } catch (err) {
+        return next(err.status ? err : tooDeep());
+    }
     next();
 });
 

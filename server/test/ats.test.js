@@ -53,9 +53,17 @@ describe('upload endpoint', () => {
         }
     });
 
-    it('allows 5 checks an hour per network, and wrong files do not use one up', async () => {
+    it('counts checks per network when signed out, per account when signed in; wrong files do not use one up', async () => {
+        const { setOverrides } = require('../lib/rateLimit');
+        setOverrides({ 'ats-scan': { max: 3, windowMs: 3600000 } });
         assert.equal((await scan(Buffer.from('not a pdf'))).status, 400);
-        for (let i = 0; i < 5; i++) assert.equal((await scan(fixture('single-column.pdf'))).status, 200, `check ${i + 1}`);
+        for (let i = 0; i < 3; i++) assert.equal((await scan(fixture('single-column.pdf'))).status, 200, `check ${i + 1}`);
+        // Someone signed in on the same (campus) network still has their own checks.
+        const { register } = require('./helpers');
+        const { token } = await register();
+        const form = new FormData();
+        form.append('resume', new Blob([fixture('single-column.pdf')], { type: 'application/pdf' }), 'resume.pdf');
+        assert.equal((await api('POST', '/ats/scan', { raw: form, token })).status, 200, 'per account when signed in');
         const r = await scan(fixture('single-column.pdf'));
         assert.equal(r.status, 429);
         assert.match(r.body.error, /free ATS checks/);
@@ -65,7 +73,7 @@ describe('upload endpoint', () => {
     it('the limit is listed in the admin console and can be changed there', async () => {
         const { describeLimits, setOverrides } = require('../lib/rateLimit');
         const entry = describeLimits().find((l) => l.name === 'ats-scan');
-        assert.equal(entry.max, 5);
+        assert.equal(entry.max, 30, 'room for a campus sharing one address');
         assert.equal(entry.group, 'ATS checker');
         setOverrides({ 'ats-scan': { max: 1, windowMs: 3600000 } });
         assert.equal((await scan(fixture('single-column.pdf'))).status, 200);

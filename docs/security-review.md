@@ -56,12 +56,21 @@ brackets cover the behaviour.
   anyone with it takes a place). New campaigns now get a random code (`BETA-7KQ2XM`), and
   short codes show a warning.
 
+- **Fixed:** limits checked before creating could be raced (ten "New resume" clicks at
+  once on Free made ten). Resumes and applications are now re-checked after creating; the
+  ones past the limit, in creation order, are removed and refused. [abuse]
+- **Accepted:** the account cap ("close sign-ups after N") can be passed by a few when many
+  sign up in the same instant; undone sign-ups give their campaign place back. Campaign
+  places themselves are exact (claimed atomically), and the beta is campaign-only.
+
 ## A05 Security misconfiguration
 
 - `x-powered-by` off; `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy and a
   content security policy on the site; API responses are `no-store`.
 - CORS is limited to `CLIENT_ORIGIN` (a warning is logged in production when it's unset).
 - Errors: 5xx answers say only "Server error"; details go to the server log.
+- **Fixed:** a request nested 20,000 levels deep crashed the injection filter (a 500). Bodies
+  and query strings deeper than 40 levels are now refused with a 400. [abuse]
 - Request bodies are capped per route (3 MB for resumes and the profile, 1 MB for
   applications and the admin console, 2 MB for AI).
 - **Accepted:** the site's CSP allows inline scripts (`'unsafe-inline'`), which Next.js
@@ -81,6 +90,9 @@ brackets cover the behaviour.
 - Login: a constant-time comparison against a dummy hash for unknown emails; per-email and
   per-network attempt limits, now **counted in the database** so they hold across server
   instances. [hardening]
+- The per-request session check (session version, ban) is cached for 30 seconds per server
+  to spare the database; changes on the same server apply at once, so a ban or "sign out
+  everywhere" can take up to 30 seconds to reach the other instance. [hardening]
 - Two-factor (TOTP) with replay protection (last used step); required for admins.
 - Password rules and a reset that signs out every other session.
 - **Accepted:** sign-up says "User already exists" for a taken email (reveals that an

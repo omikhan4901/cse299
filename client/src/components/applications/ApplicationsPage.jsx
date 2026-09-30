@@ -147,12 +147,12 @@ export default function ApplicationsPage() {
           ) : null}
           {untailored.length >= 2 ? (
             <Tooltip title="One resume per job, picked from your profile. Free, no AI credits.">
-              <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)}>
+              <Button size="large" icon={<Wand2 size={16} />} onClick={() => setBatch(true)} aria-label="Tailor resumes">
                 <span className="hidden sm:inline">Tailor resumes</span>
               </Button>
             </Tooltip>
           ) : null}
-          <Button type="primary" size="large" icon={<Plus size={17} />} onClick={startAdding}>
+          <Button type="primary" size="large" icon={<Plus size={17} />} onClick={startAdding} aria-label="Add application">
             <span className="sm:hidden">Add</span>
             <span className="hidden sm:inline">Add application</span>
           </Button>

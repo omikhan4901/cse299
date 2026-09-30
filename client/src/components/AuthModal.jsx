@@ -9,7 +9,7 @@ import { MfaStep } from "./security/TwoFactor";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
 import Logo from "./Logo";
-import { currentRef } from "@/lib/ref";
+import { currentCampaign, currentRef, forgetCampaign } from "@/lib/ref";
 
 export default function AuthModal() {
   const { authModal, setAuthModal } = useAuth();
@@ -76,7 +76,9 @@ function AuthForm({ mode, onModeChange }) {
   const { login, authOptions } = useAuth();
   const billing = useBilling();
   const registration = billing?.config?.registration || "open";
-  const [showCode, setShowCode] = useState(!!authOptions?.campaignCode || registration === "campaign");
+  // A code from this sign-up's link, or from a /join page opened earlier in this browser.
+  const [rememberedCode] = useState(() => (typeof window === "undefined" ? "" : currentCampaign()));
+  const [showCode, setShowCode] = useState(!!authOptions?.campaignCode || !!rememberedCode || registration === "campaign");
   const [mfaToken, setMfaToken] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -93,7 +95,10 @@ function AuthForm({ mode, onModeChange }) {
         : { email: values.email, password: values.password };
       const data = await api(`/auth/${isRegister ? "register" : "login"}`, { method: "POST", body: payload });
       if (data.mfaRequired) setMfaToken(data.mfaToken);
-      else login(data, mode);
+      else {
+        if (isRegister) forgetCampaign(); // used: don't offer it to the next person on this browser
+        login(data, mode);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -155,7 +160,7 @@ function AuthForm({ mode, onModeChange }) {
         {isRegister && showCode ? (
           <Form.Item
             name="campaignCode"
-            initialValue={authOptions?.campaignCode || ""}
+            initialValue={authOptions?.campaignCode || rememberedCode || ""}
             rules={registration === "campaign" ? [{ required: true, message: "Sign-ups need a campaign code right now" }] : []}
           >
             <Input size="large" prefix={<Ticket size={16} className="text-slate-400" />} placeholder={registration === "campaign" ? "Campaign code" : "Campaign code (optional)"} autoComplete="off" className="uppercase" />
