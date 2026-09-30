@@ -307,6 +307,23 @@ describe('refund policy check', () => {
         assert.match(r.reasons.join(), /Used 11 AI credits/);
     });
 
+    it('more than 2 applications since paying rules a refund out; ones from before paying do not count', async () => {
+        const u = await register();
+        const Application = require('../models/Application');
+        const user = new (require('mongoose').Types.ObjectId)(u.user.id);
+        const add = (n, createdAt) => Promise.all(Array.from({ length: n }, (_, i) => Application.collection.insertOne({ user, title: `Job ${i}`, org: 'Acme', status: 'saved', createdAt, updatedAt: createdAt })));
+        await add(3, new Date(Date.now() - 3600_000)); // before paying (a campaign, say)
+        await buy(u, new Date(Date.now() - 60000));
+        await add(2, new Date());
+        let r = await check(u);
+        assert.equal(r.applications, 2);
+        assert.equal(r.eligible, true, JSON.stringify(r.reasons));
+        await add(1, new Date());
+        r = await check(u);
+        assert.equal(r.eligible, false);
+        assert.match(r.reasons.join(), /Added 3 applications since paying \(the limit is 2\)/);
+    });
+
     it('one refund per person: a refunded account never qualifies again (repeats counted once)', async () => {
         const u = await register();
         await buy(u, new Date(Date.now() - 60000));

@@ -40,7 +40,7 @@ function RefundCheck({ r }) {
         <Tag color={r.eligible ? "green" : "orange"} className="!m-0">{r.eligible ? "Qualifies" : "Doesn't qualify"}</Tag>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        First paid {date(r.firstPaidAt)} · latest payment {date(r.lastPaidAt)} · since then: {r.paidDownloads} paid-template PDF{r.paidDownloads === 1 ? "" : "s"}, {r.aiCredits} AI credits
+        First paid {date(r.firstPaidAt)} · latest payment {date(r.lastPaidAt)} · since then: {r.paidDownloads} paid-template PDF{r.paidDownloads === 1 ? "" : "s"}, {r.aiCredits} AI credits, {r.applications ?? 0} application{r.applications === 1 ? "" : "s"}
         {r.refunds ? ` · ${r.refunds} earlier refund${r.refunds > 1 ? "s" : ""}` : ""}
         {r.chargebacks ? ` · ${r.chargebacks} chargeback${r.chargebacks > 1 ? "s" : ""}` : ""}
       </p>

@@ -312,7 +312,7 @@ separately. Rough total: 12–16 working days of effort.
 - Found by the full suite: the after-insert resume check could still keep two when a resume
   made first was saved second. Each server now runs one account's creates (new resume,
   duplicate, new application) one at a time; the after-insert check stays for two servers.
-- **Needs the owner's OK (legal wording):** two privacy policy lines, "Feedback you send"
+- **Legal wording (approved by the owner, 30 Sep):** two privacy policy lines, "Feedback you send"
   and "Error reports".
 
 **Phase 7 (public pages and legal)**
@@ -325,13 +325,13 @@ separately. Rough total: 12–16 working days of effort.
   include this?". The pricing subtitle names the job-search tools when V2 is on.
 - Builder: with V2 on and no Career Profile on the plan, the old "Fill from master" button
   is replaced by "Profile" with its plan tag, opening the upgrade dialog and its preview.
-- **Needs the owner's OK (legal wording):** Terms, new "Early access" and "Campaign and
+- **Legal wording (approved by the owner, 30 Sep):** Terms, new "Early access" and "Campaign and
   invite access" sections, and the fair-use line (credits, input size, resume and
   application limits); Refund Policy, new "During early access" section. Last updated 30
   September 2026.
-- **For the owner to decide (refund policy):** the 14-day refund counts paid templates and
-  AI credits as "used", but not using the Career Profile or Applications, which are now
-  paid. Should creating a profile or tracking applications count too? Nothing changed yet.
+- **Refund policy (owner, 30 Sep):** more than 2 applications added since paying counts as
+  "used" for the 14-day refund; the Career Profile doesn't. In `lib/refunds.js`, the admin
+  Refund check and the Refund Policy page.
 
 **Phase 8 (marketing)**
 - `docs/marketing/beta-launch.md`: set-up clicks for the 80-student beta (campaign-only

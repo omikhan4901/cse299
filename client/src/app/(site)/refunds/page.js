@@ -34,12 +34,13 @@ export default function RefundsPage() {
           plan adds. That means, since paying:
         </p>
         <ul>
-          <li>you haven&apos;t downloaded a PDF made with a template that&apos;s only in a paid plan, and</li>
-          <li>you&apos;ve used no more than <b>10 AI credits</b>.</li>
+          <li>you haven&apos;t downloaded a PDF made with a template that&apos;s only in a paid plan,</li>
+          <li>you&apos;ve used no more than <b>10 AI credits</b>, and</li>
+          <li>you&apos;ve added no more than <b>2 applications</b> to your job-search board.</li>
         </ul>
         <p>
           A resume you&apos;ve already downloaded can&apos;t be given back, and each AI credit costs us money to provide, so once you&apos;ve used the paid features the
-          payment isn&apos;t refundable. The Free plan lets you try the builder, the free templates and the ATS check before you pay.
+          payment isn&apos;t refundable. Setting up your Career Profile doesn&apos;t count. The Free plan lets you try the builder, the free templates and the ATS check before you pay.
         </p>
         <p><b>One refund per person.</b> If you&apos;ve had a refund before, later payments aren&apos;t refundable.</p>
       </section>
