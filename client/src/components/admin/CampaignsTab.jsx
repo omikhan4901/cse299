@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Alert, App, Button, Form, Input, InputNumber, Modal, Popconfirm, Progress, Select, Switch, Table, Tag, Tooltip } from "antd";
-import { Calculator, Copy, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Calculator, ChevronDown, Copy, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { campaignEstimate } from "@/lib/campaignCost";
 import { FeatureSwitches, FirstSteps } from "./parts";
 import { useAdmin, fmtDate, toDateInput } from "./useAdmin";
@@ -20,6 +20,7 @@ function Estimate({ values, settings, aiFeatures, spend, basis }) {
   const c = { ...values, creditLimit: values.customCredits ? values.creditLimit : null, creditPeriod: values.customCredits ? values.creditPeriod : null };
   const e = campaignEstimate(c, settings, aiFeatures, basis || {}, spend);
   const noCap = spend && !spend.enabled;
+  const [open, setOpen] = useState(false);
   return (
     <div className={`mb-4 rounded-xl border p-3 ${noCap && e.worst > 20 ? "border-amber-300 bg-amber-50/60" : "border-slate-200 bg-slate-50/60"}`}>
       <p className="flex items-center gap-1.5 text-sm font-medium text-ink"><Calculator size={14} className="text-brand" /> What it could cost in AI</p>
@@ -27,23 +28,53 @@ function Estimate({ values, settings, aiFeatures, spend, basis }) {
         <div>
           <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.likely)}</p>
           <p className="text-xs text-slate-500">
-            Likely: each member uses about {Math.round(e.usePerMonth)} credits a month{e.measured.use ? "" : " (a guess until more people use the site)"}, at {usd(e.typicalPerCredit, 4)} a credit{e.measured.cost ? " (measured)" : " (estimated)"}
+            Likely{e.measured.use && e.measured.cost ? ", from how your members really use AI" : ", a first guess until people use the site"}
           </p>
         </div>
         <div>
           <p className="font-display text-xl font-bold text-ink tabular-nums">{usd(e.atMost)}</p>
           <p className="text-xs text-slate-500">
-            At most{e.capped ? `: your $${spend.cap} monthly AI cap pauses AI before more is spent` : `: all ${e.places} members use every credit on the dearest feature${e.feature ? ` (${e.feature.name})` : ""}`}
+            At most{e.capped ? `: your $${spend.cap} monthly AI cap stops it there` : ": every member uses every credit"}
           </p>
         </div>
       </div>
-      <p className="mt-2 text-xs text-slate-500">
-        {e.capped ? `Without the cap, every credit used on ${e.feature?.name || "the dearest feature"} would be ${usd(e.worst)}. The cap covers all AI on the site. ` : ""}
-        {e.aiPerMinute ? `Rate limit: ${e.aiPerMinute} AI requests a minute per account${e.rateLimited ? ", which keeps members below their credits." : "; it slows bursts, but credits set the total."}` : ""}
-      </p>
-      {noCap ? <p className="mt-1.5 text-xs font-medium text-amber-800">The AI cap is off, so nothing stops the worst case. Turn it on in AI costs.</p> : null}
-      {e.period === "day" ? <p className="mt-1.5 text-xs font-medium text-amber-800">Credits per day add up fast: {e.credits} a day is {Math.round(e.credits * 30.44)} a month per member.</p> : null}
-      {e.period === "month" && e.periods > 2 ? <p className="mt-1.5 text-xs text-slate-500">Tip: 28 days or fewer keeps each member to two months&apos; credits (credits reset on the 1st).</p> : null}
+      {e.short ? (
+        <p className="mt-2 text-xs font-medium text-amber-800">
+          A month&apos;s credits arrive all at once, so in {e.days} days each member can still use all {e.credits}
+          {e.periods > 1 ? ` (${e.credits * 2} if the days cross the 1st)` : ""}. For a short campaign, a daily allowance fits better: {e.dailyEquivalent} a day is about {Math.round(e.dailyEquivalent * 30.44)} a month.
+        </p>
+      ) : null}
+      {e.period === "day" ? <p className="mt-2 text-xs font-medium text-amber-800">Credits per day add up fast: {e.credits} a day is {Math.round(e.credits * 30.44)} a month per member.</p> : null}
+      <button type="button" onClick={() => setOpen((o) => !o)} className="mt-2 flex items-center gap-1 text-xs font-medium text-brand hover:underline">
+        <ChevronDown size={13} className={`transition-transform ${open ? "rotate-180" : ""}`} /> How it&apos;s worked out
+      </button>
+      {open ? (
+        <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-xs text-slate-600">
+          <li>Each of the {e.places} members gets {e.credits} credits a {e.period}, for {e.days} day{e.days === 1 ? "" : "s"} after they join.</li>
+          {e.period === "month" ? (
+            <li>
+              Credits reset on the 1st of each month. Depending on the day someone joins, {e.days} days touch {e.periods > 1 ? `1 to ${e.periods}` : "1"} calendar month{e.periods > 1 ? "s" : ""}, so one member gets at most {e.credits * e.periods} credits ({e.periods} × {e.credits}). People join on different days, so on average it&apos;s about {Math.round(e.credits * e.expected)}.
+            </li>
+          ) : (
+            <li>{e.days} days × {e.credits} a day = up to {e.credits * e.days} credits per member.</li>
+          )}
+          <li>
+            One {e.period === "month" ? "month" : "day"}&apos;s credits for everyone ({e.places} × {e.credits} = {e.places * e.credits} credits): likely {usd(e.onePeriod.likely)}, at most {usd(e.onePeriod.worst)} if all of it went on {e.feature?.name || "the dearest feature"} at {usd(e.perCredit, 4)} a credit.
+          </li>
+          <li>
+            The whole campaign: likely {usd(e.likely)}. Members use about {Math.round(e.usePerMonth)} credits a month{e.measured.use ? " (measured on your site)" : " (a guess until more people use the site)"} at {usd(e.typicalPerCredit, 4)} a credit{e.measured.cost ? " (measured)" : " (estimated)"}. If every credit were used on {e.feature?.name || "the dearest feature"}: {usd(e.worst)}.
+          </li>
+          {e.capLeft != null ? (
+            <li>
+              Your AI cap stops all AI on the site at ${spend.cap} a month ({usd(e.capLeft)} left this month). This campaign can spend in {e.capMonths} calendar month{e.capMonths === 1 ? "" : "s"}
+              {values.expiresAt ? " (until the code expires, plus each member's days)" : " (if everyone joins now; set a code expiry to count later joins)"}, so no more than {usd(e.capBound)} can go out in that time: {usd(e.capLeft)}{e.capMonths > 1 ? ` + ${e.capMonths - 1} × $${spend.cap}` : ""}.
+            </li>
+          ) : (
+            <li>The AI cap is off, so nothing stops the worst case. Turn it on in AI costs.</li>
+          )}
+          {e.aiPerMinute ? <li>Rate limit: {e.aiPerMinute} AI requests a minute per account{e.rateLimited ? ", which keeps members below their credits." : ". It slows bursts, but credits set the total."}</li> : null}
+        </ol>
+      ) : null}
     </div>
   );
 }

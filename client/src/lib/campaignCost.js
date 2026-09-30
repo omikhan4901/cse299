@@ -30,6 +30,17 @@ export function expectedPeriods(days, period) {
   return period === "day" ? d : Math.min(periodsIn(d, period), 1 + d / MONTH_DAYS);
 }
 
+/**
+ * Calendar months the campaign can spend in: from now until the last member's plan ends
+ * (the code's expiry, or now if it has none, plus the plan's days). The AI cap is monthly.
+ */
+export function monthsSpanned(days, expiresAt, now = new Date()) {
+  const d = Math.max(1, Math.round(Number(days) || 1));
+  const lastJoin = expiresAt && new Date(expiresAt) > now ? new Date(expiresAt) : now;
+  const end = new Date(lastJoin.getTime() + d * 864e5);
+  return (end.getUTCFullYear() * 12 + end.getUTCMonth()) - (now.getUTCFullYear() * 12 + now.getUTCMonth()) + 1;
+}
+
 /** The credits each member gets per period, as the server decides it (lib/credits.js allowanceFor). */
 export function memberAllowance(c, settings) {
   if (c.creditLimit != null) return { credits: Number(c.creditLimit) || 0, period: c.creditPeriod || "day" };
@@ -52,7 +63,7 @@ export function memberAiFeatures(c, settings, aiFeatures) {
  * { likely, worst, atMost, … } in US dollars. `basis` is GET /admin/ai-usage (measured cost
  * per credit, credits per account, AI requests a minute); `spend` is GET /admin/ai-spend.
  */
-export function campaignEstimate(c, settings, aiFeatures, basis = {}, spend = null) {
+export function campaignEstimate(c, settings, aiFeatures, basis = {}, spend = null, now = new Date()) {
   const { credits, period } = memberAllowance(c, settings);
   const days = Math.max(1, Math.round(Number(c.durationDays) || 1));
   const periods = periodsIn(days, period);
@@ -81,10 +92,14 @@ export function campaignEstimate(c, settings, aiFeatures, basis = {}, spend = nu
   const typicalPerCredit = measuredCost ?? (allowed.length ? (sum / allowed.length) * TYPICAL_SHARE_OF_WORST : 0);
   const likelyCredits = Math.min(credits * expectedPeriods(days, period), usePerMonth * (days / MONTH_DAYS));
   const likely = places * likelyCredits * typicalPerCredit;
+  // One allowance for everyone (a month's, or a day's), for the breakdown.
+  const onePeriod = { worst: places * Math.min(credits, rateCredits) * perCredit, likely: places * Math.min(credits, period === "day" ? usePerMonth / MONTH_DAYS : usePerMonth) * typicalPerCredit };
 
   // At most: the AI cap pauses all AI for the month once reached (it covers the whole site).
   const capOn = !!spend?.enabled;
-  const capBound = capOn ? Math.max(0, spend.cap - spend.spent) + spend.cap * (periodsIn(days, "month") - 1) : Infinity;
+  const capLeft = capOn ? Math.max(0, spend.cap - spend.spent) : null;
+  const capMonths = monthsSpanned(days, c.expiresAt, now);
+  const capBound = capOn ? capLeft + spend.cap * (capMonths - 1) : Infinity;
   const atMost = Math.min(worst, capBound);
 
   return {
@@ -92,6 +107,15 @@ export function campaignEstimate(c, settings, aiFeatures, basis = {}, spend = nu
     worst,
     atMost,
     capped: atMost < worst,
+    capLeft,
+    capMonths,
+    capBound,
+    onePeriod,
+    expected: expectedPeriods(days, period),
+    days,
+    // A month's credits come all at once, so a short campaign still gets all of them.
+    short: period === "month" && days < 28,
+    dailyEquivalent: Math.max(1, Math.round(credits / MONTH_DAYS)),
     rateLimited: rateCredits < credits * periods,
     perCredit,
     typicalPerCredit,

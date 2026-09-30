@@ -72,15 +72,39 @@ describe('campaign cost estimate (browser)', () => {
         assert.equal(small.usePerMonth, 5, 'never more than the allowance');
     });
 
+    it('a one-week campaign: a month\'s credits arrive at once, twice if the week crosses the 1st', async () => {
+        const { campaignEstimate, ASSUMED_CREDITS_PER_MONTH } = await costLib();
+        const s = structuredClone(settings);
+        s.freeMode.enabled = false;
+        const week = campaignEstimate({ plan: 'pro', maxUses: 80, durationDays: 7, creditLimit: 40, creditPeriod: 'month' }, s, AI_FEATURES, {}, { enabled: true, cap: 40, spent: 0 }, new Date(Date.UTC(2026, 0, 28)));
+        assert.equal(week.short, true);
+        assert.equal(week.periods, 2, '28 January + 7 days crosses into February');
+        assert.equal(week.worst, 80 * 40 * 2 * week.perCredit);
+        assert.ok(Math.abs(week.expected - (1 + 7 / 30.44)) < 1e-9);
+        assert.ok(Math.abs(week.likely - 80 * ASSUMED_CREDITS_PER_MONTH * (7 / 30.44) * week.typicalPerCredit) < 1e-9, 'a week of typical use');
+        assert.equal(week.capMonths, 2);
+        assert.equal(week.dailyEquivalent, 1);
+        const month = campaignEstimate({ plan: 'pro', maxUses: 80, durationDays: 28, creditLimit: 40, creditPeriod: 'month' }, s, AI_FEATURES);
+        assert.equal(month.short, false);
+        assert.equal(month.onePeriod.worst, 80 * 40 * month.perCredit, "one month's credits for everyone");
+    });
+
     it('at most: the monthly AI cap bounds the worst case; the rate limit only when it binds', async () => {
         const { campaignEstimate } = await costLib();
         const s = structuredClone(settings);
         s.freeMode.enabled = false;
         const c = { plan: 'premium', maxUses: 50, durationDays: 30 };
-        const e = campaignEstimate(c, s, AI_FEATURES, { aiPerMinute: 8 }, { enabled: true, cap: 40, spent: 10 });
+        const jan31 = new Date(Date.UTC(2026, 0, 31, 12));
+        const e = campaignEstimate(c, s, AI_FEATURES, { aiPerMinute: 8 }, { enabled: true, cap: 40, spent: 10 }, jan31);
         assert.ok(e.worst > 500);
         assert.equal(e.capped, true);
+        assert.equal(e.capMonths, 3, '31 January + 30 days reaches 2 March');
         assert.equal(e.atMost, 30 + 40 * 2, "what's left this month, plus a full cap for each further month it touches");
+        const mid = campaignEstimate(c, s, AI_FEATURES, {}, { enabled: true, cap: 40, spent: 10 }, new Date(Date.UTC(2026, 0, 15)));
+        assert.equal(mid.capMonths, 2);
+        assert.equal(mid.atMost, 70);
+        const later = campaignEstimate({ ...c, expiresAt: '2026-03-15' }, s, AI_FEATURES, {}, { enabled: true, cap: 40, spent: 10 }, new Date(Date.UTC(2026, 0, 1)));
+        assert.equal(later.capMonths, 4, 'members can join until the code expires, then have their 30 days');
         assert.equal(e.rateLimited, false, '8 a minute is far above 1000 credits a month');
         const off = campaignEstimate(c, s, AI_FEATURES, {}, { enabled: false, cap: 40, spent: 0 });
         assert.equal(off.atMost, off.worst);

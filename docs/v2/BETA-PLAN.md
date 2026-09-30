@@ -380,6 +380,10 @@ separately. Rough total: 12–16 working days of effort.
   monthly allowances); "At most" is the worst case bounded by the monthly AI cap (what's
   left this month plus a full cap per further month) and by the per-minute AI rate limit
   when that binds. Admin AI calls don't count in the measured cost per credit.
+  The box has a "How it's worked out" breakdown (months touched, one month for everyone,
+  the whole campaign, the cap's months from now to code expiry plus the plan's days), and
+  warns that a short campaign with monthly credits still gets the whole month's credits
+  (twice if it crosses the 1st), suggesting a daily allowance instead.
 - Plans: "Rewrite with AI" for perks (`POST /admin/perks-draft`, lib/perksDraft.js). Facts
   come from the plan's unsaved settings (features, templates it opens, V2 only when on, the
   plan below); lines stating credits or resumes, or with numbers the facts don't have, are
