@@ -127,6 +127,48 @@ describe('sign-up with an email code', () => {
         setOverrides({});
     });
 
+    it("doesn't say who has an account: a taken address gets the same answer and a 'log in' email", async () => {
+        const email = uniqueEmail();
+        await step1({ email });
+        assert.equal((await step2(email, codeFor(email))).status, 201);
+        const again = await step1({ email: email.toUpperCase(), name: 'Someone else' });
+        assert.equal(again.status, 200);
+        assert.deepEqual(Object.keys(again.body).sort(), ['email', 'minutes', 'pending', 'success'], 'the same answer as a new address');
+        const notice = sent.filter((m) => m.to.toLowerCase() === email).at(-1);
+        assert.match(notice.subject, /already have a ResumeX account/);
+        assert.doesNotMatch(notice.text, /\b\d{6}\b/, 'no code in it');
+        assert.equal(await require('../models/PendingSignup').countDocuments({ email }), 0);
+        assert.equal(await User().countDocuments({ email }), 1);
+    });
+
+    it('a ceiling on sign-up emails for the whole site, whatever network asks; the owner is alerted once', async () => {
+        const { setOverrides } = require('../lib/rateLimit');
+        setOverrides({ 'signup-mail-site': { max: 20, windowMs: 3600_000 }, 'register-ip': { max: 1000, windowMs: 3600_000 } });
+        const Alert = require('../models/Alert');
+        let last;
+        for (let i = 0; i < 22; i++) last = await step1({ email: uniqueEmail(`flood${i}`) });
+        assert.equal(last.status, 429);
+        assert.match(last.body.error, /very busy/);
+        assert.equal(sent.filter((m) => /sign-up code/.test(m.subject) && /flood/.test(m.to)).length, 20, 'no more emails than the ceiling');
+        assert.equal(await Alert.countDocuments({ kind: 'security', _id: /^mail-cap:Sign-up/ }), 1);
+        const limits = (await api('GET', '/admin/settings', { token: (await superadmin()).token })).body.data.rateLimits;
+        assert.equal(limits.find((l) => l.name === 'signup-mail-site').scope, 'site', 'listed in Admin › Rate limits');
+        setOverrides({});
+    });
+
+    it('password resets have a whole-site ceiling too, and still say nothing about the account', async () => {
+        const { setOverrides } = require('../lib/rateLimit');
+        setOverrides({ 'reset-mail-site': { max: 20, windowMs: 3600_000 }, 'reset-email': { max: 1000, windowMs: 3600_000 }, 'reset-ip': { max: 1000, windowMs: 3600_000 } });
+        const email = uniqueEmail();
+        await step1({ email });
+        await step2(email, codeFor(email));
+        const answers = new Set();
+        for (let i = 0; i < 22; i++) answers.add(JSON.stringify((await api('POST', '/auth/forgot-password', { body: { email } })).body));
+        assert.equal(answers.size, 1, 'the same answer before and after the ceiling');
+        assert.equal(sent.filter((m) => /Reset your ResumeX password/.test(m.subject)).length, 20);
+        setOverrides({});
+    });
+
     it('the helper used by the other tests goes through both steps', async () => {
         const r = await signUp({ name: 'H', email: uniqueEmail(), password: 'password123' });
         assert.equal(r.status, 201);

@@ -124,12 +124,17 @@ describe('when a campaign ends', () => {
     it('a Free campaign with Applications switched on: members can track applications until it ends', async () => {
         await setSettings({ freeMode: { enabled: false }, v2: { enabled: true } });
         const admin = await superadmin();
-        const c = (await create(admin.token, { plan: 'free', features: { applications: true } })).body.data;
+        const c = (await create(admin.token, { plan: 'free', features: { applications: true, profile: true } })).body.data;
         const m = await join(c.code);
+        assert.equal((await api('GET', '/profile', { token: m.token })).status, 200, 'the Career Profile opens too');
+        const me = (await api('GET', '/billing/me', { token: m.token })).body.data;
+        assert.equal(me.plan.id, 'free', "still the Free plan: Free's credits, not Pro's");
+        assert.equal(me.limit, (await require('../lib/settings').getSettings()).plans[0].credits);
         const add = () => api('POST', '/applications', { token: m.token, body: { job: { title: 'Engineer', organisation: 'Acme' }, status: 'applied' } });
         assert.equal((await add()).status, 201, 'the Free plan allows 0, the switch uses the cheapest plan with Applications');
         await age(m.user.id);
         await require('../lib/campaignEnd').endExpiredGrants();
         assert.equal((await add()).status, 403, 'back on Free, the feature is off again');
+        assert.equal((await api('GET', '/profile', { token: m.token })).status, 403);
     });
 });

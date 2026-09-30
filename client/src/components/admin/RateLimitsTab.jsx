@@ -14,6 +14,7 @@ const SCOPE = {
   ip: { label: "per IP", color: "blue", tip: "Counted for each network (visitors behind the same Wi-Fi share it)." },
   account: { label: "per account", color: "purple", tip: "Counted for each signed-in account." },
   email: { label: "per email", color: "gold", tip: "Counted for each email address typed in." },
+  site: { label: "whole site", color: "red", tip: "One count for everyone together: a ceiling on what the whole site sends, however many networks ask." },
 };
 
 /** Every rate limit in the API, grouped, with its default and the admin's override. */

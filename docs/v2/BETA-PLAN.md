@@ -409,3 +409,10 @@ separately. Rough total: 12–16 working days of effort.
 - Delete accounts from the lists (owner, 30 Sep): a delete button on each row of Admin ›
   Users and of a campaign's members; deleting a member still inside their campaign days
   gives the place back (`placeFreed`, in the audit log).
+- Network hardening (owner, 30 Sep): whole-site hourly ceilings on sign-up and password
+  reset emails (`limitCheck`, counted only when an email is sent, alert when reached, "whole
+  site" in Admin › Rate limits); sign-up no longer reveals which emails have accounts;
+  `npm audit` clean. The attack table and owner settings are in docs/security-review.md.
+- Free campaigns can open the job-search tools (owner, 30 Sep): Plan Free with Career
+  Profile, Applications, Interview prep and Search insights switched On gives them with
+  Free's credits (and Pro's application limits); the campaign form offers it in one click.

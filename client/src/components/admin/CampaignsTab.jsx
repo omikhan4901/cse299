@@ -198,6 +198,20 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
           </div>
           {meta ? (
             <>
+              <Form.Item noStyle shouldUpdate={(a, b) => a.plan !== b.plan || a.features !== b.features}>
+                {({ getFieldValue }) => {
+                  // A Free campaign can open the job-search tools without Pro's credits.
+                  const JOB_TOOLS = ["profile", "applications", "interviewPrep", "insights"];
+                  const f = getFieldValue("features") || {};
+                  const offer = getFieldValue("plan") === "free" && !meta.settings.freeMode.enabled && JOB_TOOLS.some((k) => f[k] !== true);
+                  return offer ? (
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs text-slate-600">
+                      <span>Give Free members the job-search tools, with Free&apos;s credits.</span>
+                      <Button size="small" onClick={() => form.setFieldValue("features", { ...f, ...Object.fromEntries(JOB_TOOLS.map((k) => [k, true])) })}>Turn them on</Button>
+                    </div>
+                  ) : null;
+                }}
+              </Form.Item>
               <Form.Item noStyle shouldUpdate={(a, b) => a.plan !== b.plan}>
                 {({ getFieldValue }) => (
                   <Form.Item name="features" label="Features for members" tooltip="Follow the plan, or turn a feature on or off for members whatever their plan says, for the campaign's days. A feature turned on comes with the limits of the cheapest plan that has it (for Applications, Pro's number of applications). AI features still spend the credits above, and templates follow the plan.">

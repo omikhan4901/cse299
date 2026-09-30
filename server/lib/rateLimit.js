@@ -72,32 +72,52 @@ async function countShared(k, window, now) {
     return { count: doc.n, reset: start + window };
 }
 
-function limit({ name, windowMs, max, key, message, label, group = 'Other', scope = 'ip', description = '', min = 1, shared = false }) {
+/** Counts one use of `name` for `id`; { ok, seconds } with the admin's changes applied. */
+async function consume(name, id, { windowMs, max, min = 1, shared = false }) {
+    const o = overrides[name];
+    const window = o?.windowMs || windowMs;
+    const allowed = Math.max(min, o?.max || max);
+    const now = Date.now();
+    const k = `${name}:${id}`;
+    let b;
+    if (shared) {
+        // Two first requests racing to create the window's document: the loser just counts again.
+        b = await countShared(k, window, now)
+            .catch((err) => (err.code === 11000 ? countShared(k, window, now) : Promise.reject(err)))
+            .catch(() => countInMemory(k, window, now));
+    } else {
+        b = countInMemory(k, window, now);
+    }
+    return { ok: b.count <= allowed, seconds: Math.max(1, Math.ceil((b.reset - now) / 1000)) };
+}
+
+/**
+ * Express middleware allowing `max` requests per `windowMs` for each key. `onLimited(req)`
+ * runs when one is refused (e.g. to alert the owner).
+ */
+function limit({ name, windowMs, max, key, message, label, group = 'Other', scope = 'ip', description = '', min = 1, shared = false, onLimited }) {
     if (!catalog.has(name)) catalog.set(name, { name, label: label || name, group, scope, description, windowMs, max, min, shared });
     return async (req, res, next) => {
         const id = key(req);
         if (!id) return next();
-        const o = overrides[name];
-        const window = o?.windowMs || windowMs;
-        const allowed = Math.max(min, o?.max || max);
-        const now = Date.now();
-        const k = `${name}:${id}`;
-        let b;
-        if (shared) {
-            // Two first requests racing to create the window's document: the loser just counts again.
-            b = await countShared(k, window, now)
-                .catch((err) => (err.code === 11000 ? countShared(k, window, now) : Promise.reject(err)))
-                .catch(() => countInMemory(k, window, now));
-        } else {
-            b = countInMemory(k, window, now);
-        }
-        if (b.count > allowed) {
-            const seconds = Math.max(1, Math.ceil((b.reset - now) / 1000));
+        const { ok, seconds } = await consume(name, id, { windowMs, max, min, shared });
+        if (!ok) {
+            if (onLimited) Promise.resolve().then(() => onLimited(req)).catch(() => {});
             res.set('Retry-After', String(seconds));
             return res.status(429).json({ success: false, error: `${message} Try again in ${retryIn(seconds)}.` });
         }
         next();
     };
+}
+
+/**
+ * A limit checked from inside a route, at the moment it matters (e.g. just before an email
+ * is sent, so junk requests don't use it up). Listed in Admin › Rate limits like the rest.
+ * Returns async (id) => { ok, seconds }.
+ */
+function limitCheck({ name, windowMs, max, label, group = 'Other', scope = 'site', description = '', min = 1, shared = true }) {
+    if (!catalog.has(name)) catalog.set(name, { name, label: label || name, group, scope, description, windowMs, max, min, shared });
+    return (id) => consume(name, id, { windowMs, max, min, shared });
 }
 
 const crypto = require('crypto');
@@ -124,4 +144,4 @@ const resetLimits = async () => {
     await require('../models/RateCount').deleteMany({}).catch(() => {});
 };
 
-module.exports = { limit, clientIp, retryIn, setOverrides, describeLimits, currentLimit, resetLimits };
+module.exports = { limit, limitCheck, clientIp, retryIn, setOverrides, describeLimits, currentLimit, resetLimits };

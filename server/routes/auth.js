@@ -9,7 +9,7 @@ const User = require('../models/User');
 const { deleteUserData, exportUserData } = require('../lib/userData');
 const Campaign = require('../models/Campaign');
 const PendingSignup = require('../models/PendingSignup');
-const { limit, clientIp } = require('../lib/rateLimit');
+const { limit, limitCheck, clientIp, retryIn } = require('../lib/rateLimit');
 const { effectivePlanId } = require('../lib/credits');
 const { getSettings } = require('../lib/settings');
 const mailer = require('../lib/mailer');
@@ -18,7 +18,7 @@ const totp = require('../lib/totp');
 const { audit } = require('../lib/audit');
 const { networkOf, cleanRef } = require('../lib/network');
 const { TERMS_VERSION } = require('../lib/legal');
-const { afterSignup } = require('../lib/alerts');
+const { afterSignup, raise } = require('../lib/alerts');
 const sessionCache = require('../lib/sessionCache');
 
 const MIN_PASSWORD = 8;
@@ -169,8 +169,20 @@ const sensitiveByUser = limit({ name: 'account', windowMs: 15 * 60 * 1000, max: 
 // Without email on the server, only the owner (SUPERADMIN_EMAILS) can sign up, to set it up.
 const SIGNUP_CODE_MINUTES = 30;
 const signupEmail = (req) => (typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase().slice(0, 200) : null);
-const signupCodeByEmail = limit({ name: 'signup-code', shared: true, windowMs: 60 * 60 * 1000, max: 5, key: signupEmail, message: 'Too many codes sent to this address. Please try again later.', label: 'Sign-up codes (per email)', group: 'Sign-in & accounts', description: 'Sign-up codes emailed to one address in an hour.' });
+const signupCodeByEmail = limit({ name: 'signup-code', shared: true, windowMs: 60 * 60 * 1000, max: 5, key: signupEmail, message: 'Too many codes sent to this address. Please try again later.', label: 'Sign-up codes (per email)', group: 'Sign-in & accounts', scope: 'email', description: 'Sign-up codes emailed to one address in an hour.' });
 const signupVerifyByIp = limit({ name: 'signup-verify-ip', shared: true, windowMs: 15 * 60 * 1000, max: 30, key: clientIp, message: 'Too many attempts. Please wait a few minutes.', label: 'Sign-up code checks (per IP)', group: 'Sign-in & accounts', description: 'Sign-up codes entered from one network.' });
+// Ceilings on the emails signed-out visitors can make the site send, counted only when an
+// email really goes out: someone using many networks can't run through the email quota or
+// the sending reputation. The owner is alerted (once an hour) when one is reached.
+const signupMailSite = limitCheck({ name: 'signup-mail-site', windowMs: 60 * 60 * 1000, max: 300, min: 20, label: 'Sign-up emails (whole site)', group: 'Sign-in & accounts', description: 'Sign-up emails the whole site sends in an hour, from every network together. When reached, sign-ups wait until the hour is over.' });
+const resetMailSite = limitCheck({ name: 'reset-mail-site', windowMs: 60 * 60 * 1000, max: 200, min: 20, label: 'Password reset emails (whole site)', group: 'Sign-in & accounts', description: 'Password reset emails the whole site sends in an hour, from every network together.' });
+const mailCapped = (what) =>
+    raise(`mail-cap:${what}:${new Date().toISOString().slice(0, 13)}`, {
+        kind: 'security',
+        subject: `${what} emails paused for the rest of the hour`,
+        text: `The site reached its hourly ceiling for ${what.toLowerCase()} emails (Admin › Rate limits). That's usually someone sending many requests from many networks; people can try again next hour. If it's a real rush (a class signing up together), raise the ceiling in Admin › Rate limits.`,
+    }).catch(() => {});
+
 const hashCode = (code) => crypto.createHash('sha256').update(String(code)).digest('hex');
 const fail = (status, error, code) => ({ status, body: { success: false, error, ...(code ? { code } : {}) } });
 
@@ -270,11 +282,26 @@ router.post('/register', registerByIp, signupCodeByEmail, async (req, res) => {
     }
 
     try {
-        if (await User.exists({ email: emailQuery(email) })) {
-            return res.status(400).json({ success: false, error: 'User already exists.' });
-        }
         const settings = await getSettings();
         const lowerEmail = String(email).trim().toLowerCase();
+        // An address that already has an account gets the same answer as a new one (so the
+        // form doesn't tell anyone who has an account), and an email saying how to get in.
+        if (await User.exists({ email: emailQuery(email) })) {
+            if (!mailer.canSendMail()) return res.status(400).json({ success: false, error: 'User already exists.' });
+            const cap = await signupMailSite('all');
+            if (!cap.ok) {
+                mailCapped('Sign-up');
+                return res.status(429).json({ success: false, error: `Sign-ups are very busy right now. Please try again in ${retryIn(cap.seconds)}.` });
+            }
+            const appUrl = (process.env.APP_URL || (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0]).trim().replace(/\/$/, '');
+            await mailer.sendMail({
+                to: String(email).trim(),
+                subject: 'You already have a ResumeX account',
+                text: `Someone (hopefully you) tried to sign up for ResumeX with this email, but it already has an account. Log in at ${appUrl}, or choose "Forgot password" there if you can't remember it. If this wasn't you, you can ignore this email.`,
+                html: `<p>Someone (hopefully you) tried to sign up for ResumeX with this email, but it already has an account.</p><p><a href="${appUrl}">Log in</a>, or choose "Forgot password" there if you can't remember it.</p><p>If this wasn't you, you can ignore this email.</p>`,
+            });
+            return res.json({ success: true, pending: true, email: lowerEmail, minutes: SIGNUP_CODE_MINUTES });
+        }
         const problem = await signupProblem(lowerEmail, code, settings);
         if (problem) return res.status(problem.status).json(problem.body);
         const details = { name: String(name).trim().slice(0, 200), code, ref: cleanRef(req.body.ref) || undefined, net: networkOf(clientIp(req)) || undefined };
@@ -287,6 +314,11 @@ router.post('/register', registerByIp, signupCodeByEmail, async (req, res) => {
             return res.status(out.status).json(out.body);
         }
 
+        const cap = await signupMailSite('all');
+        if (!cap.ok) {
+            mailCapped('Sign-up');
+            return res.status(429).json({ success: false, error: `Sign-ups are very busy right now. Please try again in ${retryIn(cap.seconds)}.` });
+        }
         const six = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
         await PendingSignup.updateOne(
             { email: lowerEmail },
@@ -495,13 +527,18 @@ router.delete('/me', protect, sensitiveByUser, async (req, res) => {
 router.post('/forgot-password', resetByIp, resetByEmail, async (req, res) => {
     const email = validEmail(emailKey(req));
     if (!email) return res.status(400).json({ success: false, error: 'Please enter a valid email.' });
-    if (!canSendMail()) {
+    if (!mailer.canSendMail()) {
         return res.status(503).json({ success: false, error: "Password reset by email isn't available yet. Please contact support." });
     }
     const done = () => res.json({ success: true, message: 'If an account exists for that email, a reset link is on its way.' });
     try {
         const user = await User.findOne({ email: emailQuery(email) });
         if (!user) return done();
+        // Past the site's hourly ceiling: the same answer (it mustn't reveal the account), no email.
+        if (!(await resetMailSite('all')).ok) {
+            mailCapped('Password reset');
+            return done();
+        }
 
         const token = crypto.randomBytes(32).toString('hex');
         user.resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -510,7 +547,7 @@ router.post('/forgot-password', resetByIp, resetByEmail, async (req, res) => {
 
         const appUrl = (process.env.APP_URL || (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0]).trim().replace(/\/$/, '');
         const link = `${appUrl}/reset-password?token=${token}`;
-        await sendMail({
+        await mailer.sendMail({
             to: user.email,
             subject: 'Reset your ResumeX password',
             text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your ResumeX password. Open this link within an hour to choose a new one:\n\n${link}\n\nIf you didn't ask for this, you can ignore this email — your password won't change.`,

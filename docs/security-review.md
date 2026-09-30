@@ -95,9 +95,9 @@ brackets cover the behaviour.
   everywhere" can take up to 30 seconds to reach the other instance. [hardening]
 - Two-factor (TOTP) with replay protection (last used step); required for admins.
 - Password rules and a reset that signs out every other session.
-- **Accepted:** sign-up says "User already exists" for a taken email (reveals that an
-  address has an account). The sign-up limit per network makes this slow to abuse, and a
-  vaguer message would confuse students who forgot they signed up.
+- **Fixed (30 Sep):** sign-up said "User already exists" for a taken email. A taken address
+  now gets the same answer as a new one, and an email saying how to log in or reset the
+  password. Every account's email is verified by a code before it exists.
 
 ## A08 Software and data integrity failures
 
@@ -133,3 +133,44 @@ brackets cover the behaviour.
   per-network ceiling for floods across many accounts. [hardening]
 - The server finishes in-flight requests on shutdown, times out stuck requests, and uses a
   bounded database connection pool sized for Atlas M0.
+
+## Network attacks (30 Sep)
+
+What happens when someone floods the site, by kind of attack:
+
+| Attack | What stops it |
+|---|---|
+| Many requests from one network or account | Whole-API ceiling (600 a minute per account or network) and a stricter limit on every route; login, codes and sign-ups are counted in the database, so they hold on both servers |
+| Many requests from many networks (a botnet) | Per-account and per-email limits; hourly **whole-site** ceilings on the emails signed-out visitors can trigger (sign-up 300, password reset 200, adjustable in Admin › Rate limits), counted only when an email is really sent, with an alert to the owner |
+| Password guessing and credential stuffing | 8 attempts per account per 15 minutes from anywhere, plus per network; 2FA for admins |
+| Guessing sign-up or login codes | 5 tries per code, codes expire, 30 checks per 15 minutes per network |
+| Fake accounts and campaign squatting | No account without an emailed code; campaign places only for verified addresses; admins delete accounts from the lists and the place comes back |
+| Finding out who has an account | Sign-up and password reset give the same answer either way |
+| Running up the AI bill | Credits per account, 8 AI requests a minute per account, the monthly AI cap (AI pauses for everyone at the cap) |
+| Running up the server bill | At most 2 Cloud Run instances; bounded database pool |
+| Slow or huge requests | Header and request timeouts, body limits per route, depth limits, files read in worker threads with memory and time limits |
+| Our server fetching internal addresses (SSRF) | `safeFetch` refuses private, loopback and metadata addresses, also after redirects |
+| Forged payment events | Paddle signatures checked on the raw body |
+| Other websites using the API from a browser | CORS limited to `CLIENT_ORIGIN` |
+| Known vulnerable packages | `npm audit --omit=dev`: 0 in server and client (30 Sep) |
+
+**What code can't stop:** a very large flood can still make the site slow while it lasts
+(the limits refuse the extra requests, but they still arrive). The website on Vercel sits
+behind Vercel's own DDoS protection; the API on Cloud Run behind Google's front end, which
+absorbs network-level floods. For more, see the owner settings below.
+
+**Owner settings** (outside the code, least privilege):
+1. **Google Cloud → Billing → Budgets & alerts**: a budget (e.g. $10 a month) with email
+   alerts at 50%, 90% and 100%.
+2. **Gemini key**: Google Cloud → APIs & Services → Credentials → the key → *API
+   restrictions*: only "Generative Language API". Set a daily request quota in
+   Google AI Studio (or Vertex AI quotas) as a second brake behind the AI cap.
+3. **Two-factor on every account** that can change the site: Google, GitHub, Vercel,
+   MongoDB Atlas, Paddle, the email provider and the domain registrar.
+4. **MongoDB Atlas**: the app's database user has only *readWrite* on the ResumeX database
+   (not *atlasAdmin*), with a long generated password; backups use the read-only user
+   (docs/backups.md).
+5. **Secrets** only in Cloud Run / Vercel settings or a password manager; a leaked one is
+   replaced at once (new `JWT_SECRET` signs everyone out).
+6. **Optional, for large floods**: put the free Cloudflare plan in front of resumex.cc
+   (and a custom API domain), or Google Cloud Armor (a paid load balancer).
