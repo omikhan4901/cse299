@@ -75,6 +75,26 @@ async function student(browser, code, { phone = false } = {}) {
         if (!u || u.plan !== 'pro' || u.source !== 'campaign') throw new Error(`account not set up by the campaign: ${JSON.stringify(u && { plan: u.plan, source: u.source })}`);
     });
 
+    await step(page, `${tag}a campaign member is welcomed once`, async () => {
+        await page.getByText('Welcome to the ResumeX beta').waitFor({ timeout: 15000 });
+        await page.getByRole('button', { name: "Let's go" }).click();
+        await page.reload();
+        await page.waitForTimeout(2500);
+        if (await page.getByText('Welcome to the ResumeX beta').count()) throw new Error('shown again');
+    });
+
+    await step(page, `${tag}feedback from the Beta tag`, async () => {
+        await page.getByRole('button', { name: /Beta/ }).first().click();
+        await page.getByRole('button', { name: 'Send feedback' }).click();
+        await page.locator('.ant-modal textarea').fill('E2E: everything went fine.');
+        await page.getByRole('button', { name: 'Send', exact: true }).click();
+        const Feedback = require('../models/Feedback');
+        const u = await User.findOne({ email }).lean();
+        const deadline = Date.now() + 10000;
+        while (Date.now() < deadline && !(await Feedback.exists({ user: u._id }))) await page.waitForTimeout(500);
+        if (!(await Feedback.exists({ user: u._id }))) throw new Error('not saved');
+    });
+
     await step(page, `${tag}build a resume and it autosaves`, async () => {
         await page.goto(`${SITE}/builder?new=1`);
         // Phones show the form first (the preview is a tab), so wait for the form.

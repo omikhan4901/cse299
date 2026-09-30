@@ -6,10 +6,12 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button, Dropdown } from "antd";
 import { motion } from "motion/react";
-import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings, ShieldCheck, UserRound, Briefcase } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, FilePlus2, Settings, ShieldCheck, UserRound, Briefcase, MessageSquare } from "lucide-react";
 import { useBilling } from "./BillingProvider";
 import PlanTag from "./billing/PlanTag";
 import Logo from "./Logo";
+import BetaMenu from "./site/BetaMenu";
+import { openFeedback } from "@/lib/reportError";
 import { useAuth } from "./AuthProvider";
 
 const LINKS = [
@@ -47,6 +49,7 @@ export default function Navbar({ compact = false }) {
       { key: "dash", icon: <LayoutDashboard size={15} />, label: <Link href="/dashboard">My resumes</Link> },
       { key: "new", icon: <FilePlus2 size={15} />, label: <Link href="/builder?new=1">New resume</Link> },
       { key: "account", icon: <Settings size={15} />, label: <Link href="/account">Account settings</Link> },
+      { key: "feedback", icon: <MessageSquare size={15} />, label: "Send feedback", onClick: openFeedback },
       ...(isAdmin ? [{ key: "admin", icon: <ShieldCheck size={15} />, label: <Link href="/admin">Admin console</Link> }] : []),
       { type: "divider" },
       { key: "logout", icon: <LogOut size={15} />, label: "Log out", danger: true, onClick: logout },
@@ -56,7 +59,10 @@ export default function Navbar({ compact = false }) {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur-md print:hidden">
       <nav className={`${compact ? "px-4 md:px-6" : "container-x"} flex h-16 items-center justify-between gap-4`} aria-label="Main">
-        <Logo href="/" />
+        <span className="flex items-center gap-2">
+          <Logo href="/" />
+          <BetaMenu />
+        </span>
 
         <div className={`hidden items-center gap-1 ${wide ? "lg:flex" : "md:flex"}`}>
           {links.map((l) => (

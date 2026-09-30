@@ -20,6 +20,9 @@ const { storageReport, checkStorage } = require('../lib/storage');
 const { cleanRef } = require('../lib/network');
 const { userTimeline } = require('../lib/timeline');
 const { recentAlerts } = require('../lib/alerts');
+const Feedback = require('../models/Feedback');
+const { sendMail, canSendMail } = require('../lib/mailer');
+const ErrorGroup = require('../models/ErrorGroup');
 const { getSettings, readSettings, updateSettings, AI_FEATURES, APP_FEATURES, PLAN_LIMITS } = require('../lib/settings');
 const { allowanceFor, periodKey, effectivePlanId } = require('../lib/credits');
 const { refundCheck } = require('../lib/refunds');
@@ -103,12 +106,15 @@ router.get('/overview', wrap(async (req, res) => {
     // The beta at a glance: who's active, sign-ups today and left, AI spend against the cap.
     const settings = await getSettings();
     const startOfDay = new Date(`${today}T00:00:00Z`);
-    const [activeToday, active7, signupsToday, spend] = await Promise.all([
+    const [activeToday, active7, signupsToday, spend, feedbackNew, errorGroups] = await Promise.all([
         User.countDocuments({ lastSeenAt: { $gte: startOfDay } }),
         User.countDocuments({ lastSeenAt: { $gte: since7 } }),
         User.countDocuments({ createdAt: { $gte: startOfDay } }),
         pauseState(settings),
+        Feedback.countDocuments({ status: 'new' }),
+        ErrorGroup.find({ lastAt: { $gte: startOfDay } }).select('hours').lean(),
     ]);
+    const errorsToday = errorGroups.reduce((n, g) => n + Object.entries(g.hours || {}).reduce((m, [k, v]) => m + (k >= today ? v : 0), 0), 0);
     const spentToday = events.filter((e) => e.at >= startOfDay).reduce((n, e) => n + callCost(e, settings.aiPrices), 0);
     const topIds = Object.entries(byUser).sort((a, b) => b[1] - a[1]).slice(0, 8);
     const topUsers = await User.find({ _id: { $in: topIds.map(([id]) => id) } }).select('name email').lean();
@@ -135,6 +141,8 @@ router.get('/overview', wrap(async (req, res) => {
                 aiMonth: spend.spent,
                 aiCap: settings.aiSpend.enabled ? settings.aiSpend.cap : null,
                 aiPaused: spend.paused,
+                feedbackNew,
+                errorsToday,
             },
             jobSearch: { profiles, applications, applications7, tailored },
         },
@@ -485,6 +493,87 @@ router.get('/economics', wrap(async (req, res) => {
 }));
 
 // @route GET /api/admin/ai-spend — this month's AI cost against the cap (lib/aiSpend.js)
+// ---------- Feedback and errors (Phase 6) ----------
+
+router.get('/feedback', wrap(async (req, res) => {
+    const status = ['new', 'seen', 'fixed'].includes(req.query.status) ? req.query.status : null;
+    const page = Math.max(1, Math.round(Number(req.query.page) || 1));
+    const [items, counts] = await Promise.all([
+        Feedback.find(status ? { status } : {}).select('-screenshot').sort({ createdAt: -1 }).skip((page - 1) * 30).limit(30).lean(),
+        Feedback.find().select('status screenshot').lean(),
+    ]);
+    const shots = new Set(counts.filter((f) => f.screenshot).map((f) => String(f._id)));
+    const by = { new: 0, seen: 0, fixed: 0 };
+    for (const f of counts) by[f.status] += 1;
+    res.json({ success: true, data: { items: items.map((f) => ({ ...f, hasScreenshot: shots.has(String(f._id)) })), counts: by, page } });
+}));
+
+router.get('/feedback/:id', wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'Not found.', 404);
+    const fb = await Feedback.findById(req.params.id).lean();
+    if (!fb) return bad(res, 'Not found.', 404);
+    res.json({ success: true, data: fb });
+}));
+
+router.patch('/feedback/:id', wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'Not found.', 404);
+    if (!['new', 'seen', 'fixed'].includes(req.body?.status)) return bad(res, 'Unknown status.');
+    // Update, then read (FerretDB can't return a projection from findOneAndUpdate).
+    const r = await Feedback.updateOne({ _id: req.params.id }, { status: req.body.status });
+    if (!r.matchedCount) return bad(res, 'Not found.', 404);
+    const fb = await Feedback.findById(req.params.id).select('-screenshot').lean();
+    await audit(req, 'feedback.status', String(fb._id), { status: fb.status });
+    res.json({ success: true, data: fb });
+}));
+
+// A reply by email to whoever sent it (when they left an address and email is set up).
+router.post('/feedback/:id/reply', wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) return bad(res, 'Not found.', 404);
+    const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+    if (!text) return bad(res, 'Write a reply first.');
+    if (text.length > 4000) return bad(res, 'Please keep the reply under 4,000 characters.');
+    const fb = await Feedback.findById(req.params.id);
+    if (!fb) return bad(res, 'Not found.', 404);
+    if (!fb.email) return bad(res, "They didn't leave an email address.");
+    if (!canSendMail()) return bad(res, 'Email is not set up on the server (SMTP_URL).');
+    await sendMail({
+        to: fb.email,
+        subject: 'About your ResumeX feedback',
+        text: `${text}\n\n---\nYou wrote: "${fb.message.slice(0, 500)}"`,
+    });
+    const me = await User.findById(req.userId).select('email').lean();
+    fb.replies.push({ text, at: new Date(), by: me?.email || 'admin' });
+    const next = ['new', 'seen', 'fixed'].includes(req.body?.status) ? req.body.status : fb.status === 'new' ? 'seen' : fb.status;
+    fb.status = next;
+    await fb.save();
+    await audit(req, 'feedback.reply', String(fb._id));
+    const out = fb.toObject();
+    delete out.screenshot;
+    res.json({ success: true, data: out });
+}));
+
+const lastHours = (hours, n) => {
+    const since = new Date(Date.now() - n * 3600 * 1000).toISOString().slice(0, 13);
+    return Object.entries(hours || {}).reduce((sum, [k, v]) => sum + (k >= since ? v : 0), 0);
+};
+
+router.get('/errors', wrap(async (req, res) => {
+    const filter = {};
+    if (['browser', 'server'].includes(req.query.kind)) filter.kind = req.query.kind;
+    if (req.query.resolved !== '1') filter.resolvedAt = null;
+    const groups = await ErrorGroup.find(filter).sort({ lastAt: -1 }).limit(200).lean();
+    res.json({ success: true, data: groups.map(({ hours, ...g }) => ({ ...g, lastHour: lastHours(hours, 1), lastDay: lastHours(hours, 24) })) });
+}));
+
+router.patch('/errors/:id', wrap(async (req, res) => {
+    const id = String(req.params.id);
+    if (!/^[0-9a-f]{16}$/.test(id)) return bad(res, 'Not found.', 404);
+    const r = await ErrorGroup.updateOne({ _id: id }, req.body?.resolved === false ? { $unset: { resolvedAt: 1 } } : { resolvedAt: new Date() });
+    if (!r.matchedCount) return bad(res, 'Not found.', 404);
+    await audit(req, req.body?.resolved === false ? 'errors.reopen' : 'errors.resolve', id);
+    res.json({ success: true });
+}));
+
 // The owner's alerts (the console's bell): spend, storage, sign-ups, bursts.
 router.get('/alerts', wrap(async (req, res) => {
     res.json({ success: true, data: await recentAlerts() });

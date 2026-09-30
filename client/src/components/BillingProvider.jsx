@@ -8,6 +8,10 @@ import { useAuth } from "./AuthProvider";
 import { openCheckout } from "@/lib/paddle";
 import UpgradeModal from "./billing/UpgradeModal";
 import AiPausedNotice from "./billing/AiPausedNotice";
+import MaintenanceBanner from "./site/MaintenanceBanner";
+import FeedbackModal from "./site/FeedbackModal";
+import CampaignWelcome from "./site/CampaignWelcome";
+import ErrorReporter from "./site/ErrorReporter";
 import VerifyEmailModal from "./security/VerifyEmailModal";
 
 /**
@@ -305,10 +309,14 @@ export function BillingProvider({ children }) {
 
   return (
     <BillingContext.Provider value={value}>
+      <MaintenanceBanner />
       {children}
       <UpgradeModal request={upgrade} onClose={() => setUpgrade(null)} billing={value} />
       <AiPausedNotice />
       <VerifyEmailModal />
+      <FeedbackModal />
+      <CampaignWelcome />
+      <ErrorReporter />
     </BillingContext.Provider>
   );
 }

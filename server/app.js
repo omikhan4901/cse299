@@ -64,6 +64,7 @@ app.use('/api/profile', express.json({ limit: '3mb' }));
 app.use('/api/applications', express.json({ limit: '1mb' }));
 app.use('/api/ai', express.json({ limit: '2mb' }));
 app.use('/api/admin', express.json({ limit: '1mb' }));
+app.use('/api/reports', express.json({ limit: '600kb' })); // feedback may carry a screenshot
 app.use(express.json({ limit: '100kb' }));
 
 // Drop keys starting with "$" (and dotted keys) from request bodies and queries,
@@ -101,6 +102,39 @@ app.use('/api', (req, res, next) => {
     req.accountKey = accountOf(req);
     next();
 });
+// Maintenance mode (Admin › Site): everyone can look, only admins can change anything.
+// Signing in stays open (so admins can get in), and so do feedback and error reports.
+const MAINTENANCE_OPEN = ['/api/auth/login', '/api/auth/mfa', '/api/auth/me', '/api/reports/', '/api/paddle/'];
+app.use('/api', async (req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || MAINTENANCE_OPEN.some((p) => req.originalUrl.startsWith(p))) return next();
+    try {
+        const settings = await require('./lib/settings').getSettings();
+        if (!settings.maintenance?.enabled) return next();
+        if (req.accountKey) {
+            const u = await require('./models/User').findById(req.accountKey).select('role email').lean();
+            if (u && require('./lib/roles').isAdmin(u)) return next();
+        }
+        res.status(503).json({ success: false, code: 'maintenance', error: settings.maintenance.message });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Every 5xx answer is recorded for Admin › Errors (routes that answer their own errors too):
+// the route pattern, never the ids or the query string.
+const { recordError } = require('./lib/errors');
+const { getSettings } = require('./lib/settings');
+app.use('/api', (req, res, next) => {
+    res.on('finish', () => {
+        if (res.statusCode < 500 || res.statusCode === 503) return; // 503: busy or AI paused, on purpose
+        const route = req.route?.path ? `${req.baseUrl}${req.route.path}` : req.originalUrl.split('?')[0];
+        const err = res.locals.error;
+        getSettings()
+            .then((settings) => recordError({ kind: 'server', message: err?.message || `HTTP ${res.statusCode}`, where: `${req.method} ${route}`, stack: err?.stack }, settings))
+            .catch(() => {});
+    });
+    next();
+});
 app.use('/api', limit({ name: 'api-ip', windowMs: 60 * 1000, max: 600, key: (req) => (req.accountKey ? `u:${req.accountKey}` : clientIp(req)), message: 'Too many requests.', label: 'Whole API (per account, or per IP when signed out)', group: 'Overall', description: 'Ceiling for every request from one account (or one network when signed out). Every other limit is stricter.', min: 60 }));
 app.use('/api', limit({ name: 'api-network', windowMs: 60 * 1000, max: 6000, key: (req) => (req.accountKey ? clientIp(req) : null), message: 'Too many requests from this network.', label: 'Whole API, signed in (per IP)', group: 'Overall', description: 'Signed-in requests from one network, all accounts together. High, because a campus shares one address.', min: 600 }));
 
@@ -131,6 +165,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ats', atsRoutes);
+app.use('/api/reports', require('./routes/reports'));
 
 app.get('/api/health', (req, res) => {
     res.json({ success: true, db: mongoose.connection.readyState === 1, ai: aiRoutes.aiEnabled(), email: canSendMail() });
@@ -145,7 +180,10 @@ app.use((req, res) => res.status(404).json({ success: false, error: 'Not found' 
 // JSON parse errors, payloads that are too large, etc.
 app.use((err, req, res, next) => {
     const status = err.name === 'MulterError' ? 400 : err.status || err.statusCode || 500;
-    if (status >= 500) console.error(err);
+    if (status >= 500) {
+        console.error(err);
+        res.locals.error = err; // for Admin › Errors
+    }
     if (res.headersSent) return; // the handler already answered before failing
     res.status(status).json({
         success: false,

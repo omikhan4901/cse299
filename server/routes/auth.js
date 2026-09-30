@@ -109,6 +109,8 @@ const publicUser = (user) => ({
     twoFactorEnabled: !!user.twoFactor?.enabled,
     emailVerified: !!user.emailVerifiedAt,
     createdAt: user.createdAt,
+    // For the one-time welcome shown to people who joined through a campaign.
+    viaCampaign: !!user.campaign,
 });
 
 /** For /api/admin: the signed-in account must be an admin or a super admin. */
@@ -367,7 +369,9 @@ router.put('/password', protect, sensitiveByUser, async (req, res) => {
 router.get('/export', protect, exportByUser, async (req, res) => {
     try {
         const [user, data] = await Promise.all([User.findById(req.userId).lean(), exportUserData(req.userId)]);
-        const { password, resetTokenHash, resetTokenExpires, sessionVersion, __v, ...account } = user;
+        // Internal fields stay out: secrets (even encrypted or hashed) and the network hash.
+        const { password, resetTokenHash, resetTokenExpires, sessionVersion, __v, twoFactor, signupNet, ...account } = user;
+        account.twoFactorEnabled = !!twoFactor?.enabled;
         res.set('Content-Disposition', `attachment; filename="resumex-data-${new Date().toISOString().slice(0, 10)}.json"`);
         res.json({ exportedAt: new Date().toISOString(), account, ...data });
     } catch (err) {

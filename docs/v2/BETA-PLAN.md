@@ -286,3 +286,31 @@ separately. Rough total: 12–16 working days of effort.
   if someone used the menu's "Sign up" on the invite page (the code is now remembered in the
   browser for 30 days and filled into any sign-up, then forgotten); the phone's icon-only
   "Add" and "Tailor" buttons had no accessible names.
+
+**Phase 6 (finishing)**
+- Feedback: a "Beta" tag by the logo opens what's new, known issues and "Send feedback"
+  (also in the account menu and on the error screen). A note, the page (path only), an
+  optional screenshot (shrunk in the browser, 400 KB at most) and, signed out, an email.
+  Admin › Feedback: new / seen / fixed, the screenshot on request, and a reply by email
+  (recorded; refused when there's no address or no email set up). New feedback shows under
+  the bell (not emailed, to keep the inbox quiet). Deleted with the account; in the export.
+- Errors: uncaught browser errors (production only, 5 different ones per page load, known
+  noise skipped) and every 5xx the API answers are grouped by a fingerprint in Admin ›
+  Feedback › Errors, with counts per hour and a resolve switch (a resolved error reopens when
+  it happens again). Emails, tokens, ids and long numbers are masked; pages keep only their
+  path. The owner is emailed when one error happens 20 times in an hour (Admin › Site).
+  Next.js error screens (page and whole layout) report and offer "Try again".
+- Admin › Site: the Beta tag and its notes, the campaign welcome note, maintenance mode and
+  the error alert level. Maintenance: reads work, writes answer 503 with the message
+  (admins exempt; signing in, feedback and error reports stay open), a bar across the site.
+- Campaign members see a one-time welcome (plan until when, credits, the note).
+- Backups: `npm run backup` / `npm run restore` (Extended JSON, gzip, one file per
+  collection; restore refuses to overwrite unless `--replace`), `docs/backups.md` with the
+  Atlas clicks for a read-only backup user. `server/backups/` is git-ignored.
+- The account export no longer includes internal fields (the encrypted 2FA secret, hashed
+  recovery codes, the network hash).
+- Found by the full suite: the after-insert resume check could still keep two when a resume
+  made first was saved second. Each server now runs one account's creates (new resume,
+  duplicate, new application) one at a time; the after-insert check stays for two servers.
+- **Needs the owner's OK (legal wording):** two privacy policy lines, "Feedback you send"
+  and "Error reports".

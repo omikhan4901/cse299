@@ -72,6 +72,19 @@ const DEFAULTS = {
     // Database storage (lib/storage.js): the plan's size in MB (Atlas M0: 512) and the % at
     // which the owner is emailed (again at 90%).
     storage: { quotaMb: 512, alertAt: 70 },
+    // Error reports (lib/errors.js): the owner is alerted when one error happens this many
+    // times in an hour (0 = never).
+    errors: { spikePerHour: 20 },
+    // The beta around the site (Admin › Site): the "Beta" tag with what's new and known
+    // issues, a welcome for campaign members, and maintenance mode (everyone can look, only
+    // admins can change anything; a banner says why).
+    beta: {
+        label: true,
+        whatsNew: ['Track every job application in one place', 'A tailored resume for each job, from your Career Profile', 'Interview prep built from the job and your resume'],
+        knownIssues: [],
+        welcome: 'Thanks for trying ResumeX early. Start by importing your old CV, then add the jobs you are applying to.',
+    },
+    maintenance: { enabled: false, message: "We're making ResumeX better. You can look around, but saving is paused for a few minutes." },
     // Payments (Paddle): off (no checkout, "Coming soon"), test (only admins and testers can
     // pay, e.g. with Paddle's sandbox), live (everyone). Webhooks are processed in every mode.
     payments: { mode: 'off' },
@@ -132,6 +145,9 @@ const num = (v, fallback, { min = 0, max = 1e7 } = {}) => {
 const str = (v, fallback, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : fallback);
 
 /** Validates and normalises a full settings object (unknown keys are dropped). */
+// A short list of one-line notes (what's new, known issues): up to 8, each up to 160 characters.
+const lines = (v, fallback) => (Array.isArray(v) ? v.map((x) => String(x).trim().slice(0, 160)).filter(Boolean).slice(0, 8) : fallback);
+
 function clean(input) {
     const s = merge(DEFAULTS, input || {});
     const costs = {};
@@ -225,6 +241,17 @@ function clean(input) {
                 ? [...new Set(s.signups.blockedDomains.map((d) => String(d).trim().toLowerCase().replace(/^@/, '')).filter((d) => /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(d) && d.length <= 100))].slice(0, 2000)
                 : DEFAULTS.signups.blockedDomains,
         },
+        beta: {
+            label: s.beta?.label !== false,
+            whatsNew: lines(s.beta?.whatsNew, DEFAULTS.beta.whatsNew),
+            knownIssues: lines(s.beta?.knownIssues, DEFAULTS.beta.knownIssues),
+            welcome: typeof s.beta?.welcome === 'string' ? s.beta.welcome.trim().slice(0, 400) : DEFAULTS.beta.welcome,
+        },
+        maintenance: {
+            enabled: !!s.maintenance?.enabled,
+            message: typeof s.maintenance?.message === 'string' && s.maintenance.message.trim() ? s.maintenance.message.trim().slice(0, 300) : DEFAULTS.maintenance.message,
+        },
+        errors: { spikePerHour: Math.round(num(s.errors?.spikePerHour, 20, { min: 0, max: 100000 })) },
         storage: {
             quotaMb: Math.round(num(s.storage?.quotaMb, 512, { min: 64, max: 1024 * 1024 })),
             alertAt: Math.round(num(s.storage?.alertAt, 70, { min: 0, max: 99 })),

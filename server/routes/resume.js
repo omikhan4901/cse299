@@ -9,6 +9,7 @@ const User = require("../models/User");
 const { getSettings } = require("../lib/settings");
 const { canUse, USER_FIELDS: ACCESS_FIELDS } = require("../lib/credits");
 const { roomForResumes, keptWithinLimit } = require("../lib/resumeLimit");
+const { lockedByUser } = require("../lib/userLock");
 const { templateAllowed, templateTier } = require("../lib/templates");
 const { CONTENT_KEYS, pick, tooBig } = require("../lib/resumeInput");
 
@@ -67,11 +68,12 @@ const handleError = (res, err, fallback) => {
   if (err.name === "ValidationError") {
     return res.status(400).json({ success: false, error: Object.values(err.errors)[0]?.message || "Invalid resume data" });
   }
+  res.locals.error = err; // for Admin › Errors
   res.status(500).json({ success: false, error: fallback });
 };
 
 // @route   POST /api/resumes  — create a resume
-router.post("/", protect, perAccount, createByUser, async (req, res) => {
+router.post("/", protect, perAccount, createByUser, lockedByUser(async (req, res) => {
   try {
     if (!(await underResumeCap(req, res))) return;
     const data = pickEditable(req.body);
@@ -85,7 +87,7 @@ router.post("/", protect, perAccount, createByUser, async (req, res) => {
   } catch (err) {
     handleError(res, err, "Server error while saving the resume.");
   }
-});
+}));
 
 // @route   GET /api/resumes  — list the user's resumes (photos left out to keep it light)
 router.get("/", protect, perAccount, async (req, res) => {
@@ -142,7 +144,7 @@ router.put("/:id", protect, perAccount, async (req, res) => {
 });
 
 // @route   POST /api/resumes/:id/duplicate
-router.post("/:id/duplicate", protect, perAccount, createByUser, async (req, res) => {
+router.post("/:id/duplicate", protect, perAccount, createByUser, lockedByUser(async (req, res) => {
   try {
     const resume = await findOwned(req, res);
     if (!resume) return;
@@ -154,7 +156,7 @@ router.post("/:id/duplicate", protect, perAccount, createByUser, async (req, res
   } catch (err) {
     handleError(res, err, "Server error while duplicating the resume.");
   }
-});
+}));
 
 // @route   DELETE /api/resumes/:id
 router.delete("/:id", protect, perAccount, async (req, res) => {

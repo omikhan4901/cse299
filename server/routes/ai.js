@@ -183,6 +183,7 @@ const generate = async (systemInstruction, contents, generationConfig, req) => {
 // Failed requests are refunded (lib/credits.js), so the message says so.
 const sendError = (res, err) => {
     console.error('AI route error:', err.message);
+    if ((err.status || 500) >= 500) res.locals.error = err; // for Admin › Errors
     const message = err instanceof AiError || err.expose ? err.message : 'AI request failed.';
     res.status(err.status || 500).json({ success: false, error: `${message} You weren't charged for this.` });
 };

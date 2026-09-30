@@ -6,6 +6,7 @@ const { protect } = require('./auth');
 const { limit } = require('../lib/rateLimit');
 const { requireV2, requireFeature } = require('../lib/v2');
 const { roomForResumes } = require('../lib/resumeLimit');
+const { lockedByUser } = require('../lib/userLock');
 const { planLimit } = require('../lib/credits');
 const { fetchPageText, FetchError } = require('../lib/safeFetch');
 const { CONTENT_KEYS, pick } = require('../lib/resumeInput');
@@ -191,7 +192,7 @@ router.post('/tailored', async (req, res, next) => {
 });
 
 // @route POST /api/applications — track a new one
-router.post('/', async (req, res, next) => {
+router.post('/', lockedByUser(async (req, res, next) => {
     try {
         const { data, error } = readBody(req.body);
         if (error) return res.status(400).json({ success: false, error });
@@ -215,7 +216,7 @@ router.post('/', async (req, res, next) => {
     } catch (err) {
         invalid(res, err, next);
     }
-});
+}));
 
 // @route GET /api/applications/:id — everything, including the job text and the copy sent
 router.get('/:id', async (req, res, next) => {

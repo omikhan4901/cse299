@@ -1,0 +1,3 @@
+
+# Database backups hold personal data: never commit them (docs/backups.md).
+backups/

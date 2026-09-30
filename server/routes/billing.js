@@ -55,6 +55,8 @@ router.get('/plans', async (req, res, next) => {
                 planLimits: PLAN_LIMITS,
                 // AI paused (monthly cap reached, or by an admin): shown up front in the site.
                 aiPaused: await pauseState(s).then((p) => (p.paused ? { reason: p.reason, until: p.until } : null)),
+                beta: s.beta,
+                maintenance: s.maintenance.enabled ? { message: s.maintenance.message } : null,
             },
         });
     } catch (err) {

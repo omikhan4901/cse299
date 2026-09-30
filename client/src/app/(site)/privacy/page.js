@@ -22,6 +22,8 @@ export default function PrivacyPage() {
           <li><b>Payments:</b> if you buy a plan, Paddle (our reseller and merchant of record) takes the payment. We never see or store your card details. Paddle tells us your plan, what was charged and refunded, and your billing country, and we keep those records for accounting even after an account is deleted (without the link to the account).</li>
           <li><b>Upgrade steps:</b> when a paid feature is shown to you as locked, or you open the checkout, we note that it happened and from which feature, to understand which features are worth paying for. Only the step is recorded, not your content. These records are deleted with your account, or after about 13 months.</li>
           <li><b>Technical data:</b> our hosting providers keep standard server logs (such as IP address and browser type) for security and troubleshooting.</li>
+          <li><b>Feedback you send:</b> your message, the page you were on, a screenshot if you add one, and your email so we can reply. We use it only to improve ResumeX and to answer you.</li>
+          <li><b>Error reports:</b> when something breaks, the site sends us the error and the page address (without anything after the &ldquo;?&rdquo;). Emails and long numbers are removed before we store it.</li>
           <li><b>How you found us:</b> when you sign up we note whether you used a campaign code, the tag of the link you arrived by (for example &ldquo;ref=fb-post&rdquo;), and a scrambled code for your network (not your IP address) so we can spot mass sign-ups.</li>
         </ul>
         <p className="mt-3">You can use the builder without an account. In that case your draft stays in your own browser and is never sent to us unless you save it or use an AI feature.</p>

@@ -7,7 +7,6 @@ import { Gift, Lock, Zap } from "lucide-react";
 import { useSettingsDraft } from "./useSettingsDraft";
 import SaveBar from "./SaveBar";
 
-/** Free mode, credit cost per AI feature and who can sign up. */
 /** One domain per line; the list is taken when the field is left (so typing a new line works). */
 function DomainList({ value, onChange }) {
   const [text, setText] = useState(null);
@@ -26,6 +25,7 @@ function DomainList({ value, onChange }) {
   );
 }
 
+/** Free mode, credit cost per AI feature and who can sign up. */
 export default function CreditsTab() {
   const { settings, meta, error, loading, update, save, saving, dirty, discard } = useSettingsDraft();
   if (loading && !settings) return <Skeleton active paragraph={{ rows: 10 }} />;

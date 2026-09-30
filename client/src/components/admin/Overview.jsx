@@ -148,9 +148,11 @@ function Glance({ g }) {
     { label: "Active today", value: g.activeToday },
     { label: "Active this week", value: g.active7 },
     { label: "Sign-ups today", value: g.signupsToday, sub: g.signupsLeft != null ? `${g.signupsLeft} places left` : null },
+    { label: "Feedback waiting", value: g.feedbackNew ?? 0, sub: "Feedback tab" },
+    { label: "Errors today", value: g.errorsToday ?? 0, sub: "Feedback › Errors" },
   ];
   return (
-    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((i) => (
         <div key={i.label}>
           <p className="text-xs text-slate-500">{i.label}</p>

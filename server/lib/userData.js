@@ -10,8 +10,9 @@ const Payment = require('../models/Payment');
 const Application = require('../models/Application');
 const Reminder = require('../models/Reminder');
 const BillingEvent = require('../models/BillingEvent');
+const Feedback = require('../models/Feedback');
 
-const PER_USER = [Resume, Usage, AiEvent, CareerProfile, Application, Reminder, BillingEvent];
+const PER_USER = [Resume, Usage, AiEvent, CareerProfile, Application, Reminder, BillingEvent, Feedback];
 
 /** Deletes everything the account owns (not the User document itself). */
 const deleteUserData = (userId) =>
@@ -23,12 +24,13 @@ const deleteUserData = (userId) =>
 
 /** What the person can download about themselves. */
 async function exportUserData(userId) {
-    const [resumes, profile, applications] = await Promise.all([
+    const [resumes, profile, applications, feedback] = await Promise.all([
         Resume.find({ user: userId }).select('-__v -user').lean(),
         CareerProfile.findOne({ user: userId }).select('-__v -user').lean(),
         Application.find({ user: userId }).select('-__v -user').lean(),
+        Feedback.find({ user: userId }).select('-__v -user').lean(),
     ]);
-    return { resumes, careerProfile: profile || null, applications };
+    return { resumes, careerProfile: profile || null, applications, feedback };
 }
 
 module.exports = { deleteUserData, exportUserData, PER_USER };
