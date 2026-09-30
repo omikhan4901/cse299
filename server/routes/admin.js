@@ -14,7 +14,7 @@ const { escapeRe, validEmail, emailQuery, searchText } = require('../lib/email')
 const { limit, describeLimits } = require('../lib/rateLimit');
 const { deleteUserData } = require('../lib/userData');
 const { aiEconomics, usageBasis } = require('../lib/economics');
-const { pauseState, monthKey, nextMonth, callCost } = require('../lib/aiSpend');
+const { pauseState, monthKey, nextMonth, callCost, recordSpend } = require('../lib/aiSpend');
 const { revenueReport, paymentsCsv } = require('../lib/revenue');
 const { storageReport, checkStorage } = require('../lib/storage');
 const { cleanRef } = require('../lib/network');
@@ -585,6 +585,34 @@ router.get('/storage', wrap(async (req, res) => {
     const report = await storageReport(settings, { fresh: req.query.fresh === '1' });
     checkStorage(settings);
     res.json({ success: true, data: report });
+}));
+
+// "Rewrite with AI" for a plan's perks (lib/perksDraft.js): a proposal from the plan's own
+// settings, which the admin can use or ignore. Its cost counts towards the monthly AI cap.
+const perksLimit = limit({ name: 'admin-perks', windowMs: 60 * 60 * 1000, max: 30, key: (req) => req.userId, message: 'Too many perk rewrites. Try again in a while.', label: 'Perk rewrites (AI)', group: 'Admin', scope: 'account', description: 'AI rewrites of a plan’s perks one admin can ask for in an hour.' });
+router.post('/perks-draft', perksLimit, wrap(async (req, res) => {
+    const { draftPlan, planFacts, cleanPerks, prompt, SYSTEM } = require('../lib/perksDraft');
+    const settings = await getSettings();
+    const plans = (Array.isArray(req.body?.plans) ? req.body.plans : []).slice(0, 5).map(draftPlan).filter(Boolean);
+    const plan = plans.find((p) => p.id === req.body?.planId);
+    if (!plan) return bad(res, 'Unknown plan.');
+    const facts = planFacts(plan, plans, settings);
+    req.aiLimits = { output: 300, thinking: 0 };
+    let text;
+    try {
+        text = await require('./ai').generate(SYSTEM, [{ role: 'user', parts: [{ text: prompt(facts, plan.perks) }] }], { temperature: 0.4 }, req);
+    } catch (err) {
+        return bad(res, err.status && err.status < 500 ? err.message : `${err.message || 'The AI is unavailable right now.'} Your perks weren't changed.`, 502);
+    } finally {
+        const u = req.aiUsage;
+        if (u) {
+            await recordSpend(u, settings).catch(() => {});
+            await AiEvent.create({ user: req.userId, feature: 'adminPerks', credits: 0, model: u.model || undefined, inputTokens: u.inputTokens, outputTokens: u.outputTokens }).catch(() => {});
+        }
+    }
+    const out = cleanPerks(text, facts);
+    if (!out.perks.length) return bad(res, "The AI's suggestion didn't match the plan's settings. Try again.", 502);
+    res.json({ success: true, data: out });
 }));
 
 // What a credit really costs and how many credits accounts really use (the campaign estimate).

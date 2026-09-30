@@ -1,7 +1,11 @@
 "use client";
 
-import { Alert, Input, InputNumber, Select, Skeleton, Switch, Tooltip } from "antd";
-import { Crown, Info } from "lucide-react";
+import { useState } from "react";
+import { Alert, App, Button, Input, InputNumber, Select, Skeleton, Switch, Tooltip } from "antd";
+import { Crown, Info, Sparkles } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "../AuthProvider";
+import { keyPerks, perksOf } from "../billing/perks";
 import { useSettingsDraft } from "./useSettingsDraft";
 import { useBilling } from "../BillingProvider";
 import SaveBar from "./SaveBar";
@@ -15,6 +19,58 @@ function Field({ label, hint, children }) {
       </span>
       {children}
     </label>
+  );
+}
+
+/**
+ * The perks box, with what the pricing page adds on its own, which lines it hides, and
+ * "Rewrite with AI": a proposal from the plan's settings that the admin uses or dismisses.
+ */
+function PerksEditor({ plan, plans, v2, onChange }) {
+  const { token } = useAuth();
+  const { message } = App.useApp();
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState(null);
+  const lines = plan.perks.map((x) => x.trim()).filter(Boolean);
+  const shown = perksOf({ perks: lines });
+  const hidden = lines.filter((x) => !shown.includes(x));
+  const auto = keyPerks(plan, { v2 });
+  const rewrite = async () => {
+    setBusy(true);
+    try {
+      setDraft((await api("/admin/perks-draft", { token, method: "POST", body: { planId: plan.id, plans } })).data);
+    } catch (err) {
+      message.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1 text-xs font-medium text-slate-600">
+          Perks on the pricing page
+          <Tooltip title="One per line. AI credits and the number of resumes are shown from the plan's settings, so lines stating them are hidden."><Info size={12} className="text-slate-400" /></Tooltip>
+        </span>
+        <Button size="small" type="link" className="!px-0" icon={<Sparkles size={13} />} loading={busy} onClick={rewrite}>Rewrite with AI</Button>
+      </div>
+      <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} value={plan.perks.join("\n")} onChange={(e) => onChange(e.target.value.split("\n"))} />
+      {auto.length ? <p className="mt-1.5 text-xs text-slate-500">Added on its own: {auto.join(" · ")}, and the AI credits.</p> : null}
+      {hidden.length ? <p className="mt-1 text-xs text-amber-700">Hidden on the page (it states these from the settings): {hidden.map((x) => `“${x}”`).join(", ")}</p> : null}
+      {draft ? (
+        <div className="mt-2 rounded-xl border border-brand/20 bg-brand-50/60 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-ink"><Sparkles size={13} className="text-brand" /> Suggested from this plan&apos;s settings</p>
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-slate-700">
+            {draft.perks.map((x) => <li key={x}>{x}</li>)}
+          </ul>
+          {draft.dropped?.length ? <p className="mt-1.5 text-xs text-slate-500">Left out {draft.dropped.length} line{draft.dropped.length === 1 ? "" : "s"} that didn&apos;t match the settings.</p> : null}
+          <div className="mt-2 flex gap-2">
+            <Button size="small" type="primary" onClick={() => (onChange(draft.perks), setDraft(null))}>Use these</Button>
+            <Button size="small" onClick={() => setDraft(null)}>Keep mine</Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -134,9 +190,7 @@ export default function PlansTab() {
                   <p className="text-xs text-slate-500">Credits can be spent on: {aiOn.map((f) => f.name).join(", ")}.</p>
                 ) : null;
               })()}
-              <Field label="Perks on the pricing page" hint="One per line">
-                <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} value={p.perks.join("\n")} onChange={(e) => setPlan(i, (x) => (x.perks = e.target.value.split("\n")))} />
-              </Field>
+              <PerksEditor plan={p} plans={settings.plans} v2={!!settings.v2?.enabled} onChange={(perks) => setPlan(i, (x) => (x.perks = perks))} />
             </div>
           </div>
         ))}

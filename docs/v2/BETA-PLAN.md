@@ -372,3 +372,16 @@ separately. Rough total: 12–16 working days of effort.
   years and error reports 90 days after they last happened, as the policy says; backups keep
   the last four.
 - **Needs the owner's OK (legal wording):** the new Privacy and Terms sections above, and 18+.
+
+**Admin tools (owner asked, 30 Sep)**
+- Campaign estimate: "Likely" uses real usage (credits an account uses a month, what a
+  credit really costs; `GET /admin/ai-usage`), else a stated guess (25 credits a month, a
+  request at 35% of its worst case), members joining on different days (1 + days/30.44
+  monthly allowances); "At most" is the worst case bounded by the monthly AI cap (what's
+  left this month plus a full cap per further month) and by the per-minute AI rate limit
+  when that binds. Admin AI calls don't count in the measured cost per credit.
+- Plans: "Rewrite with AI" for perks (`POST /admin/perks-draft`, lib/perksDraft.js). Facts
+  come from the plan's unsaved settings (features, templates it opens, V2 only when on, the
+  plan below); lines stating credits or resumes, or with numbers the facts don't have, are
+  dropped; the admin uses or dismisses it. 300 output tokens, 30 an hour per admin, counted
+  in the AI cap. The editor also shows what the page adds on its own and which lines it hides.

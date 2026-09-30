@@ -102,7 +102,7 @@ async function usageBasis(settings) {
     const prices = settings.aiPrices || { default: { input: 0, output: 0 } };
     const now = Date.now();
     const [events, seen] = await Promise.all([
-        AiEvent.find({ at: { $gte: new Date(now - 60 * 864e5) } }).select('user model ok credits inputTokens outputTokens at').limit(500000).lean(),
+        AiEvent.find({ at: { $gte: new Date(now - 60 * 864e5) } }).select('user feature model ok credits inputTokens outputTokens at').limit(500000).lean(),
         User.countDocuments({ lastSeenAt: { $gte: new Date(now - 30 * 864e5) } }),
     ]);
     let cost = 0;
@@ -110,6 +110,7 @@ async function usageBasis(settings) {
     let recentCredits = 0;
     const since30 = now - 30 * 864e5;
     for (const e of events) {
+        if (String(e.feature || '').startsWith('admin')) continue; // admin tools, not members' use
         cost += costOf({ model: e.model, inputTokens: e.inputTokens || 0, outputTokens: e.outputTokens || 0 }, prices);
         if (e.ok === false) continue;
         credits += e.credits || 0;

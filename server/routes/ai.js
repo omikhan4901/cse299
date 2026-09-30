@@ -590,3 +590,5 @@ GUIDELINES:
 
 router.aiEnabled = aiEnabled;
 module.exports = router;
+// For admin tools that word things with the same model (Admin › Plans perks).
+module.exports.generate = generate;
