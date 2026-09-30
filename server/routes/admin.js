@@ -718,15 +718,16 @@ router.get('/campaigns', wrap(async (req, res) => {
     const [campaigns, settings] = await Promise.all([Campaign.find().sort({ createdAt: -1 }).lean(), getSettings()]);
     // Per campaign: members, members active in the last 7 days, and what their AI has cost.
     const ids = campaigns.map((c) => c._id);
-    const members = await User.find({ campaign: { $in: ids } }).select('campaign lastLoginAt').lean();
+    const members = await User.find({ campaign: { $in: ids } }).select('campaign lastLoginAt campaignEndedAt').lean();
     const since = Date.now() - 7 * 864e5;
     const campaignOf = new Map(members.map((u) => [String(u._id), String(u.campaign)]));
     const events = members.length ? await AiEvent.find({ user: { $in: members.map((u) => u._id) } }).select('user credits model inputTokens outputTokens').lean() : [];
-    const stats = new Map(ids.map((id) => [String(id), { members: 0, active: 0, credits: 0, aiCost: 0 }]));
+    const stats = new Map(ids.map((id) => [String(id), { members: 0, active: 0, finished: 0, credits: 0, aiCost: 0 }]));
     for (const u of members) {
         const st = stats.get(String(u.campaign));
         st.members += 1;
         if (u.lastLoginAt && new Date(u.lastLoginAt) > since) st.active += 1;
+        if (u.campaignEndedAt) st.finished += 1;
     }
     for (const e of events) {
         const st = stats.get(campaignOf.get(String(e.user)));

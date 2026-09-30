@@ -65,11 +65,22 @@ const canUse = (user, settings, feature) => {
  * free mode). The account's own limit (set by an admin) wins, even in free mode. Same rule as
  * planLimit in client/src/lib/access.js (parity test).
  */
+// Which feature each workspace limit belongs to.
+const LIMIT_FEATURE = { applications: 'applications', tailored: 'applications', batch: 'applications' };
+
 const planLimit = (user, settings, key) => {
     const own = user?.limits?.[key];
     if (typeof own === 'number') return own;
     if (settings.freeMode.enabled) return null;
     const v = planById(settings, effectivePlanId(user)).limits?.[key];
+    // A feature switched on for this account (by a campaign or an admin) that its plan
+    // leaves out: the limits of the cheapest plan that has it, so the switch really works.
+    const feature = LIMIT_FEATURE[key];
+    if (v === 0 && feature && activeOverrides(user)?.[feature] === true) {
+        const lowest = settings.plans.find((p) => p.features?.[feature]) || settings.plans[settings.plans.length - 1];
+        const w = lowest?.limits?.[key];
+        return w === undefined ? null : w;
+    }
     return v === undefined ? null : v;
 };
 

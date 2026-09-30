@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const { runReminders } = require('../lib/reminders');
+const { endExpiredGrants } = require('../lib/campaignEnd');
 
 /**
  * Jobs run by Cloud Scheduler (not by people). Every request must carry the shared
@@ -20,7 +21,9 @@ router.use((req, res, next) => {
 
 router.post('/reminders', async (req, res, next) => {
     try {
-        res.json({ success: true, data: await runReminders({ digest: req.body?.digest === true }) });
+        // The same scheduled call tidies accounts whose campaign or admin grants have ended.
+        const ended = await endExpiredGrants();
+        res.json({ success: true, data: { ...(await runReminders({ digest: req.body?.digest === true })), ended } });
     } catch (err) {
         next(err);
     }

@@ -175,7 +175,7 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
           <Form.Item name="description" label="Message on the invite page"><Input.TextArea autoSize={{ minRows: 2 }} placeholder="Free resume tools for NSU CSE students" /></Form.Item>
           <div className="grid grid-cols-3 gap-x-3">
             <Form.Item name="plan" label="Plan"><Select options={PLAN_OPTIONS} /></Form.Item>
-            <Form.Item name="durationDays" label="For (days)" tooltip="How long a paid campaign plan lasts after sign-up"><InputNumber min={1} className="!w-full" /></Form.Item>
+            <Form.Item name="durationDays" label="For (days)" tooltip="How long each member keeps what the campaign gives (its plan, credits and switched-on features), counted from their sign-up. After that they're an ordinary account on the Free plan, and the campaign's extras are removed."><InputNumber min={1} className="!w-full" /></Form.Item>
             <Form.Item name="maxUses" label="Places"><InputNumber min={1} className="!w-full" /></Form.Item>
           </div>
           <div className="mb-4 rounded-xl border border-slate-200 p-3">
@@ -200,7 +200,7 @@ function CampaignModal({ campaign, onClose, onSaved, call }) {
             <>
               <Form.Item noStyle shouldUpdate={(a, b) => a.plan !== b.plan}>
                 {({ getFieldValue }) => (
-                  <Form.Item name="features" label="Features for members" tooltip="Follow the plan, or turn a feature on or off for members whatever their plan says, for as long as the campaign gives.">
+                  <Form.Item name="features" label="Features for members" tooltip="Follow the plan, or turn a feature on or off for members whatever their plan says, for the campaign's days. A feature turned on comes with the limits of the cheapest plan that has it (for Applications, Pro's number of applications). AI features still spend the credits above, and templates follow the plan.">
                     <FeatureSwitches features={[...meta.aiFeatures, ...meta.appFeatures]} plan={meta.settings.plans.find((p) => p.id === getFieldValue("plan"))} freeMode={meta.settings.freeMode.enabled} />
                   </Form.Item>
                 )}
@@ -297,7 +297,7 @@ export default function CampaignsTab() {
       render: (_, c) => (
         <span className="text-sm text-slate-600 tabular-nums">
           {c.stats?.members ?? 0}
-          <span className="block text-xs text-slate-400">{c.stats?.active ?? 0} active this week</span>
+          <span className="block text-xs text-slate-400">{c.stats?.active ?? 0} active this week{c.stats?.finished ? ` · ${c.stats.finished} finished` : ""}</span>
         </span>
       ),
     },

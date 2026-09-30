@@ -389,3 +389,12 @@ separately. Rough total: 12–16 working days of effort.
   plan below); lines stating credits or resumes, or with numbers the facts don't have, are
   dropped; the admin uses or dismisses it. 300 output tokens, 30 an hour per admin, counted
   in the AI cap. The editor also shows what the page adds on its own and which lines it hides.
+- Campaign end (owner, 30 Sep): when a member's campaign days are over, the scheduled
+  `/internal/reminders` call (lib/campaignEnd.js) makes them an ordinary account: an ended
+  plan goes back to Free, the campaign's credit allowance and feature switches are removed,
+  and they're marked finished (`campaignEndedAt`, shown in Admin › Campaigns); the campaign
+  link stays as history. Credits used this month still count against the Free allowance.
+  Subscriptions (Paddle) are never touched; an admin's timed plan ends the same way.
+- A feature switched on for an account whose plan leaves it out (a Free campaign with
+  Applications on) now gets the limits of the cheapest plan that has it; before, the plan's
+  limit of 0 made the switch useless. Same rule in client/src/lib/access.js (parity test).

@@ -35,13 +35,26 @@ export function canUseTemplate(config, planId, template) {
   return planIncludes(planId, template, config.templates);
 }
 
-/** A numeric plan limit (applications, tailored, batch): null = no limit (also in free mode). */
-export function planLimit(config, planId, key, own = null) {
+// Which feature each workspace limit belongs to.
+const LIMIT_FEATURE = { applications: "applications", tailored: "applications", batch: "applications" };
+
+/**
+ * A numeric plan limit (applications, tailored, batch): null = no limit (also in free mode).
+ * `own` is the account's own limits; `features` its own feature switches (campaign or admin).
+ */
+export function planLimit(config, planId, key, own = null, features = null) {
   // The account's own limit (from an admin) wins, even over free mode.
   if (typeof own?.[key] === "number") return own[key];
   if (!config || config.freeMode?.enabled) return null;
   const plan = config.plans?.find((p) => p.id === planId) || config.plans?.[0];
   const v = plan?.limits?.[key];
+  // A feature switched on that the plan leaves out: the cheapest plan with it sets the limit.
+  const feature = LIMIT_FEATURE[key];
+  if (v === 0 && feature && features?.[feature] === true) {
+    const lowest = config.plans.find((p) => p.features?.[feature]) || config.plans[config.plans.length - 1];
+    const w = lowest?.limits?.[key];
+    return w === undefined ? null : w;
+  }
   return v === undefined ? null : v;
 }
 

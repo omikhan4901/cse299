@@ -57,7 +57,9 @@ API. Once email (`SMTP_URL`, `MAIL_FROM`, `APP_URL`) and `INTERNAL_API_KEY` are 
 2. A second job `resumex-digest`, frequency `0 9 * * 1` (Mondays 9:00), same target, body
    `{"digest": true}`.
 
-Nothing is sent twice, so extra runs are harmless. Each email has an unsubscribe link, and
+The same call also tidies accounts whose campaign (or an admin's timed grant) has ended:
+they go back to their own plan and the campaign's credits and switches are removed, so it
+should run even before email is set up. Nothing is sent twice, so extra runs are harmless. Each email has an unsubscribe link, and
 people can turn either kind off in Account settings.
 
 ## 2. Connect the rest

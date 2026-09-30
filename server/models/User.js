@@ -59,6 +59,8 @@ const UserSchema = new mongoose.Schema({
     source: { type: String, enum: ['organic', 'campaign', 'admin'] },
     ref: { type: String },
     signupNet: { type: String, index: true },
+    // When the campaign's days ended for this member (lib/campaignEnd.js); `campaign` stays as history.
+    campaignEndedAt: { type: Date },
     // Which version of the Terms and Privacy Policy the account agreed to at sign-up, and when
     // (lib/legal.js), so there's a record of it.
     termsAccepted: { _id: false, version: String, at: Date },

@@ -284,10 +284,10 @@ export function BillingProvider({ children }) {
       /** V2 (Career Profile, applications) is visible to this account. */
       v2: canUseV2(config, user),
       /** A numeric plan limit (applications, tailored, batch); null = unlimited. */
-      limitOf: (key) => planLimit(config, planId, key, usage?.limits),
+      limitOf: (key) => planLimit(config, planId, key, usage?.limits, usage?.features),
       /** True when one more is allowed (`count` already used); otherwise explains the upgrade. */
       requireLimit: (key, count, what) => {
-        const max = planLimit(config, planId, key, usage?.limits);
+        const max = planLimit(config, planId, key, usage?.limits, usage?.features);
         if (max === null || count < max) return true;
         const better = config?.plans?.find((p) => PLAN_ORDER.indexOf(p.id) > PLAN_ORDER.indexOf(planId) && (p.limits?.[key] === null || p.limits?.[key] > max));
         setUpgrade({ feature: key, what, plan: better, description: max === 0 ? "Your plan doesn't include this." : `Your plan includes ${max}. Upgrade for more.` });
