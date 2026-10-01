@@ -37,6 +37,9 @@ const sourceOf = (request) => {
   return LIMIT_KEYS.includes(key) ? `limit:${key}` : `feature:${key}`;
 };
 
+// Coming back to a tab fires two events; one check is enough.
+const RECHECK_GAP = 5000;
+
 export function BillingProvider({ children }) {
   const { token, user, openAuth } = useAuth();
   const { message, modal } = App.useApp();
@@ -46,27 +49,30 @@ export function BillingProvider({ children }) {
   const [upgrade, setUpgrade] = useState(null);
 
   // Plans, locks and costs come from the admin settings. Reload them when the page
-  // comes back into view, every minute, and straight after an admin saves, so a
-  // change in /admin shows up without a full reload.
-  const refreshConfig = useCallback(
-    () =>
-      api("/billing/plans")
-        .then((d) => setConfig(d.data))
-        .catch(() => {}),
-    []
-  );
+  // comes back into view, every 5 minutes while it's open, and straight after an admin
+  // saves, so a change in /admin shows up without a full reload. Coming back fires both
+  // "focus" and "visibilitychange": calls within a few seconds of the last one are skipped.
+  const configAt = useRef(0);
+  const refreshConfig = useCallback((force = false) => {
+    if (force !== true && Date.now() - configAt.current < RECHECK_GAP) return;
+    configAt.current = Date.now();
+    return api("/billing/plans")
+      .then((d) => setConfig(d.data))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
-    refreshConfig();
+    refreshConfig(true);
     const onVisible = () => document.visibilityState === "visible" && refreshConfig();
-    const timer = setInterval(onVisible, 60 * 1000);
+    const forced = () => refreshConfig(true);
+    const timer = setInterval(onVisible, 5 * 60 * 1000);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
-    window.addEventListener(SETTINGS_CHANGED, refreshConfig);
+    window.addEventListener(SETTINGS_CHANGED, forced);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
-      window.removeEventListener(SETTINGS_CHANGED, refreshConfig);
+      window.removeEventListener(SETTINGS_CHANGED, forced);
     };
   }, [refreshConfig]);
 
@@ -84,9 +90,15 @@ export function BillingProvider({ children }) {
     else refreshUsage();
   }, [token, refreshUsage]);
 
-  // An admin may change the plan or credits while this page is open: re-check on return.
+  // An admin may change the plan or credits while this page is open: re-check on return
+  // (once, though "focus" and "visibilitychange" both fire).
+  const usageAt = useRef(0);
   useEffect(() => {
-    const onVisible = () => document.visibilityState === "visible" && refreshUsage();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - usageAt.current < RECHECK_GAP) return;
+      usageAt.current = Date.now();
+      refreshUsage();
+    };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     return () => {
@@ -118,7 +130,7 @@ export function BillingProvider({ children }) {
     const onUpgrade = (e) => {
       const { feature, plan, template, error } = e.detail;
       // The server knows best: refresh the local copy of the plans, then explain.
-      refreshConfig();
+      refreshConfig(true);
       const limit = LIMIT_KEYS.includes(feature) ? configRef.current?.planLimits?.find((l) => l.key === feature) : null;
       setUpgrade({
         feature,
@@ -244,7 +256,7 @@ export function BillingProvider({ children }) {
       config,
       usage,
       refreshUsage,
-      refreshConfig,
+      refreshConfig: () => refreshConfig(true),
       freeMode,
       plan,
       costOf: (key) => config?.featureCosts?.[key] ?? null,
